@@ -124,7 +124,11 @@ export interface AgentContext {
 }
 
 export interface AgentManager {
-  handleMessage: (message: IncomingMessage, session: Session) => Promise<string | null>;
+  handleMessage: (
+    message: IncomingMessage,
+    session: Session,
+    streamCallback?: (text: string) => void,
+  ) => Promise<string | null>;
   dispose: () => void;
   reloadSkills: () => void;
   reloadConfig: (config: Config) => void;
@@ -3506,6 +3510,7 @@ export function createAgentManager(deps: {
   async function handleMessage(
     message: IncomingMessage,
     session: Session,
+    streamCallback?: (text: string) => void,
   ): Promise<string | null> {
     const text = message.text.trim();
     if (!text) return null;
@@ -3558,6 +3563,70 @@ export function createAgentManager(deps: {
     const model = rawModel.replace(/^anthropic\//, '');
 
     // -----------------------------------------------------------------------
+    // Prompt caching: wrap system prompt in cache_control blocks
+    // -----------------------------------------------------------------------
+    type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
+    const systemBlocks: SystemBlock[] = [
+      { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
+    ];
+
+    // -----------------------------------------------------------------------
+    // Streaming: debounced progressive updates via streamCallback
+    // -----------------------------------------------------------------------
+    let streamedText = '';
+    let lastFlushAt = 0;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const STREAM_FLUSH_INTERVAL_MS = 200;
+
+    function scheduleStreamFlush(): void {
+      if (!streamCallback) return;
+      if (flushTimer) return; // already scheduled
+      const elapsed = Date.now() - lastFlushAt;
+      const delay = Math.max(0, STREAM_FLUSH_INTERVAL_MS - elapsed);
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        if (streamedText) {
+          streamCallback(streamedText);
+          lastFlushAt = Date.now();
+        }
+      }, delay);
+    }
+
+    // -----------------------------------------------------------------------
+    // Retry helper: 3 attempts with 1s/2s/4s exponential backoff
+    // -----------------------------------------------------------------------
+    async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          return await fn();
+        } catch (err: unknown) {
+          lastError = err;
+          const errMsg = err instanceof Error ? err.message : String(err);
+
+          // Don't retry on non-retryable errors
+          if (
+            errMsg.includes('prompt is too long') ||
+            errMsg.includes('invalid_api_key') ||
+            errMsg.includes('authentication')
+          ) {
+            throw err;
+          }
+
+          if (attempt < maxAttempts) {
+            const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+            logger.warn(
+              { attempt, maxAttempts, delay, err: errMsg },
+              'Retrying Anthropic API call',
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+      }
+      throw lastError;
+    }
+
+    // -----------------------------------------------------------------------
     // Agentic loop: call API, execute tools, loop until text response
     // -----------------------------------------------------------------------
 
@@ -3571,14 +3640,48 @@ export function createAgentManager(deps: {
 
       let response: Anthropic.Message;
       try {
-        const stream = client.messages.stream({
-          model,
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: currentMessages,
-          tools: toApiTools(selectedTools),
+        // Prepare tools with cache_control on the last tool definition
+        const apiTools = toApiTools(selectedTools);
+        if (apiTools.length > 0) {
+          (apiTools[apiTools.length - 1] as any).cache_control = { type: 'ephemeral' };
+        }
+
+        response = await withRetry(async () => {
+          // Reset streaming state for each retry
+          streamedText = '';
+          lastFlushAt = 0;
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+
+          const stream = client.messages.stream({
+            model,
+            max_tokens: 4096,
+            system: systemBlocks as any,
+            messages: currentMessages,
+            tools: apiTools,
+          });
+
+          // Progressive streaming: send partial text to client as it arrives
+          stream.on('text', (_delta: string, fullText: string) => {
+            streamedText = fullText;
+            scheduleStreamFlush();
+          });
+
+          const finalMessage = await stream.finalMessage();
+
+          // Final flush
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+          if (streamCallback && streamedText) {
+            streamCallback(streamedText);
+          }
+
+          return finalMessage;
         });
-        response = await stream.finalMessage();
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err);
         logger.error({ err: errMsg, iteration: iterations }, 'Anthropic API error');

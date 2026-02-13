@@ -2,13 +2,16 @@
  * Channel Manager for FlipAgent
  *
  * Routes outgoing messages to the correct channel adapter.
- * Currently only supports WebChat; designed for easy extension.
+ * Supports: WebChat, Telegram, Discord (designed for easy extension).
  */
 
 import { WebSocketServer } from 'ws';
 import { createWebChatChannel, WebChatChannel } from './webchat/index';
+import { createTelegramAdapter } from './telegram';
+import { createDiscordAdapter } from './discord';
 import { createLogger } from '../utils/logger';
 import type { Config, IncomingMessage, OutgoingMessage } from '../types';
+import type { ChannelAdapter as BaseChannelAdapter } from './base-adapter';
 
 // =============================================================================
 // Types
@@ -50,20 +53,68 @@ export async function createChannelManager(
   callbacks: ChannelCallbacks,
 ): Promise<ChannelManager> {
   let webchat: WebChatChannel | null = null;
+  const adapters: BaseChannelAdapter[] = [];
   const logger = createLogger('channels');
 
+  // WebChat (WebSocket-based)
   if (config.webchat?.enabled) {
     logger.info('Initializing WebChat channel');
     webchat = createWebChatChannel(config.webchat, callbacks);
   }
 
+  // Telegram (long polling, no dependencies)
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    try {
+      logger.info('Initializing Telegram channel');
+      const telegram = createTelegramAdapter({
+        token: process.env.TELEGRAM_BOT_TOKEN,
+        allowedChatIds: process.env.TELEGRAM_ALLOWED_CHATS?.split(',').filter(Boolean),
+      });
+      telegram.onMessage?.(callbacks.onMessage);
+      adapters.push(telegram);
+    } catch (err) {
+      logger.error({ err }, 'Failed to initialize Telegram channel');
+    }
+  }
+
+  // Discord (Gateway WebSocket, no dependencies)
+  if (process.env.DISCORD_BOT_TOKEN) {
+    try {
+      logger.info('Initializing Discord channel');
+      const discord = createDiscordAdapter({
+        token: process.env.DISCORD_BOT_TOKEN,
+        allowedGuildIds: process.env.DISCORD_ALLOWED_GUILDS?.split(',').filter(Boolean),
+      });
+      discord.onMessage?.(callbacks.onMessage);
+      adapters.push(discord);
+    } catch (err) {
+      logger.error({ err }, 'Failed to initialize Discord channel');
+    }
+  }
+
   return {
     async start() {
-      logger.info('Channel manager started');
+      // Start all adapters in parallel, isolated so one failure doesn't block others
+      for (const adapter of adapters) {
+        try {
+          await adapter.start();
+          logger.info({ platform: adapter.platform }, 'Channel started');
+        } catch (err) {
+          logger.error({ platform: adapter.platform, err }, 'Channel start failed');
+        }
+      }
+      logger.info({ channels: ['webchat', ...adapters.map(a => a.platform)].filter(Boolean).length }, 'Channel manager started');
     },
 
     async stop() {
       if (webchat) webchat.stop();
+      for (const adapter of adapters) {
+        try {
+          await adapter.stop();
+        } catch (err) {
+          logger.error({ platform: adapter.platform, err }, 'Channel stop error');
+        }
+      }
       logger.info('Channel manager stopped');
     },
 
@@ -71,6 +122,13 @@ export async function createChannelManager(
       if (message.platform === 'webchat' && webchat) {
         return webchat.sendMessage(message);
       }
+
+      // Try external channel adapters
+      const adapter = adapters.find(a => a.platform === message.platform);
+      if (adapter) {
+        return adapter.sendMessage(message.chatId, message.text);
+      }
+
       logger.warn({ platform: message.platform }, 'No adapter for platform');
       return null;
     },
