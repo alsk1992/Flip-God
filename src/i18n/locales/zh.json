@@ -1,0 +1,89 @@
+{
+  "app": {
+    "name": "FlipAgent",
+    "tagline": "AI 零售套利助手",
+    "version": "版本 {version}"
+  },
+  "welcome": {
+    "message": "欢迎使用 FlipAgent",
+    "greeting": "你好，{name}！",
+    "firstTime": "让我们开始设置。",
+    "returning": "欢迎回来！"
+  },
+  "commands": {
+    "help": "显示可用命令",
+    "status": "显示会话状态",
+    "new": "开始新会话",
+    "reset": "重置当前会话",
+    "model": "更换 AI 模型",
+    "products": "搜索商品",
+    "opportunities": "查看套利机会",
+    "listings": "查看上架商品",
+    "settings": "管理设置"
+  },
+  "sourcing": {
+    "search": "搜索商品...",
+    "compare": "比较价格",
+    "deals": "最佳优惠",
+    "trending": "热门商品",
+    "inStock": "有货",
+    "outOfStock": "缺货",
+    "priceHistory": "价格历史",
+    "supplier": "供应商",
+    "noResults": "未找到商品",
+    "loading": "搜索商品中..."
+  },
+  "errors": {
+    "generic": "出错了",
+    "network": "网络错误，请重试。",
+    "unauthorized": "未授权，请检查凭证。",
+    "notFound": "未找到",
+    "invalidInput": "输入无效：{field}",
+    "rateLimited": "请求过于频繁，请稍候。",
+    "connectionLost": "连接断开，正在重连...",
+    "timeout": "请求超时"
+  },
+  "success": {
+    "connected": "连接成功",
+    "disconnected": "已断开连接",
+    "saved": "保存成功",
+    "deleted": "删除成功",
+    "updated": "更新成功",
+    "copied": "已复制到剪贴板"
+  },
+  "status": {
+    "online": "在线",
+    "offline": "离线",
+    "connecting": "连接中...",
+    "syncing": "同步中...",
+    "ready": "就绪",
+    "busy": "处理中...",
+    "error": "错误"
+  },
+  "actions": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "refresh": "刷新",
+    "retry": "重试",
+    "back": "返回",
+    "next": "下一步",
+    "done": "完成",
+    "submit": "提交",
+    "search": "搜索",
+    "filter": "筛选",
+    "sort": "排序",
+    "export": "导出",
+    "import": "导入",
+    "copy": "复制",
+    "share": "分享"
+  },
+  "cli": {
+    "starting": "启动 FlipAgent...",
+    "ready": "FlipAgent 已就绪！",
+    "shutting_down": "正在关闭..."
+  }
+}

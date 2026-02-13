@@ -1,0 +1,77 @@
+{
+  "app": {
+    "name": "FlipAgent",
+    "tagline": "AI 小売アービトラージアシスタント",
+    "version": "バージョン {version}"
+  },
+  "welcome": {
+    "message": "FlipAgent へようこそ",
+    "greeting": "こんにちは、{name}さん！",
+    "firstTime": "セットアップを始めましょう。",
+    "returning": "おかえりなさい！"
+  },
+  "commands": {
+    "help": "利用可能なコマンドを表示",
+    "status": "セッション状態を表示",
+    "new": "新しいセッションを開始",
+    "reset": "現在のセッションをリセット",
+    "model": "AIモデルを変更",
+    "products": "商品を検索",
+    "opportunities": "アービトラージ機会を表示",
+    "listings": "出品リストを表示",
+    "settings": "設定を管理"
+  },
+  "errors": {
+    "generic": "エラーが発生しました",
+    "network": "ネットワークエラー。再試行してください。",
+    "unauthorized": "認証エラー。認証情報を確認してください。",
+    "notFound": "見つかりません",
+    "invalidInput": "無効な入力：{field}",
+    "rateLimited": "レート制限中。しばらくお待ちください。",
+    "connectionLost": "接続が切断されました。再接続中...",
+    "timeout": "タイムアウトしました"
+  },
+  "success": {
+    "connected": "接続しました",
+    "disconnected": "切断しました",
+    "saved": "保存しました",
+    "deleted": "削除しました",
+    "updated": "更新しました",
+    "copied": "クリップボードにコピーしました"
+  },
+  "status": {
+    "online": "オンライン",
+    "offline": "オフライン",
+    "connecting": "接続中...",
+    "syncing": "同期中...",
+    "ready": "準備完了",
+    "busy": "処理中...",
+    "error": "エラー"
+  },
+  "actions": {
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "refresh": "更新",
+    "retry": "再試行",
+    "back": "戻る",
+    "next": "次へ",
+    "done": "完了",
+    "submit": "送信",
+    "search": "検索",
+    "filter": "フィルター",
+    "sort": "並べ替え",
+    "export": "エクスポート",
+    "import": "インポート",
+    "copy": "コピー",
+    "share": "共有"
+  },
+  "cli": {
+    "starting": "FlipAgent を起動中...",
+    "ready": "FlipAgent の準備ができました！",
+    "shutting_down": "シャットダウン中..."
+  }
+}

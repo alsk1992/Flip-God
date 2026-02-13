@@ -1,0 +1,188 @@
+{
+  "app": {
+    "name": "FlipAgent",
+    "tagline": "AI Retail Arbitrage Assistant",
+    "version": "Version {version}"
+  },
+  "welcome": {
+    "message": "Welcome to FlipAgent",
+    "greeting": "Hello, {name}!",
+    "firstTime": "Let's get you set up.",
+    "returning": "Welcome back!"
+  },
+  "commands": {
+    "help": "Show available commands",
+    "status": "Show session status",
+    "new": "Start a new session",
+    "reset": "Reset current session",
+    "model": "Change AI model",
+    "products": "Search products",
+    "opportunities": "View arbitrage opportunities",
+    "listings": "View your listings",
+    "settings": "Manage settings"
+  },
+  "sourcing": {
+    "search": "Search products...",
+    "compare": "Compare prices",
+    "deals": "Best Deals",
+    "trending": "Trending Products",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "priceHistory": "Price History",
+    "supplier": "Supplier",
+    "noResults": "No products found",
+    "loading": "Searching products..."
+  },
+  "arbitrage": {
+    "title": "Arbitrage Opportunities",
+    "found": "{count} opportunities found",
+    "none": "No arbitrage opportunities found",
+    "margin": "Margin",
+    "profit": "Est. Profit",
+    "fees": "Platform Fees",
+    "confidence": "Confidence",
+    "execute": "Create Listing",
+    "scanning": "Scanning for opportunities..."
+  },
+  "listing": {
+    "title": "Listings",
+    "create": "Create Listing",
+    "edit": "Edit Listing",
+    "active": "Active Listings",
+    "paused": "Paused Listings",
+    "sold": "Sold Items",
+    "noListings": "No active listings",
+    "optimizeTitle": "Optimize Title",
+    "suggestPrice": "Suggest Price"
+  },
+  "fulfillment": {
+    "title": "Fulfillment",
+    "orders": "Orders",
+    "pending": "Pending Orders",
+    "shipped": "Shipped",
+    "delivered": "Delivered",
+    "returns": "Returns",
+    "tracking": "Tracking Number",
+    "shipBy": "Ship By",
+    "noOrders": "No pending orders"
+  },
+  "portfolio": {
+    "title": "Portfolio",
+    "totalValue": "Total Value",
+    "available": "Available",
+    "invested": "Invested",
+    "returns": "Returns",
+    "dayChange": "24h Change",
+    "weekChange": "7d Change",
+    "allTime": "All Time",
+    "noAssets": "No assets in portfolio"
+  },
+  "alerts": {
+    "title": "Alerts",
+    "new": "New Alert",
+    "priceAlert": "Price Drop Alert",
+    "stockAlert": "Back in Stock Alert",
+    "dealAlert": "New Deal Alert",
+    "orderAlert": "Order Alert"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "platforms": "Platform Settings",
+    "api": "API Keys",
+    "saved": "Settings saved",
+    "reset": "Reset to defaults"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "network": "Network error. Please try again.",
+    "unauthorized": "Unauthorized. Please check your credentials.",
+    "notFound": "Not found",
+    "invalidInput": "Invalid input: {field}",
+    "rateLimited": "Rate limited. Please wait.",
+    "connectionLost": "Connection lost. Reconnecting...",
+    "timeout": "Request timed out"
+  },
+  "success": {
+    "connected": "Connected successfully",
+    "disconnected": "Disconnected",
+    "saved": "Saved successfully",
+    "deleted": "Deleted successfully",
+    "updated": "Updated successfully",
+    "copied": "Copied to clipboard"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "connecting": "Connecting...",
+    "syncing": "Syncing...",
+    "ready": "Ready",
+    "busy": "Processing...",
+    "error": "Error"
+  },
+  "time": {
+    "now": "Just now",
+    "minutesAgo": "{count} minutes ago",
+    "hoursAgo": "{count} hours ago",
+    "daysAgo": "{count} days ago",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "actions": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import",
+    "copy": "Copy",
+    "share": "Share"
+  },
+  "cli": {
+    "starting": "Starting FlipAgent...",
+    "ready": "FlipAgent is ready!",
+    "shutting_down": "Shutting down...",
+    "doctor": {
+      "title": "System Diagnostics",
+      "checking": "Checking {component}...",
+      "pass": "PASS",
+      "warn": "WARN",
+      "fail": "FAIL",
+      "allPassed": "All checks passed!",
+      "issuesFound": "{count} issues found"
+    },
+    "creds": {
+      "testing": "Testing credentials...",
+      "valid": "Credentials valid",
+      "invalid": "Credentials invalid",
+      "missing": "Credentials not configured"
+    }
+  },
+  "platforms": {
+    "amazon": "Amazon",
+    "ebay": "eBay",
+    "walmart": "Walmart",
+    "aliexpress": "AliExpress"
+  },
+  "channels": {
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "whatsapp": "WhatsApp",
+    "slack": "Slack",
+    "teams": "Microsoft Teams",
+    "webchat": "WebChat"
+  }
+}
