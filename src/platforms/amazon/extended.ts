@@ -11,6 +11,25 @@ import type { PaApiItem, PaApiError } from './types';
 
 const logger = createLogger('amazon-extended');
 
+/**
+ * Map from PA-API host to the corresponding amazon marketplace domain suffix.
+ * Using explicit mapping avoids issues with multi-segment TLDs like co.uk, co.jp.
+ */
+const HOST_TO_MARKETPLACE: Record<string, string> = {
+  'webservices.amazon.com': 'www.amazon.com',
+  'webservices.amazon.co.uk': 'www.amazon.co.uk',
+  'webservices.amazon.de': 'www.amazon.de',
+  'webservices.amazon.fr': 'www.amazon.fr',
+  'webservices.amazon.co.jp': 'www.amazon.co.jp',
+  'webservices.amazon.ca': 'www.amazon.ca',
+  'webservices.amazon.com.au': 'www.amazon.com.au',
+  'webservices.amazon.in': 'www.amazon.in',
+  'webservices.amazon.it': 'www.amazon.it',
+  'webservices.amazon.es': 'www.amazon.es',
+  'webservices.amazon.com.mx': 'www.amazon.com.mx',
+  'webservices.amazon.com.br': 'www.amazon.com.br',
+};
+
 export interface VariationsResult {
   items: PaApiItem[];
   totalResults?: number;
@@ -68,7 +87,7 @@ export function createAmazonExtendedApi(config: AmazonSigningConfig): AmazonExte
       ...payload,
       PartnerTag: config.partnerTag,
       PartnerType: 'Associates',
-      Marketplace: `www.amazon.${host.split('.').pop()}`,
+      Marketplace: HOST_TO_MARKETPLACE[host] ?? `www.amazon.${host.replace('webservices.amazon.', '')}`,
     });
 
     const headers = signRequest(operation, body, signingConfig);

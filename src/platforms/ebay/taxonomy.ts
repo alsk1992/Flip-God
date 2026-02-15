@@ -134,7 +134,7 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
       const token = await getToken();
 
       const response = await fetch(
-        `${baseUrl}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${marketplaceId ?? 'EBAY_US'}`,
+        `${baseUrl}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${marketplaceId ?? credentials.marketplace ?? 'EBAY_US'}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
         },

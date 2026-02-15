@@ -47,6 +47,24 @@ export { createEbayAdapter } from './ebay/scraper';
 export { createWalmartAdapter } from './walmart/scraper';
 export { createAliExpressAdapter } from './aliexpress/scraper';
 
+// Re-import under internal aliases so createAllAdapters uses static imports
+// instead of require() calls.
+import { createAmazonAdapter as _createAmazonAdapter } from './amazon/scraper';
+import { createEbayAdapter as _createEbayAdapter } from './ebay/scraper';
+import { createWalmartAdapter as _createWalmartAdapter } from './walmart/scraper';
+import { createAliExpressAdapter as _createAliExpressAdapter } from './aliexpress/scraper';
+import { createBestBuyAdapter } from './bestbuy/scraper';
+import { createTargetAdapter } from './target/scraper';
+import { createCostcoAdapter } from './costco/scraper';
+import { createHomeDepotAdapter } from './homedepot/scraper';
+import { createPoshmarkAdapter } from './poshmark/scraper';
+import { createMercariAdapter } from './mercari/scraper';
+import { createFacebookAdapter } from './facebook/scraper';
+import { createFaireAdapter } from './faire/scraper';
+import { createBStockAdapter } from './bstock/scraper';
+import { createBulqAdapter } from './bulq/scraper';
+import { createLiquidationAdapter } from './liquidation/scraper';
+
 /**
  * Create all platform adapters given credentials per platform.
  */
@@ -56,16 +74,21 @@ export function createAllAdapters(credentials: {
   walmart?: WalmartCredentials;
   aliexpress?: AliExpressCredentials;
 }): Map<Platform, PlatformAdapter> {
-  // Dynamic imports to avoid circular deps
-  const { createAmazonAdapter } = require('./amazon/scraper');
-  const { createEbayAdapter } = require('./ebay/scraper');
-  const { createWalmartAdapter } = require('./walmart/scraper');
-  const { createAliExpressAdapter } = require('./aliexpress/scraper');
-
   const adapters = new Map<Platform, PlatformAdapter>();
-  adapters.set('amazon', createAmazonAdapter(credentials.amazon));
-  adapters.set('ebay', createEbayAdapter(credentials.ebay));
-  adapters.set('walmart', createWalmartAdapter(credentials.walmart));
-  adapters.set('aliexpress', createAliExpressAdapter(credentials.aliexpress));
+  adapters.set('amazon', _createAmazonAdapter(credentials.amazon));
+  adapters.set('ebay', _createEbayAdapter(credentials.ebay));
+  adapters.set('walmart', _createWalmartAdapter(credentials.walmart));
+  adapters.set('aliexpress', _createAliExpressAdapter(credentials.aliexpress));
+  adapters.set('bestbuy', createBestBuyAdapter());
+  adapters.set('target', createTargetAdapter());
+  adapters.set('costco', createCostcoAdapter());
+  adapters.set('homedepot', createHomeDepotAdapter());
+  adapters.set('poshmark', createPoshmarkAdapter());
+  adapters.set('mercari', createMercariAdapter());
+  adapters.set('facebook', createFacebookAdapter());
+  adapters.set('faire', createFaireAdapter());
+  adapters.set('bstock', createBStockAdapter());
+  adapters.set('bulq', createBulqAdapter());
+  adapters.set('liquidation', createLiquidationAdapter());
   return adapters;
 }

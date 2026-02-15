@@ -74,6 +74,8 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
       const filter = `(${filters.join('&')})`;
 
       try {
+        // NOTE: Best Buy Products API only supports API key as a query parameter (apiKey=...).
+        // Header-based auth is not available for this API. Use HTTPS to protect the key in transit.
         const url = `${API_BASE}/products${filter}?apiKey=${apiKey}&format=json&pageSize=${pageSize}&show=sku,name,salePrice,regularPrice,onSale,freeShipping,shippingCost,inStoreAvailability,onlineAvailability,url,image,largeFrontImage,upc,manufacturer,categoryPath,customerReviewAverage,customerReviewCount`;
         const response = await fetch(url);
         if (!response.ok) {
@@ -93,6 +95,7 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
       logger.info({ productId }, 'Getting Best Buy product');
 
       try {
+        // NOTE: Best Buy Products API only supports API key as a query parameter.
         const url = `${API_BASE}/products/${encodeURIComponent(productId)}.json?apiKey=${apiKey}&show=sku,name,salePrice,regularPrice,onSale,freeShipping,shippingCost,inStoreAvailability,onlineAvailability,url,image,largeFrontImage,upc,manufacturer,categoryPath,customerReviewAverage,customerReviewCount`;
         const response = await fetch(url);
         if (!response.ok) return null;

@@ -10,18 +10,11 @@
 
 import { createLogger } from '../../utils/logger';
 import type { WalmartCredentials } from '../../types';
+import { getWalmartMarketplaceToken } from './auth';
 
 const logger = createLogger('walmart-seller');
 
 const API_BASE = 'https://marketplace.walmartapis.com/v3';
-const TOKEN_URL = 'https://marketplace.walmartapis.com/v3/token';
-
-interface CachedToken {
-  accessToken: string;
-  expiresAt: number;
-}
-
-const tokenCache = new Map<string, CachedToken>();
 
 // ---- Types ----
 
@@ -155,50 +148,11 @@ export interface WalmartSellerApi {
   getListingQuality(params?: { limit?: number; nextCursor?: string }): Promise<{ items: WalmartListingQualityItem[]; nextCursor?: string }>;
 }
 
-// ---- Token management ----
-
-async function getAccessToken(credentials: WalmartCredentials): Promise<string> {
-  const cacheKey = credentials.clientId;
-  const cached = tokenCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt - 60_000) {
-    return cached.accessToken;
-  }
-
-  const basicAuth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
-
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${basicAuth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-      'WM_SVC.NAME': 'FlipAgent',
-      'WM_QOS.CORRELATION_ID': `flipagent-${Date.now()}`,
-    },
-    body: 'grant_type=client_credentials',
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'Walmart OAuth token request failed');
-    throw new Error(`Walmart OAuth failed (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json() as { access_token: string; expires_in: number };
-  const token: CachedToken = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
-  tokenCache.set(cacheKey, token);
-  logger.info({ expiresIn: data.expires_in }, 'Walmart Marketplace access token obtained');
-  return token.accessToken;
-}
-
 // ---- Factory ----
 
 export function createWalmartSellerApi(credentials: WalmartCredentials): WalmartSellerApi {
   async function walmartFetch<T>(path: string, options?: { method?: string; body?: unknown }): Promise<T> {
-    const accessToken = await getAccessToken(credentials);
+    const accessToken = await getWalmartMarketplaceToken({ clientId: credentials.clientId, clientSecret: credentials.clientSecret });
     const url = `${API_BASE}${path}`;
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
@@ -512,6 +466,4 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
   };
 }
 
-export function clearWalmartSellerTokenCache(): void {
-  tokenCache.clear();
-}
+export { clearWalmartMarketplaceTokenCache as clearWalmartSellerTokenCache } from './auth';

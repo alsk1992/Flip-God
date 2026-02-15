@@ -21,6 +21,8 @@ export interface SpApiAuthConfig {
   endpoint?: string;
   /** Marketplace ID (default: ATVPDKIKX0DER for US) */
   marketplaceId?: string;
+  /** Seller ID for SP-API calls. Falls back to 'me' (documented SP-API default). */
+  sellerId?: string;
 }
 
 interface CachedToken {

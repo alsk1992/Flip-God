@@ -19,6 +19,10 @@ export function recommendPrice(
 ): PricingRecommendation {
   // Calculate minimum viable price (breakeven + target margin)
   const totalCost = buyPrice + buyShipping;
+  if (targetMarginPct >= 100) {
+    logger.error({ targetMarginPct }, 'Target margin >= 100% is invalid (causes division by zero), clamping to 99%');
+    targetMarginPct = 99;
+  }
   const minViablePrice = totalCost / (1 - targetMarginPct / 100);
 
   // Factor in competitor pricing

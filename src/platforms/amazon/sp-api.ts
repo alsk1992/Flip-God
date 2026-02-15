@@ -160,6 +160,7 @@ export interface AmazonSpApi {
 export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
   const endpoint = config.endpoint ?? SP_API_ENDPOINTS.NA;
   const marketplaceId = config.marketplaceId ?? MARKETPLACE_IDS.US;
+  const sellerId = config.sellerId ?? 'me';
 
   async function spFetch<T>(path: string, options?: {
     method?: string;
@@ -316,7 +317,7 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
             status: item.status,
             competitivePrices: cp?.CompetitivePrices?.map(p => ({
               competitivePriceId: p.CompetitivePriceId,
-              price: { listingPrice: { amount: p.Price.ListingPrice.Amount }, shipping: { amount: p.Price.Shipping.Amount } },
+              price: { listingPrice: { amount: p.Price?.ListingPrice?.Amount ?? 0 }, shipping: { amount: p.Price?.Shipping?.Amount ?? 0 } },
               condition: p.condition,
             })),
             numberOfOffers: cp?.NumberOfOfferListings?.map(o => ({
@@ -432,7 +433,7 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
         status: string;
         submissionId: string;
         issues?: Array<{ code: string; message: string; severity: string }>;
-      }>(`/listings/2021-08-01/items/${encodeURIComponent('me')}/${encodeURIComponent(params.sku)}`, {
+      }>(`/listings/2021-08-01/items/${encodeURIComponent(sellerId)}/${encodeURIComponent(params.sku)}`, {
         method: 'PUT',
         params: {
           marketplaceIds: marketplaceId,
@@ -451,7 +452,7 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
         status: string;
         submissionId: string;
         issues?: Array<{ code: string; message: string; severity: string }>;
-      }>(`/listings/2021-08-01/items/${encodeURIComponent('me')}/${encodeURIComponent(params.sku)}`, {
+      }>(`/listings/2021-08-01/items/${encodeURIComponent(sellerId)}/${encodeURIComponent(params.sku)}`, {
         method: 'PATCH',
         params: {
           marketplaceIds: marketplaceId,
@@ -466,7 +467,7 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
 
     async deleteListingsItem(sku) {
       const data = await spFetch<{ status: string }>(
-        `/listings/2021-08-01/items/${encodeURIComponent('me')}/${encodeURIComponent(sku)}`,
+        `/listings/2021-08-01/items/${encodeURIComponent(sellerId)}/${encodeURIComponent(sku)}`,
         {
           method: 'DELETE',
           params: { marketplaceIds: marketplaceId },

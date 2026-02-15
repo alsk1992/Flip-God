@@ -598,6 +598,7 @@ export interface AmazonSpApiExtended {
 export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiExtended {
   const endpoint = config.endpoint ?? SP_API_ENDPOINTS.NA;
   const marketplaceId = config.marketplaceId ?? MARKETPLACE_IDS.US;
+  const sellerId = config.sellerId ?? 'me';
 
   async function spFetch<T>(path: string, options?: {
     method?: string;
@@ -644,7 +645,7 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
       const params: Record<string, string> = {
         asin,
         marketplaceIds: marketplaceId,
-        sellerId: 'me',
+        sellerId,
       };
       if (conditionType) {
         params.conditionType = conditionType;
@@ -699,7 +700,7 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
             fulfillmentChannelCode: string;
             quantity?: number;
           }>;
-        }>(`/listings/2021-08-01/items/me/${encodeURIComponent(sku)}`, {
+        }>(`/listings/2021-08-01/items/${encodeURIComponent(sellerId)}/${encodeURIComponent(sku)}`, {
           params: {
             marketplaceIds: marketplaceId,
             includedData: 'summaries,attributes,issues,offers,fulfillmentAvailability',
@@ -743,7 +744,7 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
         }>;
         numberOfResults?: number;
         pagination?: { nextToken?: string; previousToken?: string };
-      }>('/listings/2021-08-01/items/me', { params: queryParams });
+      }>(`/listings/2021-08-01/items/${encodeURIComponent(sellerId)}`, { params: queryParams });
 
       return {
         items: data.items ?? [],

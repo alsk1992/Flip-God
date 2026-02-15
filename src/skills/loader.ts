@@ -41,12 +41,23 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
 // Gate checking
 // ---------------------------------------------------------------------------
 
+/** Only allow alphanumeric, hyphen, underscore, and dot characters in binary names. */
+const SAFE_BIN_RE = /^[a-zA-Z0-9._-]+$/;
+
+function isSafeBinName(bin: string): boolean {
+  return SAFE_BIN_RE.test(bin) && !bin.includes('..');
+}
+
 function checkGates(gates: SkillGates | undefined, configKeys?: Record<string, unknown>): boolean {
   if (!gates) return true;
 
   // Check required binaries (all must exist)
   if (gates.bins && gates.bins.length > 0) {
     for (const bin of gates.bins) {
+      if (!isSafeBinName(bin)) {
+        log.debug({ bin }, 'Gate failed: invalid binary name');
+        return false;
+      }
       try {
         const { execSync } = require('child_process');
         execSync(`which ${bin}`, { stdio: 'ignore' });
@@ -61,6 +72,9 @@ function checkGates(gates: SkillGates | undefined, configKeys?: Record<string, u
   if (gates.anyBins && gates.anyBins.length > 0) {
     let found = false;
     for (const bin of gates.anyBins) {
+      if (!isSafeBinName(bin)) {
+        continue;
+      }
       try {
         const { execSync } = require('child_process');
         execSync(`which ${bin}`, { stdio: 'ignore' });

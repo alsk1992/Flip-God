@@ -151,7 +151,7 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
       // Step 2: Create offer
       const offerId = await this.createOffer({
         sku: params.sku,
-        marketplaceId: 'EBAY_US',
+        marketplaceId: (credentials.marketplace ?? 'EBAY_US') as 'EBAY_US' | 'EBAY_GB' | 'EBAY_DE' | 'EBAY_AU',
         format: 'FIXED_PRICE',
         listingDescription: params.description,
         pricingSummary: {

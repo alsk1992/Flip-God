@@ -227,6 +227,8 @@ export interface EbayCredentials {
   clientSecret: string;
   refreshToken: string;
   environment?: 'sandbox' | 'production';
+  /** eBay marketplace ID (default: EBAY_US). Examples: EBAY_US, EBAY_GB, EBAY_DE, EBAY_AU */
+  marketplace?: string;
 }
 
 export interface WalmartCredentials {

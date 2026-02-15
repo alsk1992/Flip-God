@@ -57,6 +57,7 @@ export interface EbayNegotiationApi {
 export function createEbayNegotiationApi(credentials: EbayCredentials): EbayNegotiationApi {
   const env = credentials.environment ?? 'production';
   const baseUrl = API_BASE[env];
+  const ebayMarketplace = credentials.marketplace ?? 'EBAY_US';
 
   async function getToken(): Promise<string> {
     return getAccessToken({
@@ -81,7 +82,7 @@ export function createEbayNegotiationApi(credentials: EbayCredentials): EbayNego
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+          'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
         },
       });
       if (!response.ok) {
@@ -101,7 +102,7 @@ export function createEbayNegotiationApi(credentials: EbayCredentials): EbayNego
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
-            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+            'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
           },
           body: JSON.stringify(params),
         },

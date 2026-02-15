@@ -22,6 +22,17 @@ import { createAmazonAdapter } from '../platforms/amazon/scraper';
 import { createEbayAdapter } from '../platforms/ebay/scraper';
 import { createWalmartAdapter } from '../platforms/walmart/scraper';
 import { createAliExpressAdapter } from '../platforms/aliexpress/scraper';
+import { createBestBuyAdapter } from '../platforms/bestbuy/scraper';
+import { createTargetAdapter } from '../platforms/target/scraper';
+import { createCostcoAdapter } from '../platforms/costco/scraper';
+import { createHomeDepotAdapter } from '../platforms/homedepot/scraper';
+import { createPoshmarkAdapter } from '../platforms/poshmark/scraper';
+import { createMercariAdapter } from '../platforms/mercari/scraper';
+import { createFacebookAdapter } from '../platforms/facebook/scraper';
+import { createFaireAdapter } from '../platforms/faire/scraper';
+import { createBStockAdapter } from '../platforms/bstock/scraper';
+import { createBulqAdapter } from '../platforms/bulq/scraper';
+import { createLiquidationAdapter } from '../platforms/liquidation/scraper';
 import type { Config, IncomingMessage, OutgoingMessage, Platform, AmazonCredentials, EbayCredentials, WalmartCredentials, AliExpressCredentials } from '../types';
 import type { Database } from '../db';
 import type { PlatformAdapter } from '../platforms/index';
@@ -127,6 +138,19 @@ export async function createGateway(config: Config): Promise<Gateway> {
 
     const ali = credentials.getCredentials<AliExpressCredentials>(systemUser, 'aliexpress');
     adapters.set('aliexpress', createAliExpressAdapter(ali ?? undefined));
+
+    // Scraper-only platforms (no credentials required)
+    adapters.set('bestbuy', createBestBuyAdapter());
+    adapters.set('target', createTargetAdapter());
+    adapters.set('costco', createCostcoAdapter());
+    adapters.set('homedepot', createHomeDepotAdapter());
+    adapters.set('poshmark', createPoshmarkAdapter());
+    adapters.set('mercari', createMercariAdapter());
+    adapters.set('facebook', createFacebookAdapter());
+    adapters.set('faire', createFaireAdapter());
+    adapters.set('bstock', createBStockAdapter());
+    adapters.set('bulq', createBulqAdapter());
+    adapters.set('liquidation', createLiquidationAdapter());
 
     return adapters;
   }
@@ -243,8 +267,8 @@ export async function createGateway(config: Config): Promise<Gateway> {
       // but we also clean expired sessions from the DB
       try {
         const cutoffMs = 30 * 24 * 60 * 60 * 1000; // 30 days
-        const cutoffDate = new Date(Date.now() - cutoffMs).toISOString();
-        db.run('DELETE FROM sessions WHERE updated_at < ?', [cutoffDate]);
+        const cutoffEpoch = Date.now() - cutoffMs;
+        db.run('DELETE FROM sessions WHERE updated_at < ?', [cutoffEpoch]);
         logger.info('Cron: session_cleanup complete');
       } catch (err) {
         logger.error({ err }, 'Cron: session_cleanup failed');

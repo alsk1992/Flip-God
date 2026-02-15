@@ -85,12 +85,13 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
         params.set('filter', priceFilters[0]);
       }
 
+      const ebayMarketplace = credentials.marketplace ?? 'EBAY_US';
       const response = await fetch(
         `${baseUrl}/buy/browse/v1/item_summary/search?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+            'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
             'Content-Type': 'application/json',
           },
         },
@@ -126,12 +127,13 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
 
       // eBay item IDs include a | separator in v1 format
       const encodedId = encodeURIComponent(productId);
+      const ebayMarketplace = credentials.marketplace ?? 'EBAY_US';
       const response = await fetch(
         `${baseUrl}/buy/browse/v1/item/${encodedId}`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+            'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
           },
         },
       );

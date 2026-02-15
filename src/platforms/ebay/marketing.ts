@@ -72,6 +72,7 @@ export interface EbayMarketingApi {
 export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarketingApi {
   const env = credentials.environment ?? 'production';
   const baseUrl = API_BASE[env];
+  const ebayMarketplace = credentials.marketplace ?? 'EBAY_US';
 
   async function getToken(): Promise<string> {
     return getAccessToken({
@@ -93,7 +94,7 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
         },
         body: JSON.stringify({
           campaignName: params.campaignName,
-          marketplaceId: 'EBAY_US',
+          marketplaceId: ebayMarketplace,
           fundingStrategy: {
             fundingModel: params.fundingModel ?? 'COST_PER_SALE',
             bidPercentage: params.bidPercentage ?? '5.0',

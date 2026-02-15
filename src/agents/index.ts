@@ -264,7 +264,7 @@ function defineTools(): ToolDefinition[] {
           platforms: {
             type: 'array',
             description: 'Platforms to compare (default: all)',
-            items: { type: 'string', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+            items: { type: 'string', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           },
         },
         required: ['query'],
@@ -293,7 +293,7 @@ function defineTools(): ToolDefinition[] {
           platforms: {
             type: 'array',
             description: 'Platforms to search (default: all)',
-            items: { type: 'string', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+            items: { type: 'string', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           },
         },
         required: ['query'],
@@ -305,7 +305,7 @@ function defineTools(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: 'Platform name', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Platform name', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           productId: { type: 'string', description: 'Platform-specific product ID (ASIN, eBay item ID, etc.)' },
         },
         required: ['platform', 'productId'],
@@ -317,7 +317,7 @@ function defineTools(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: 'Platform name', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Platform name', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           productId: { type: 'string', description: 'Platform-specific product ID' },
         },
         required: ['platform', 'productId'],
@@ -330,7 +330,7 @@ function defineTools(): ToolDefinition[] {
         type: 'object',
         properties: {
           productId: { type: 'string', description: 'Internal product ID' },
-          platform: { type: 'string', description: 'Filter to specific platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Filter to specific platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           days: { type: 'number', description: 'Number of days of history (default: 30)', default: 30 },
         },
         required: ['productId'],
@@ -451,7 +451,7 @@ function defineTools(): ToolDefinition[] {
         type: 'object',
         properties: {
           status: { type: 'string', description: 'Filter by order status', enum: ['pending', 'purchased', 'shipped', 'delivered', 'returned'] },
-          platform: { type: 'string', description: 'Filter by selling platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Filter by selling platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
         },
       },
     },
@@ -565,7 +565,7 @@ function defineTools(): ToolDefinition[] {
         type: 'object',
         properties: {
           productId: { type: 'string', description: 'Product ID to monitor competitors for' },
-          platform: { type: 'string', description: 'Platform to monitor', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Platform to monitor', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
         },
       },
     },
@@ -575,7 +575,7 @@ function defineTools(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: 'Selling platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Selling platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation'] },
           price: { type: 'number', description: 'Selling price in USD' },
           category: { type: 'string', description: 'Product category (affects fee rates)' },
           shipping: { type: 'number', description: 'Shipping cost in USD', default: 0 },
@@ -653,7 +653,7 @@ function defineTools(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {
-          platform: { type: 'string', description: 'Platform to delete credentials for', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
+          platform: { type: 'string', description: 'Platform to delete credentials for', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation', 'keepa', 'easypost'] },
         },
         required: ['platform'],
       },
@@ -2574,7 +2574,7 @@ async function executeTool(
     }
 
     case 'delete_credentials': {
-      const platform = input.platform as Platform;
+      const platform = input.platform as CredentialPlatform;
       if (context.credentials.deleteCredentials) {
         context.credentials.deleteCredentials(context.userId, platform);
       }
@@ -2838,6 +2838,13 @@ async function executeTool(
       }, { ebay: creds.ebay });
 
       if (result.success && result.listingId) {
+        // Derive source platform and price from product data
+        const [sourcePlatformRaw] = productId.split(':');
+        const sourcePlatform = (sourcePlatformRaw !== 'ebay' ? sourcePlatformRaw : 'aliexpress') as Platform;
+        const latestPrices = context.db.getLatestPrices(productId);
+        const sourceEntry = latestPrices.find(p => p.platform === sourcePlatform);
+        const sourcePrice = sourceEntry?.price ?? 0;
+
         // Store listing in DB
         const now = new Date();
         context.db.addListing({
@@ -2847,8 +2854,8 @@ async function executeTool(
           platformListingId: result.listingId,
           title,
           price,
-          sourcePlatform: 'aliexpress',
-          sourcePrice: 0,
+          sourcePlatform,
+          sourcePrice,
           status: 'active',
           createdAt: now,
           updatedAt: now,
@@ -3530,8 +3537,6 @@ async function executeTool(
         accessKeyId: creds.amazon.accessKeyId,
         secretAccessKey: creds.amazon.secretAccessKey,
         partnerTag: creds.amazon.partnerTag,
-        host: creds.amazon.marketplace ? undefined : undefined,
-        region: undefined,
       });
       const variations = await amazonExt.getVariations(
         input.asin as string,
@@ -4737,8 +4742,8 @@ async function executeTool(
     // Keepa — Amazon price intelligence
     // -----------------------------------------------------------------------
     case 'keepa_price_history': {
-      const keepaCreds = creds.keepa ?? (creds.amazon as Record<string, unknown> | undefined);
-      const keepaKey = (keepaCreds as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+      const keepaKey = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
       if (!keepaKey) {
         return { status: 'error', message: 'Keepa API key not configured. Use setup_keepa_credentials first.' };
       }
@@ -4774,8 +4779,8 @@ async function executeTool(
     }
 
     case 'keepa_deals': {
-      const keepaCreds2 = creds.keepa ?? (creds.amazon as Record<string, unknown> | undefined);
-      const keepaKey2 = (keepaCreds2 as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+      const keepaKey2 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
       if (!keepaKey2) {
         return { status: 'error', message: 'Keepa API key not configured.' };
       }
@@ -4791,8 +4796,8 @@ async function executeTool(
     }
 
     case 'keepa_bestsellers': {
-      const keepaCreds3 = creds.keepa ?? (creds.amazon as Record<string, unknown> | undefined);
-      const keepaKey3 = (keepaCreds3 as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+      const keepaKey3 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
       if (!keepaKey3) {
         return { status: 'error', message: 'Keepa API key not configured.' };
       }
@@ -4802,8 +4807,8 @@ async function executeTool(
     }
 
     case 'keepa_track_product': {
-      const keepaCreds4 = creds.keepa ?? (creds.amazon as Record<string, unknown> | undefined);
-      const keepaKey4 = (keepaCreds4 as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+      const keepaKey4 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
       if (!keepaKey4) {
         return { status: 'error', message: 'Keepa API key not configured.' };
       }
@@ -4825,8 +4830,8 @@ async function executeTool(
     // EasyPost — Shipping labels + tracking
     // -----------------------------------------------------------------------
     case 'get_shipping_rates': {
-      const epCreds = creds.easypost ?? (creds.ebay as Record<string, unknown> | undefined);
-      const epKey = (epCreds as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+      const epKey = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
       if (!epKey) {
         return { status: 'error', message: 'EasyPost API key not configured. Use setup_easypost_credentials first.' };
       }
@@ -4876,8 +4881,8 @@ async function executeTool(
     }
 
     case 'buy_shipping_label': {
-      const epCreds2 = creds.easypost ?? (creds.ebay as Record<string, unknown> | undefined);
-      const epKey2 = (epCreds2 as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+      const epKey2 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
       if (!epKey2) {
         return { status: 'error', message: 'EasyPost API key not configured.' };
       }
@@ -4894,8 +4899,8 @@ async function executeTool(
     }
 
     case 'track_package': {
-      const epCreds3 = creds.easypost ?? (creds.ebay as Record<string, unknown> | undefined);
-      const epKey3 = (epCreds3 as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+      const epKey3 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
       if (!epKey3) {
         return { status: 'error', message: 'EasyPost API key not configured.' };
       }
@@ -4920,8 +4925,8 @@ async function executeTool(
     }
 
     case 'verify_address': {
-      const epCreds4 = creds.easypost ?? (creds.ebay as Record<string, unknown> | undefined);
-      const epKey4 = (epCreds4 as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+      const epKey4 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
       if (!epKey4) {
         return { status: 'error', message: 'EasyPost API key not configured.' };
       }
@@ -4968,21 +4973,16 @@ async function executeTool(
     }
 
     case 'setup_keepa_credentials': {
-      // Store Keepa key as part of a dedicated credential
+      // Store Keepa key under its own 'keepa' credential platform
       if (context.credentials.setCredentials) {
-        // Store under a special key — for now we keep it simple
-        const existing = creds.amazon ?? {} as AmazonCredentials;
-        const merged = { ...existing, keepaApiKey: input.apiKey as string };
-        context.credentials.setCredentials(context.userId, 'amazon', merged);
+        context.credentials.setCredentials(context.userId, 'keepa', { apiKey: input.apiKey as string });
       }
       return { status: 'ok', message: 'Keepa API key saved. You can now access Amazon price history.' };
     }
 
     case 'setup_easypost_credentials': {
       if (context.credentials.setCredentials) {
-        const existing = creds.ebay ?? {} as EbayCredentials;
-        const merged = { ...existing, easypostApiKey: input.apiKey as string };
-        context.credentials.setCredentials(context.userId, 'ebay', merged);
+        context.credentials.setCredentials(context.userId, 'easypost', { apiKey: input.apiKey as string });
       }
       return { status: 'ok', message: 'EasyPost API key saved. You can now compare shipping rates and create labels.' };
     }
@@ -5500,10 +5500,13 @@ async function executeTool(
     }
 
     case 'walmart_repricer': {
-      if (!creds.walmart) {
-        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      const wCredsR = creds.walmart as Record<string, unknown> | undefined;
+      const sellerIdR = (wCredsR?.sellerClientId as string | undefined);
+      const sellerSecretR = (wCredsR?.sellerClientSecret as string | undefined);
+      if (!sellerIdR || !sellerSecretR) {
+        return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
       }
-      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart);
+      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
       const strategy = await mpApi.createRepricerStrategy({
         name: input.name as string,
         type: input.type as 'BUY_BOX_ELIGIBLE' | 'COMPETITIVE_PRICING',
@@ -5514,10 +5517,13 @@ async function executeTool(
     }
 
     case 'walmart_catalog_search': {
-      if (!creds.walmart) {
-        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      const wCredsC = creds.walmart as Record<string, unknown> | undefined;
+      const sellerIdC = (wCredsC?.sellerClientId as string | undefined);
+      const sellerSecretC = (wCredsC?.sellerClientSecret as string | undefined);
+      if (!sellerIdC || !sellerSecretC) {
+        return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
       }
-      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart);
+      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
       const results = await mpApi.catalogSearch(input.query as string);
       return { status: 'ok', results, count: results.length };
     }

@@ -62,14 +62,15 @@ export function createOrderMonitor(
 
             // Find matching listing by SKU
             const sku = ebayOrder.lineItems[0]?.sku;
+            const escapedSku = sku ? sku.replace(/[%_]/g, '\\$&') : undefined;
             const listing = sku ? db.query<{
               id: string;
               product_id: string;
               source_platform: string;
               source_price: number;
             }>(
-              'SELECT id, product_id, source_platform, source_price FROM listings WHERE platform_listing_id = ? OR id LIKE ?',
-              [sku, `%${sku}%`],
+              "SELECT id, product_id, source_platform, source_price FROM listings WHERE platform_listing_id = ? OR id LIKE ? ESCAPE '\\'",
+              [sku, `%${escapedSku}%`],
             ) : [];
 
             const sellPrice = ebayOrder.pricingSummary?.total
@@ -83,6 +84,15 @@ export function createOrderMonitor(
               ? `${shipTo.fullName ?? ''}, ${address.addressLine1 ?? ''}, ${address.city ?? ''}, ${address.stateOrProvince ?? ''} ${address.postalCode ?? ''}, ${address.countryCode ?? ''}`
               : '';
 
+            const sourcePlatform = listing[0]?.source_platform as Platform | undefined;
+            if (!sourcePlatform) {
+              logger.warn(
+                { ebayOrderId: ebayOrder.orderId, sku },
+                'Unknown buy platform — no matching listing found. Skipping auto-order creation; requires manual review.',
+              );
+              continue;
+            }
+
             const orderId = randomUUID().slice(0, 12);
             db.addOrder({
               id: orderId,
@@ -90,7 +100,7 @@ export function createOrderMonitor(
               sellPlatform: 'ebay' as Platform,
               sellOrderId: ebayOrder.orderId,
               sellPrice,
-              buyPlatform: (listing[0]?.source_platform as Platform) ?? 'aliexpress',
+              buyPlatform: sourcePlatform,
               status: 'pending',
               buyerAddress,
               orderedAt: new Date(ebayOrder.creationDate),

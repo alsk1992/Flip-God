@@ -819,7 +819,7 @@ export function createAmazonSpApiComplete(config: SpApiAuthConfig): AmazonSpApiC
             itemCondition: r.body.payload?.ItemCondition ?? 'New',
             offers: r.body.payload?.Offers?.map(o => ({
               subCondition: o.SubCondition,
-              listingPrice: { currencyCode: o.ListingPrice.CurrencyCode, amount: o.ListingPrice.Amount },
+              listingPrice: o.ListingPrice ? { currencyCode: o.ListingPrice.CurrencyCode, amount: o.ListingPrice.Amount } : { currencyCode: 'USD', amount: 0 },
               shipping: o.Shipping ? { currencyCode: o.Shipping.CurrencyCode, amount: o.Shipping.Amount } : undefined,
               isBuyBoxWinner: o.IsBuyBoxWinner,
               isFulfilledByAmazon: o.IsFulfilledByAmazon,

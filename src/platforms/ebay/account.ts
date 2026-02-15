@@ -103,6 +103,7 @@ export interface EbayAccountApi {
 export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountApi {
   const env = credentials.environment ?? 'production';
   const baseUrl = API_BASE[env];
+  const defaultMarketplace = credentials.marketplace ?? 'EBAY_US';
 
   async function getToken(): Promise<string> {
     return getAccessToken({
@@ -134,28 +135,28 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
   }
 
   return {
-    async getFulfillmentPolicies(marketplaceId = 'EBAY_US'): Promise<FulfillmentPolicy[]> {
+    async getFulfillmentPolicies(marketplaceId = defaultMarketplace): Promise<FulfillmentPolicy[]> {
       const data = await fetchJson<{ fulfillmentPolicies?: FulfillmentPolicy[] }>(
         `${baseUrl}/sell/account/v1/fulfillment_policy?marketplace_id=${marketplaceId}`,
       );
       return data.fulfillmentPolicies ?? [];
     },
 
-    async getPaymentPolicies(marketplaceId = 'EBAY_US'): Promise<PaymentPolicy[]> {
+    async getPaymentPolicies(marketplaceId = defaultMarketplace): Promise<PaymentPolicy[]> {
       const data = await fetchJson<{ paymentPolicies?: PaymentPolicy[] }>(
         `${baseUrl}/sell/account/v1/payment_policy?marketplace_id=${marketplaceId}`,
       );
       return data.paymentPolicies ?? [];
     },
 
-    async getReturnPolicies(marketplaceId = 'EBAY_US'): Promise<ReturnPolicy[]> {
+    async getReturnPolicies(marketplaceId = defaultMarketplace): Promise<ReturnPolicy[]> {
       const data = await fetchJson<{ returnPolicies?: ReturnPolicy[] }>(
         `${baseUrl}/sell/account/v1/return_policy?marketplace_id=${marketplaceId}`,
       );
       return data.returnPolicies ?? [];
     },
 
-    async getAllPolicies(marketplaceId = 'EBAY_US') {
+    async getAllPolicies(marketplaceId = defaultMarketplace) {
       const [fulfillment, payment, returnPolicies] = await Promise.all([
         this.getFulfillmentPolicies(marketplaceId),
         this.getPaymentPolicies(marketplaceId),

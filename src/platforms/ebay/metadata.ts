@@ -111,7 +111,7 @@ export function createEbayMetadataApi(
 ): EbayMetadataApi {
   const env = credentials.environment ?? 'production';
   const baseUrl = API_BASE[env];
-  const marketplaceId = 'EBAY_US';
+  const marketplaceId = credentials.marketplace ?? 'EBAY_US';
 
   async function getToken(): Promise<string> {
     return getAccessToken({
