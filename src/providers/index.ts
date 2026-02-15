@@ -96,7 +96,14 @@ export class GeminiProvider implements Provider {
   private endpoint(model: string, method: 'generateContent' | 'streamGenerateContent'): string {
     const sanitized = model.replace(/[^a-zA-Z0-9._\-/]/g, '');
     const cleanModel = sanitized.startsWith('models/') ? sanitized : `models/${sanitized}`;
-    return `${this.baseUrl}/${cleanModel}:${method}?key=${this.apiKey}`;
+    return `${this.baseUrl}/${cleanModel}:${method}`;
+  }
+
+  private authHeaders(): Record<string, string> {
+    return {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': this.apiKey,
+    };
   }
 
   private toGeminiMessages(messages: Message[]): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
@@ -127,7 +134,7 @@ export class GeminiProvider implements Provider {
 
     const response = await fetch(this.endpoint(model, 'generateContent'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.authHeaders(),
       body: JSON.stringify({
         contents: this.toGeminiMessages(messages),
         generationConfig: {
@@ -169,7 +176,7 @@ export class GeminiProvider implements Provider {
 
     const response = await fetch(this.endpoint(model, 'streamGenerateContent'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.authHeaders(),
       body: JSON.stringify({
         contents: this.toGeminiMessages(messages),
         generationConfig: {
@@ -265,7 +272,7 @@ export class AnthropicProvider implements Provider {
   constructor(config: ProviderConfig) {
     this.config = {
       baseUrl: 'https://api.anthropic.com',
-      defaultModel: 'claude-3-5-sonnet-20241022',
+      defaultModel: 'claude-sonnet-4-5-20250929',
       timeout: 120000,
       maxRetries: 3,
       ...config,
@@ -403,9 +410,11 @@ export class AnthropicProvider implements Provider {
 
   async listModels(): Promise<string[]> {
     return [
+      'claude-opus-4-6',
+      'claude-sonnet-4-5-20250929',
+      'claude-haiku-4-5-20251001',
       'claude-3-5-sonnet-20241022',
       'claude-3-opus-20240229',
-      'claude-3-sonnet-20240229',
       'claude-3-haiku-20240307',
     ];
   }
@@ -1044,10 +1053,15 @@ export interface CostConfig {
 }
 
 const MODEL_COSTS: Record<string, CostConfig> = {
+  // Claude 4.x
+  'claude-opus-4-6': { inputCostPer1k: 0.015, outputCostPer1k: 0.075 },
+  'claude-sonnet-4-5-20250929': { inputCostPer1k: 0.003, outputCostPer1k: 0.015 },
+  'claude-haiku-4-5-20251001': { inputCostPer1k: 0.0008, outputCostPer1k: 0.004 },
+  // Claude 3.x (legacy)
   'claude-3-5-sonnet-20241022': { inputCostPer1k: 0.003, outputCostPer1k: 0.015 },
   'claude-3-opus-20240229': { inputCostPer1k: 0.015, outputCostPer1k: 0.075 },
-  'claude-3-sonnet-20240229': { inputCostPer1k: 0.003, outputCostPer1k: 0.015 },
   'claude-3-haiku-20240307': { inputCostPer1k: 0.00025, outputCostPer1k: 0.00125 },
+  // OpenAI
   'gpt-4o': { inputCostPer1k: 0.005, outputCostPer1k: 0.015 },
   'gpt-4-turbo': { inputCostPer1k: 0.01, outputCostPer1k: 0.03 },
   'gpt-3.5-turbo': { inputCostPer1k: 0.0005, outputCostPer1k: 0.0015 },
@@ -1116,34 +1130,38 @@ export function createProviders(options: {
 
 export const providers = new ProviderManager();
 
-// Auto-register from environment
-if (process.env.ANTHROPIC_API_KEY) {
-  providers.register(new AnthropicProvider({ apiKey: process.env.ANTHROPIC_API_KEY }));
+let _providersInitialized = false;
+
+/** Register providers from environment variables. Safe to call multiple times. */
+export function initProviders(): void {
+  if (_providersInitialized) return;
+  _providersInitialized = true;
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    providers.register(new AnthropicProvider({ apiKey: process.env.ANTHROPIC_API_KEY }));
+  }
+  if (process.env.OPENAI_API_KEY) {
+    providers.register(new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY }));
+  }
+  if (process.env.OLLAMA_URL) {
+    providers.register(new OllamaProvider(process.env.OLLAMA_URL));
+  }
+  if (process.env.GROQ_API_KEY) {
+    providers.register(new GroqProvider(process.env.GROQ_API_KEY));
+  }
+  if (process.env.TOGETHER_API_KEY) {
+    providers.register(new TogetherProvider(process.env.TOGETHER_API_KEY));
+  }
+  if (process.env.FIREWORKS_API_KEY) {
+    providers.register(new FireworksProvider(process.env.FIREWORKS_API_KEY));
+  }
+  if (process.env.GEMINI_API_KEY) {
+    providers.register(new GeminiProvider(process.env.GEMINI_API_KEY));
+  }
 }
 
-if (process.env.OPENAI_API_KEY) {
-  providers.register(new OpenAIProvider({ apiKey: process.env.OPENAI_API_KEY }));
-}
-
-if (process.env.OLLAMA_URL) {
-  providers.register(new OllamaProvider(process.env.OLLAMA_URL));
-}
-
-if (process.env.GROQ_API_KEY) {
-  providers.register(new GroqProvider(process.env.GROQ_API_KEY));
-}
-
-if (process.env.TOGETHER_API_KEY) {
-  providers.register(new TogetherProvider(process.env.TOGETHER_API_KEY));
-}
-
-if (process.env.FIREWORKS_API_KEY) {
-  providers.register(new FireworksProvider(process.env.FIREWORKS_API_KEY));
-}
-
-if (process.env.GEMINI_API_KEY) {
-  providers.register(new GeminiProvider(process.env.GEMINI_API_KEY));
-}
+// Auto-init on first import for backward compat (lazy — env is already loaded by this point)
+initProviders();
 
 export { createProviderHealthMonitor } from './health';
 export type { ProviderHealthMonitor, ProviderHealthSnapshot, ProviderHealthStatus } from './health';

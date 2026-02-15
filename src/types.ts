@@ -8,6 +8,9 @@
 
 export type Platform = 'amazon' | 'ebay' | 'walmart' | 'aliexpress';
 
+/** Platform + auxiliary services that can store credentials */
+export type CredentialPlatform = Platform | 'keepa' | 'easypost';
+
 export const ALL_PLATFORMS: Platform[] = ['amazon', 'ebay', 'walmart', 'aliexpress'];
 
 // =============================================================================

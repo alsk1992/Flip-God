@@ -8,7 +8,7 @@
  */
 
 import * as crypto from 'crypto';
-import type { Platform } from '../types';
+import type { Platform, CredentialPlatform } from '../types';
 import type { Database } from '../db/index';
 import { createLogger } from '../utils/logger';
 
@@ -89,19 +89,19 @@ export function decrypt(encryptedData: string): string {
 
 export interface CredentialsManager {
   /** Store (or overwrite) credentials for a user/platform. */
-  setCredentials(userId: string, platform: Platform, credentials: unknown): void;
+  setCredentials(userId: string, platform: CredentialPlatform, credentials: unknown): void;
 
   /** Get decrypted credentials for a user/platform, or null. */
-  getCredentials<T = unknown>(userId: string, platform: Platform): T | null;
+  getCredentials<T = unknown>(userId: string, platform: CredentialPlatform): T | null;
 
   /** Check whether credentials exist and are enabled. */
-  hasCredentials(userId: string, platform: Platform): boolean;
+  hasCredentials(userId: string, platform: CredentialPlatform): boolean;
 
   /** Delete credentials for a user/platform. */
-  deleteCredentials(userId: string, platform: Platform): void;
+  deleteCredentials(userId: string, platform: CredentialPlatform): void;
 
   /** List all platforms for which the user has enabled credentials. */
-  listUserPlatforms(userId: string): Platform[];
+  listUserPlatforms(userId: string): CredentialPlatform[];
 }
 
 // ---------------------------------------------------------------------------
@@ -117,11 +117,11 @@ export function createCredentialsManager(db: Database): CredentialsManager {
   }
 
   return {
-    setCredentials(userId: string, platform: Platform, credentials: unknown): void {
+    setCredentials(userId: string, platform: CredentialPlatform, credentials: unknown): void {
       const encryptedData = encrypt(JSON.stringify(credentials));
       const now = new Date();
 
-      const existing = db.getTradingCredentials(userId, platform);
+      const existing = db.getTradingCredentials(userId, platform as Platform);
       if (existing) {
         db.updateTradingCredentials({
           ...existing,
@@ -135,7 +135,7 @@ export function createCredentialsManager(db: Database): CredentialsManager {
       } else {
         db.createTradingCredentials({
           userId,
-          platform,
+          platform: platform as Platform,
           mode: 'api_key',
           encryptedData,
           enabled: true,
@@ -148,8 +148,8 @@ export function createCredentialsManager(db: Database): CredentialsManager {
       logger.info({ userId, platform }, 'Stored credentials');
     },
 
-    getCredentials<T = unknown>(userId: string, platform: Platform): T | null {
-      const creds = db.getTradingCredentials(userId, platform);
+    getCredentials<T = unknown>(userId: string, platform: CredentialPlatform): T | null {
+      const creds = db.getTradingCredentials(userId, platform as Platform);
       if (!creds || !creds.enabled) return null;
 
       // Check cooldown
@@ -167,23 +167,22 @@ export function createCredentialsManager(db: Database): CredentialsManager {
       }
     },
 
-    hasCredentials(userId: string, platform: Platform): boolean {
-      const creds = db.getTradingCredentials(userId, platform);
+    hasCredentials(userId: string, platform: CredentialPlatform): boolean {
+      const creds = db.getTradingCredentials(userId, platform as Platform);
       return creds !== null && creds.enabled;
     },
 
-    deleteCredentials(userId: string, platform: Platform): void {
-      db.deleteTradingCredentials(userId, platform);
+    deleteCredentials(userId: string, platform: CredentialPlatform): void {
+      db.deleteTradingCredentials(userId, platform as Platform);
       logger.info({ userId, platform }, 'Deleted credentials');
     },
 
-    listUserPlatforms(userId: string): Platform[] {
-      // Query all enabled credential rows for this user
+    listUserPlatforms(userId: string): CredentialPlatform[] {
       const rows = db.query<{ platform: string }>(
         'SELECT platform FROM trading_credentials WHERE user_id = ? AND enabled = 1',
         [userId],
       );
-      return rows.map((r) => r.platform as Platform);
+      return rows.map((r) => r.platform as CredentialPlatform);
     },
   };
 }

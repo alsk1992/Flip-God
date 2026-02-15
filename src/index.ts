@@ -94,9 +94,10 @@ function validateStartupRequirements(): void {
       } else {
         writeFileSync(envPath, `FLIPAGENT_CREDENTIAL_KEY=${generated}\n`, { mode: 0o600 });
       }
-      logger.info('Auto-generated FLIPAGENT_CREDENTIAL_KEY');
+      logger.info('Auto-generated FLIPAGENT_CREDENTIAL_KEY and saved to ~/.flipagent/.env');
+      logger.warn('Back up FLIPAGENT_CREDENTIAL_KEY — losing it makes stored credentials unrecoverable');
     } catch (err) {
-      logger.warn({ err }, 'Could not persist FLIPAGENT_CREDENTIAL_KEY');
+      logger.warn({ err }, 'Could not persist FLIPAGENT_CREDENTIAL_KEY — stored credentials will be lost on restart');
     }
   }
   if (errors.length > 0) {

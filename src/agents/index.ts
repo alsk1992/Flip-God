@@ -17,6 +17,7 @@ import type {
   OutgoingMessage,
   Config,
   Platform,
+  CredentialPlatform,
   ConversationMessage,
   AmazonCredentials,
   EbayCredentials,
@@ -77,11 +78,11 @@ const logger = createLogger('agent');
  * Matches the synchronous API from credentials/index.ts.
  */
 export interface CredentialsManager {
-  getCredentials: <T = unknown>(userId: string, platform: Platform) => T | null;
-  hasCredentials: (userId: string, platform: Platform) => boolean;
-  listUserPlatforms: (userId: string) => Platform[];
-  setCredentials?: (userId: string, platform: Platform, credentials: unknown) => void;
-  deleteCredentials?: (userId: string, platform: Platform) => void;
+  getCredentials: <T = unknown>(userId: string, platform: CredentialPlatform) => T | null;
+  hasCredentials: (userId: string, platform: CredentialPlatform) => boolean;
+  listUserPlatforms: (userId: string) => CredentialPlatform[];
+  setCredentials?: (userId: string, platform: CredentialPlatform, credentials: unknown) => void;
+  deleteCredentials?: (userId: string, platform: CredentialPlatform) => void;
 }
 
 /** Minimal skill manager interface (to be implemented in skills/loader.ts) */
@@ -1393,8 +1394,8 @@ function getUserCreds(
     ebay: credentials.getCredentials<EbayCredentials>(userId, 'ebay') ?? undefined,
     walmart: credentials.getCredentials<WalmartCredentials>(userId, 'walmart') ?? undefined,
     aliexpress: credentials.getCredentials<AliExpressCredentials>(userId, 'aliexpress') ?? undefined,
-    keepa: credentials.getCredentials<KeepaCredentials>(userId, 'amazon') ?? undefined, // stored under amazon
-    easypost: credentials.getCredentials<EasyPostCredentials>(userId, 'ebay') ?? undefined, // stored under ebay for now
+    keepa: credentials.getCredentials<KeepaCredentials>(userId, 'keepa') ?? undefined,
+    easypost: credentials.getCredentials<EasyPostCredentials>(userId, 'easypost') ?? undefined,
   };
 }
 

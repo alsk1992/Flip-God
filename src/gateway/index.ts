@@ -15,7 +15,7 @@ import { createCredentialsManager } from '../credentials';
 import { hooks } from '../hooks';
 import { CronScheduler, registerBuiltInJobs } from '../cron';
 import { MessageQueue } from '../queue';
-import { setupShutdownHandlers } from '../utils/production';
+// setupShutdownHandlers handled in src/index.ts and cli/index.ts
 import { scanForArbitrage } from '../arbitrage/scanner';
 import { createOrderMonitor } from '../fulfillment/monitor';
 import { createAmazonAdapter } from '../platforms/amazon/scraper';
