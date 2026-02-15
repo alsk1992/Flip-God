@@ -1,0 +1,25 @@
+# FlipAgent Docker Compose
+#
+# Usage:
+#   docker compose up -d
+#
+# Requires .env file in project root (see .env.example)
+
+services:
+  flipagent:
+    build: ..
+    ports:
+      - "${FLIPAGENT_PORT:-3141}:3141"
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3141/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - flipagent-data:/app/.flipagent
+
+volumes:
+  flipagent-data:

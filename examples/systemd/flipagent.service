@@ -1,0 +1,20 @@
+[Unit]
+Description=FlipAgent - AI E-Commerce Arbitrage Agent
+After=network.target
+
+[Service]
+Type=simple
+User=flipagent
+WorkingDirectory=/opt/flipagent
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=/opt/flipagent/.env
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/flipagent/.flipagent
+
+[Install]
+WantedBy=multi-user.target
