@@ -1,21 +1,35 @@
 # FlipAgent API Coverage Audit — Master Reference
 
-**Date**: Feb 13, 2026
-**Current Coverage**: 20 of ~615+ total API methods implemented (~3.3%)
+**Date**: Feb 15, 2026
+**Platforms**: 15 total (6 official API, 7 internal/reverse-engineered, 3 HTML scraping)
+**Current Coverage**: 20 official API methods + 11 reverse-engineered adapters + 3 HTML scrapers
 
 ---
 
 ## Coverage Summary
 
-| Platform | Total API Methods | Implemented | Coverage |
-|----------|:-:|:-:|:-:|
-| **Amazon PA-API** | 4 | 2 | 50% |
-| **Amazon SP-API** | ~200+ | 0 | 0% |
-| **eBay** | ~250+ | 12 | ~5% |
-| **Walmart Affiliate** | 10 | 2 | 20% |
-| **Walmart Marketplace** | ~123 | 0 | 0% |
-| **AliExpress** | ~42 | 4 | ~10% |
-| **TOTAL** | **~615+** | **20** | **~3.3%** |
+| Platform | Type | API Methods Available | Implemented | Coverage |
+|----------|------|:-:|:-:|:-:|
+| **Amazon PA-API** | Official | 4 | 2 | 50% |
+| **Amazon SP-API** | Official | ~200+ | 0 | 0% |
+| **eBay** | Official | ~250+ | 12 | ~5% |
+| **Walmart Affiliate** | Official | 10 | 2 | 20% |
+| **Walmart Marketplace** | Official | ~123 | 0 | 0% |
+| **AliExpress** | Official | ~42 | 4 | ~10% |
+| **Best Buy** | Official | ~8 | 2 | 25% |
+| **Faire** | Official | ~15 | 2 | ~13% |
+| **Target** | Internal | 3 | 2 | 67% |
+| **Home Depot** | Internal | 1 (GraphQL) | 1 | 100% |
+| **Mercari JP** | Internal | 4 | 2 | 50% |
+| **Facebook Marketplace** | Internal | 2 (doc_ids) | 2 | 100% |
+| **Poshmark** | Internal | 3 | 2 | 67% |
+| **Costco** | Internal | 2 | 2 | 100% |
+| **B-Stock** | Scraping | N/A | search+detail | -- |
+| **BULQ** | Scraping | N/A | search+detail | -- |
+| **Liquidation.com** | Scraping | N/A | search+detail | -- |
+| **Keepa** | Official | ~5 | 3 | 60% |
+| **EasyPost** | Official | ~10 | 3 | 30% |
+| **TOTAL** | | **~615+ official** | **~41 methods** | |
 
 ---
 
@@ -223,6 +237,314 @@ commerce.identity.readonly
 2. **Shipping hardcoded to $0** — scraper.ts:31, makes profit calculations wrong
 3. **No order status polling** — purchaser places orders but can't check them afterward
 4. **No category structure** — relies entirely on keyword search
+
+---
+
+## BEST BUY (2 of ~8 methods)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Product Search (`GET /v1/products(keyword=...)`) | scraper.ts |
+| Product Lookup by SKU (`GET /v1/products/{sku}.json`) | scraper.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| `GET /v1/products(categoryPath.id=...)` | MEDIUM | Browse by category |
+| `GET /v1/products(salePrice<={n})` | MEDIUM | Price range filtering |
+| `GET /v1/products(onSale=true)` | HIGH | Find clearance/sale items for arbitrage |
+| `GET /v1/categories` | LOW | Category tree discovery |
+| `GET /v1/stores` | LOW | Store availability/pickup |
+| Open Box endpoint | MEDIUM | Open box deals at reduced prices |
+
+### Notes
+- Simple API key auth (URL parameter)
+- No selling API — read-only sourcing platform
+- Rate limits not documented but generous
+
+---
+
+## FAIRE (2 of ~15 methods)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| List Products (`GET /external-api/v2/products`) | scraper.ts |
+| Get Product by ID (`GET /external-api/v2/products/{id}`) | scraper.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| `GET /external-api/v2/products?page=N` | HIGH | Pagination (currently first page only) |
+| `GET /external-api/v2/orders` | HIGH | Pull wholesale orders |
+| `GET /external-api/v2/orders/{id}` | HIGH | Order details |
+| `PATCH /external-api/v2/orders/{id}/items/{id}/ship` | MEDIUM | Mark items shipped |
+| `GET /external-api/v2/brand` | MEDIUM | Brand profile info |
+| `GET /external-api/v2/brand/inventory-levels` | HIGH | Check wholesale stock levels |
+| `PATCH /external-api/v2/products/{id}` | LOW | Update product info |
+
+### Notes
+- Official API with `X-FAIRE-ACCESS-TOKEN` header
+- Access token obtained via email to `integrations.support@faire.com`
+- Prices in cents (wholesale + retail), need division by 100
+- Wholesale vs retail price diff is the margin indicator
+
+---
+
+## TARGET — Redsky Internal API (2 of 3)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Product Search (`GET /redsky_aggregations/v1/web/plp_search_v1`) | scraper.ts |
+| Product Detail by TCIN (`GET /redsky_aggregations/v1/web/pdp_client_v1`) | scraper.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| Store Availability | HIGH | Check in-store pickup availability |
+
+### Notes
+- Public API key: `ff457966e64d5e877fdbad070f276d18ecec4a01`
+- Returns TCIN, price, brand, ratings, images, stock status
+- No selling API — read-only sourcing
+- Stable internal API used by Target's own frontend
+
+---
+
+## HOME DEPOT — GraphQL Federation Gateway (1 of 1)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| `searchModel` GraphQL query | scraper.ts |
+
+### Notes
+- `POST https://apionline.homedepot.com/federation-gateway/graphql?opname=searchModel`
+- Requires headers: `x-experience-name: general-merchandise`, `x-hd-dc: origin`
+- Returns: itemId, price, original price, images, brand, ratings, canonicalUrl
+- No auth required — just proper headers + Origin/Referer
+- Full coverage — only search is available via public GraphQL
+
+---
+
+## MERCARI JP — v2 API with DPoP JWT (2 of 4)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Search (`POST /v2/entities:search`) | scraper.ts |
+| Get Item (`GET /items/get?id=...`) | scraper.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| Get Seller Profile | MEDIUM | Seller reputation/history |
+| Get Item Comments/Likes | LOW | Demand estimation |
+
+### Auth Details
+- **DPoP JWT (ECDSA P-256 / ES256)** — no credentials needed
+- Auto-generates ECDSA key pair per adapter instance
+- Each request gets fresh JWT with `iat`, `jti`, `htu` (URL), `htm` (method), `uuid`
+- Based on `take-kun/mercapi` (63 stars) + `HonmaMeikodesu/generate-mercari-jwt`
+- Targets **mercari.jp** (Japan) — prices in JPY
+
+---
+
+## FACEBOOK MARKETPLACE — Internal GraphQL (2 of 2)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Location Lookup (`doc_id=5585904654783609`) | scraper.ts |
+| Listing Search (`doc_id=7111939778879383`) | scraper.ts |
+
+### Notes
+- `POST https://www.facebook.com/api/graphql/` with `application/x-www-form-urlencoded`
+- No login required — public GraphQL
+- Search supports: keyword, lat/lng, price range, radius (in km)
+- Price bounds sent in cents (×100)
+- Returns: listing ID, title, price, image, seller name, pending status
+- Based on `kyleronayne/marketplace-api` (50 stars, active Feb 2026)
+- **Caveat**: `doc_id` values may change if Facebook updates frontend
+- Full coverage — only search + location available via public API
+
+---
+
+## POSHMARK — vm-rest Internal API (2 of 3)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Get Item (`GET /vm-rest/posts/{itemId}`) | scraper.ts |
+| Search (`GET /vm-rest/posts?query=...` + `__NEXT_DATA__` fallback) | scraper.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| User Closet (`GET /vm-rest/users/{userId}/posts`) | MEDIUM | Browse seller's full inventory |
+
+### Notes
+- Primary API: `/vm-rest/posts` endpoints return JSON
+- Fallback: Extract `__NEXT_DATA__` from search HTML page
+- Cookie-based auth optional (public items work without)
+- Fixed $7.97 flat rate shipping on all Poshmark orders
+- Based on `michaelbutler/phposh` (PHP SDK) + `joshdk/posh` (Go client)
+- Parses: price, original_price, brand, size, condition, NWT flag, seller, images
+
+---
+
+## COSTCO — CatalogSearch + AjaxGetContractPrice (2 of 2)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Search (`GET /CatalogSearch?keyword=...&responseFormat=json`) | scraper.ts |
+| Price Lookup (`GET /AjaxGetContractPrice?productId=...`) | scraper.ts |
+
+### Notes
+- Requires browser-like headers (Sec-Ch-Ua, Sec-Fetch-*) to avoid Akamai blocks
+- Location cookies: `invCheckPostalCode`, `invCheckCity`, `C_LOC`
+- Configurable postal code/city (defaults to 90210)
+- Returns: product name, price, sale price, stock status, brand, ratings
+- Based on `aransaseelan/CostcoPriceTracker` (active Dec 2025)
+- **Caveat**: Akamai bot protection may return 403 — handled gracefully
+- Full coverage — these are the only two public endpoints
+
+---
+
+## B-STOCK — HTML Scraping (search + detail)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Search (`GET /search?q=...`) | scraper.ts |
+| Auction Detail (`GET /auction/{id}`) | scraper.ts |
+
+### Extraction Strategy (3-tier)
+1. **JSON-LD** (`<script type="application/ld+json">`) — schema.org Product/ItemList
+2. **`__NEXT_DATA__`** (`<script id="__NEXT_DATA__">`) — server-rendered props
+3. **HTML regex fallback** — `data-auction-id` attributes + `href="/auction/..."` patterns
+
+### Notes
+- Enterprise API exists but requires B-Stock partnership agreement
+- HTML scraping is the only public option
+- Returns: auction ID, title, current bid, retail value, category, marketplace source
+- No rate limit issues observed
+
+---
+
+## BULQ — HTML Scraping (search + detail)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Search (`GET /search?q=...`) | scraper.ts |
+| Lot Detail (`GET /lot/{id}`) | scraper.ts |
+
+### Extraction Strategy (3-tier)
+1. **JSON-LD** — same as B-Stock
+2. **`__NEXT_DATA__`** — lot data from Next.js props
+3. **HTML regex fallback** — `href="/lot/..."` patterns
+
+### Notes
+- Zero open-source scrapers exist on GitHub — built from scratch
+- Fixed-price lots (not auctions)
+- Returns: lot ID, title, price, retail value, category, condition, item count, source retailer
+- Shipping varies but often included in lot price
+
+---
+
+## LIQUIDATION.COM — HTML Scraping (search + detail)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Search (`GET /auction/search?flag=new&query=...`) | scraper.ts |
+| Auction Detail (`GET /auction/{id}`) | scraper.ts |
+
+### Extraction Strategy (3-tier + JSON fallback)
+1. **Direct JSON** — if `content-type: application/json`, parse directly
+2. **JSON-LD** — same as B-Stock/BULQ
+3. **`__NEXT_DATA__`** — server-rendered auction data
+4. **HTML regex fallback** — `data-auction-id` + `data-lot-id` attributes
+
+### Notes
+- Cloudflare protection — may return 403
+- Uses Cloudflare-appropriate headers (Sec-Ch-Ua, Sec-Fetch-Dest: document)
+- Returns: auction ID, title, current bid, retail value, category, condition, seller, item count
+- Zero open-source scrapers exist on GitHub — built from scratch
+
+---
+
+## KEEPA — Amazon Price History (3 of ~5)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Product history (`GET /product?key=...&asin=...`) | keepa.ts |
+| Deal finder (`GET /deal?key=...`) | keepa.ts |
+| Best sellers (`GET /bestsellers?key=...`) | keepa.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| `GET /product/finder` | HIGH | Advanced product search with price drop filters |
+| `GET /category` | LOW | Category tree for structured queries |
+
+### Notes
+- API key auth (URL parameter)
+- Returns historical price arrays (Amazon, 3rd party, used, etc.)
+- Deal finder is powerful for arbitrage: finds price drops, lightning deals
+- 1 token per product lookup, 50 tokens per deal query
+
+---
+
+## EASYPOST — Shipping Rate Comparison (3 of ~10)
+
+### Currently Implemented
+
+| Method | File |
+|--------|------|
+| Create Shipment + Get Rates (`POST /v2/shipments`) | shipping.ts |
+| Buy Label (`POST /v2/shipments/{id}/buy`) | shipping.ts |
+| Track (`GET /v2/trackers/{id}`) | shipping.ts |
+
+### Missing Methods
+
+| Method | Priority | Purpose |
+|--------|:-:|---------|
+| `POST /v2/trackers` | MEDIUM | Create tracker from tracking number |
+| `POST /v2/insurance` | LOW | Insure shipments |
+| `POST /v2/batches` | MEDIUM | Batch label purchase (bulk shipping) |
+| `GET /v2/addresses/verify` | HIGH | Address validation before shipping |
+| `POST /v2/refunds` | MEDIUM | Refund unused labels |
+| `POST /v2/scan_forms` | LOW | USPS SCAN forms for drop-off |
+
+### Notes
+- Basic auth with API key
+- Supports USPS, UPS, FedEx, DHL rate comparison in one call
+- Returns cheapest rate across all carriers
+- Labels returned as base64-encoded PDF/PNG
 
 ---
 

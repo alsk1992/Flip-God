@@ -24,6 +24,7 @@ export interface ProductSearchResult {
   category?: string;
   rating?: number;
   reviewCount?: number;
+  msrp?: number;
 }
 
 export interface SearchOptions {
