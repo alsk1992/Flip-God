@@ -71,6 +71,16 @@ export interface KeepaDeal {
   dealCreationDate: number;
 }
 
+export interface KeepaCategory {
+  domainId: number;
+  catId: number;
+  name: string;
+  children: number[];
+  parent: number;
+  highestRank: number;
+  productCount: number;
+}
+
 export interface KeepaApi {
   /** Get product data including price history */
   getProduct(params: {
@@ -122,6 +132,22 @@ export interface KeepaApi {
   /** Get token status (remaining tokens, refill time) */
   getTokenStatus(): Promise<{ tokensLeft: number; refillIn: number; refillRate: number }>;
 
+  /** Find products matching criteria (product finder) */
+  findProducts(params: {
+    productType?: number;
+    current_AMAZON_gte?: number;
+    current_AMAZON_lte?: number;
+    salesRankCurrent_gte?: number;
+    salesRankCurrent_lte?: number;
+    isEligibleForSuperSaverShipping?: boolean;
+    rootCategory?: number;
+    page?: number;
+    perPage?: number;
+  }): Promise<string[]>;
+
+  /** Get category tree / list */
+  getCategories(params?: { domain?: number; parent?: number }): Promise<KeepaCategory[]>;
+
   /** Convert Keepa price integer to dollar amount */
   keepaPriceToDollar(keepaPrice: number): number;
 
@@ -132,7 +158,7 @@ export interface KeepaApi {
 export function createKeepaApi(config: KeepaConfig): KeepaApi {
   const domainId = config.domainId ?? 1; // amazon.com
 
-  async function keepaFetch<T>(path: string, params?: Record<string, string | number | boolean>): Promise<T> {
+  async function keepaFetch<T>(path: string, params?: Record<string, string | number | boolean>, options?: { method?: string; body?: unknown }): Promise<T> {
     const url = new URL(path, KEEPA_BASE);
     url.searchParams.set('key', config.apiKey);
     if (params) {
@@ -141,7 +167,15 @@ export function createKeepaApi(config: KeepaConfig): KeepaApi {
       }
     }
 
-    const response = await fetch(url.toString());
+    const fetchOptions: RequestInit = {
+      method: options?.method ?? 'GET',
+    };
+    if (options?.body) {
+      fetchOptions.headers = { 'Content-Type': 'application/json' };
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(url.toString(), fetchOptions);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -214,8 +248,7 @@ export function createKeepaApi(config: KeepaConfig): KeepaApi {
 
       const data = await keepaFetch<{ deals?: Array<{ asin: string; title: string; image: string; dealPrice: number; listPrice: number; percentOff: number; categories?: number[]; creationDate: number }> }>('/deal', {
         domain: params?.domainId ?? domainId,
-        selection: JSON.stringify(dealRequest),
-      });
+      }, { method: 'POST', body: { dealRequest } });
 
       return (data.deals ?? []).map(d => ({
         asin: d.asin,
@@ -275,6 +308,44 @@ export function createKeepaApi(config: KeepaConfig): KeepaApi {
         refillIn: data.refillIn ?? 0,
         refillRate: data.refillRate ?? 0,
       };
+    },
+
+    async findProducts(params) {
+      const finderRequest: Record<string, unknown> = {
+        perPage: params.perPage ?? 50,
+        page: params.page ?? 0,
+      };
+
+      if (params.productType !== undefined) finderRequest.productType = params.productType;
+      if (params.current_AMAZON_gte !== undefined) finderRequest.current_AMAZON_gte = params.current_AMAZON_gte;
+      if (params.current_AMAZON_lte !== undefined) finderRequest.current_AMAZON_lte = params.current_AMAZON_lte;
+      if (params.salesRankCurrent_gte !== undefined) finderRequest.salesRankCurrent_gte = params.salesRankCurrent_gte;
+      if (params.salesRankCurrent_lte !== undefined) finderRequest.salesRankCurrent_lte = params.salesRankCurrent_lte;
+      if (params.isEligibleForSuperSaverShipping !== undefined) {
+        finderRequest.isEligibleForSuperSaverShipping = params.isEligibleForSuperSaverShipping ? 1 : 0;
+      }
+      if (params.rootCategory !== undefined) finderRequest.rootCategory = params.rootCategory;
+
+      const data = await keepaFetch<{ asinList?: string[]; totalResults?: number }>('/product/finder', {
+        domain: domainId,
+      }, { method: 'POST', body: finderRequest });
+      return data.asinList ?? [];
+    },
+
+    async getCategories(params?) {
+      const data = await keepaFetch<{ categories?: Record<string, KeepaCategory> }>(
+        '/category',
+        {
+          domain: params?.domain ?? domainId,
+          parent: params?.parent ?? 0,
+        },
+      );
+
+      // Keepa returns categories wrapped in a categories object keyed by catId
+      return Object.values(data.categories ?? {}).filter(
+        (cat): cat is KeepaCategory =>
+          typeof cat === 'object' && cat !== null && typeof cat.catId === 'number',
+      );
     },
 
     keepaPriceToDollar,

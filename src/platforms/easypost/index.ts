@@ -122,6 +122,43 @@ export interface EasyPostTracker {
   updatedAt: string;
 }
 
+export interface EasyPostInsurance {
+  id: string;
+  mode: string;
+  amount: string;
+  carrier: string;
+  trackingCode: string;
+  status: string;
+  toAddress?: EasyPostAddress;
+  fromAddress?: EasyPostAddress;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EasyPostBatch {
+  id: string;
+  mode: string;
+  state: string;
+  numShipments: number;
+  shipments: Array<{ id: string }>;
+  labelUrl?: string;
+  scanFormUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EasyPostScanForm {
+  id: string;
+  mode: string;
+  status: string;
+  formUrl?: string;
+  formFileType?: string;
+  trackingCodes: string[];
+  batchId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EasyPostApi {
   /** Create a shipment to get rates */
   createShipment(params: {
@@ -148,8 +185,46 @@ export interface EasyPostApi {
   /** Verify an address */
   verifyAddress(address: Omit<EasyPostAddress, 'id'>): Promise<EasyPostAddress>;
 
+
+  /** Validate an address using create_and_verify */
+  validateAddress(address: {
+    street1: string;
+    street2?: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  }): Promise<{
+    verified: boolean;
+    address?: EasyPostAddress;
+    errors?: string[];
+  }>;
   /** Refund a shipment */
   refundShipment(shipmentId: string): Promise<{ refundStatus: string }>;
+
+  /** Create shipping insurance */
+  createInsurance(params: {
+    amount: string;
+    carrier: string;
+    trackingCode: string;
+    toAddress: object;
+    fromAddress: object;
+  }): Promise<EasyPostInsurance>;
+
+  /** Create a batch of shipments */
+  createBatch(shipmentIds: string[]): Promise<EasyPostBatch>;
+
+  /** Buy labels for all shipments in a batch */
+  buyBatch(batchId: string): Promise<EasyPostBatch>;
+
+  /** Get batch status */
+  getBatch(batchId: string): Promise<EasyPostBatch>;
+
+  /** Create a SCAN form for shipments */
+  createScanForm(shipmentIds: string[]): Promise<EasyPostScanForm>;
+
+  /** Get a SCAN form */
+  getScanForm(scanFormId: string): Promise<EasyPostScanForm>;
 }
 
 export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
@@ -215,6 +290,49 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
     };
   }
 
+  function mapPostageLabel(pl: any): EasyPostShipment['postageLabel'] {
+    if (!pl) return undefined;
+    return {
+      id: pl.id,
+      labelUrl: pl.label_url,
+      labelPdfUrl: pl.label_pdf_url,
+      labelZplUrl: pl.label_zpl_url,
+      labelDate: pl.label_date,
+      labelResolution: pl.label_resolution,
+      labelSize: pl.label_size,
+      labelType: pl.label_type,
+      labelFileType: pl.label_file_type,
+    };
+  }
+
+  function mapTracker(t: any): EasyPostTracker | undefined {
+    if (!t) return undefined;
+    return {
+      id: t.id,
+      mode: t.mode ?? 'test',
+      trackingCode: t.tracking_code ?? '',
+      status: t.status ?? 'unknown',
+      statusDetail: t.status_detail,
+      signedBy: t.signed_by,
+      weight: t.weight,
+      estDeliveryDate: t.est_delivery_date,
+      shipmentId: t.shipment_id,
+      carrier: t.carrier ?? 'unknown',
+      trackingDetails: ((t.tracking_details ?? []) as Array<Record<string, unknown>>).map(d => ({
+        message: (d.message as string) ?? '',
+        description: d.description as string | undefined,
+        status: (d.status as string) ?? 'unknown',
+        statusDetail: d.status_detail as string | undefined,
+        datetime: (d.datetime as string) ?? '',
+        source: (d.source as string) ?? '',
+        trackingLocation: d.tracking_location as EasyPostTrackingDetail['trackingLocation'],
+      })),
+      publicUrl: t.public_url,
+      createdAt: t.created_at ?? '',
+      updatedAt: t.updated_at ?? '',
+    };
+  }
+
   function mapShipment(s: Record<string, unknown>): EasyPostShipment {
     return {
       id: s.id as string,
@@ -225,9 +343,9 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
       parcel: (s.parcel ?? {}) as EasyPostParcel,
       rates: ((s.rates ?? []) as Record<string, unknown>[]).map(mapRate),
       selectedRate: s.selected_rate ? mapRate(s.selected_rate as Record<string, unknown>) : undefined,
-      postageLabel: s.postage_label as EasyPostShipment['postageLabel'],
+      postageLabel: mapPostageLabel(s.postage_label),
       trackingCode: s.tracking_code as string | undefined,
-      tracker: s.tracker as EasyPostTracker | undefined,
+      tracker: mapTracker(s.tracker),
       refundStatus: s.refund_status as string | undefined,
       insurance: s.insurance as string | undefined,
       createdAt: (s.created_at as string) ?? '',
@@ -358,11 +476,158 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
       return mapAddress(data);
     },
 
+    async validateAddress(address) {
+      try {
+        const data = await epFetch<Record<string, unknown>>('/addresses/create_and_verify', {
+          method: 'POST',
+          body: {
+            address: {
+              street1: address.street1,
+              street2: address.street2,
+              city: address.city,
+              state: address.state,
+              zip: address.zip,
+              country: address.country,
+              verify: ['delivery'],
+            },
+          },
+        });
+
+        const mapped = mapAddress(data);
+        const deliveryVerification = mapped.verifications?.delivery;
+        const verified = deliveryVerification?.success ?? false;
+        const errors = deliveryVerification?.errors?.map((e) => e.message) ?? [];
+
+        return {
+          verified,
+          address: mapped,
+          errors: errors.length > 0 ? errors : undefined,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error({ error: message }, 'Address validation failed');
+        return {
+          verified: false,
+          errors: [message],
+        };
+      }
+    },
+
     async refundShipment(shipmentId) {
       const data = await epFetch<Record<string, unknown>>(`/shipments/${shipmentId}/refund`, {
         method: 'POST',
       });
       return { refundStatus: (data.refund_status as string) ?? 'unknown' };
+    },
+
+    async createInsurance(params) {
+      const data = await epFetch<Record<string, unknown>>('/insurances', {
+        method: 'POST',
+        body: { insurance: { amount: params.amount, carrier: params.carrier, tracking_code: params.trackingCode, to_address: params.toAddress, from_address: params.fromAddress } },
+      });
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        amount: (data.amount as string) ?? params.amount,
+        carrier: (data.carrier as string) ?? params.carrier,
+        trackingCode: (data.tracking_code as string) ?? params.trackingCode,
+        status: (data.status as string) ?? 'unknown',
+        toAddress: data.to_address ? mapAddress(data.to_address as Record<string, unknown>) : undefined,
+        fromAddress: data.from_address ? mapAddress(data.from_address as Record<string, unknown>) : undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
+    },
+
+    async createBatch(shipmentIds) {
+      const data = await epFetch<Record<string, unknown>>('/batches', {
+        method: 'POST',
+        body: {
+          batch: {
+            shipments: shipmentIds.map(id => ({ id })),
+          },
+        },
+      });
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        state: (data.state as string) ?? 'unknown',
+        numShipments: (data.num_shipments as number) ?? shipmentIds.length,
+        shipments: ((data.shipments ?? []) as Array<Record<string, unknown>>).map(s => ({ id: s.id as string })),
+        labelUrl: data.label_url as string | undefined,
+        scanFormUrl: data.scan_form_url as string | undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
+    },
+
+    async buyBatch(batchId) {
+      const data = await epFetch<Record<string, unknown>>(`/batches/${batchId}/buy`, {
+        method: 'POST',
+      });
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        state: (data.state as string) ?? 'unknown',
+        numShipments: (data.num_shipments as number) ?? 0,
+        shipments: ((data.shipments ?? []) as Array<Record<string, unknown>>).map(s => ({ id: s.id as string })),
+        labelUrl: data.label_url as string | undefined,
+        scanFormUrl: data.scan_form_url as string | undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
+    },
+
+    async getBatch(batchId) {
+      const data = await epFetch<Record<string, unknown>>(`/batches/${batchId}`);
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        state: (data.state as string) ?? 'unknown',
+        numShipments: (data.num_shipments as number) ?? 0,
+        shipments: ((data.shipments ?? []) as Array<Record<string, unknown>>).map(s => ({ id: s.id as string })),
+        labelUrl: data.label_url as string | undefined,
+        scanFormUrl: data.scan_form_url as string | undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
+    },
+
+    async createScanForm(shipmentIds) {
+      const data = await epFetch<Record<string, unknown>>('/scan_forms', {
+        method: 'POST',
+        body: {
+          scan_form: {
+            shipments: shipmentIds.map(id => ({ id })),
+          },
+        },
+      });
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        status: (data.status as string) ?? 'unknown',
+        formUrl: data.form_url as string | undefined,
+        formFileType: data.form_file_type as string | undefined,
+        trackingCodes: ((data.tracking_codes ?? []) as string[]),
+        batchId: data.batch_id as string | undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
+    },
+
+    async getScanForm(scanFormId) {
+      const data = await epFetch<Record<string, unknown>>(`/scan_forms/${scanFormId}`);
+      return {
+        id: data.id as string,
+        mode: (data.mode as string) ?? 'test',
+        status: (data.status as string) ?? 'unknown',
+        formUrl: data.form_url as string | undefined,
+        formFileType: data.form_file_type as string | undefined,
+        trackingCodes: ((data.tracking_codes ?? []) as string[]),
+        batchId: data.batch_id as string | undefined,
+        createdAt: (data.created_at as string) ?? '',
+        updatedAt: (data.updated_at as string) ?? '',
+      };
     },
   };
 }

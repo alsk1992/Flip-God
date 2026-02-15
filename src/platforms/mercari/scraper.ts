@@ -117,7 +117,7 @@ interface MercariItemDetail {
   description?: string;
   thumbnails?: string[];
   photos?: string[];
-  seller?: { id: string; name: string; photo_thumbnail_url?: string; ratings?: { good?: number; bad?: number } };
+  seller?: { id: string; name: string; photo_thumbnail_url?: string; ratings?: { good?: number; normal?: number; bad?: number } };
   item_brand?: { id: string; name: string };
   item_category?: { id: string; name: string };
   item_condition?: { id: number; name: string };
@@ -158,16 +158,22 @@ function parseItemDetail(item: MercariItemDetail): ProductSearchResult {
     imageUrl: item.photos?.[0] ?? item.thumbnails?.[0],
     brand: item.item_brand?.name,
     category: item.item_category?.name,
-    rating: item.seller?.ratings ? item.seller.ratings.good : undefined,
+    rating: (() => {
+      const good = item.seller?.ratings?.good ?? 0;
+      const normal = item.seller?.ratings?.normal ?? 0;
+      const bad = item.seller?.ratings?.bad ?? 0;
+      const total = good + normal + bad;
+      return total > 0 ? (good * 5 + normal * 3 + bad * 1) / total : undefined;
+    })(),
     reviewCount: item.seller?.ratings
-      ? (item.seller.ratings.good ?? 0) + (item.seller.ratings.bad ?? 0)
+      ? (item.seller.ratings.good ?? 0) + (item.seller.ratings.normal ?? 0) + (item.seller.ratings.bad ?? 0)
       : undefined,
   };
 }
 
 // --- Adapter ---
 
-export function createMercariAdapter(): PlatformAdapter {
+export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(userId: string): Promise<SellerProfileResult | null> } {
   const keyPair = generateECKeyPair();
 
   const baseHeaders: Record<string, string> = {
@@ -256,5 +262,59 @@ export function createMercariAdapter(): PlatformAdapter {
       const product = await this.getProduct(productId);
       return { inStock: product?.inStock ?? false, quantity: product?.inStock ? 1 : 0 };
     },
+
+    async getSellerProfile(userId: string): Promise<SellerProfileResult | null> {
+      logger.info({ userId }, 'Getting Mercari seller profile');
+      const keyPair = generateECKeyPair();
+      const url = `${API_BASE}/v2/users/get?user_id=${encodeURIComponent(userId)}`;
+      const dpop = generateDPoP(url, 'GET', keyPair);
+      try {
+        const response = await fetch(url, {
+          headers: { ...baseHeaders, DPoP: dpop },
+        });
+        if (!response.ok) return null;
+        const data = await response.json() as {
+          data?: {
+            id?: string;
+            name?: string;
+            photo_url?: string;
+            ratings_count?: number;
+            rating_score?: number;
+            num_sell_items?: number;
+            num_listings?: number;
+            introduction?: string;
+            created?: number;
+          };
+        };
+        if (!data.data) return null;
+        const u = data.data;
+        return {
+          userId: u.id ?? userId,
+          name: u.name ?? '',
+          photoUrl: u.photo_url,
+          ratingsCount: u.ratings_count ?? 0,
+          ratingScore: u.rating_score ?? 0,
+          itemsListed: u.num_listings ?? 0,
+          itemsSold: u.num_sell_items ?? 0,
+          introduction: u.introduction,
+          memberSince: u.created ? new Date(u.created * 1000).toISOString() : undefined,
+        };
+      } catch (err) {
+        logger.error({ userId, err }, 'Mercari seller profile error');
+        return null;
+      }
+    },
   };
+}
+
+export interface SellerProfileResult {
+  userId: string;
+  name: string;
+  photoUrl?: string;
+  ratingsCount: number;
+  ratingScore: number;
+  itemsListed: number;
+  itemsSold: number;
+  introduction?: string;
+  memberSince?: string;
 }

@@ -53,7 +53,7 @@ interface FBMarketplaceListing {
 
 function parseListing(node: FBMarketplaceListing): ProductSearchResult {
   const priceStr = node.listing_price?.amount ?? node.pre_recorded_label?.amount ?? '0';
-  const price = parseFloat(priceStr) || 0;
+  const price = (parseFloat(priceStr) || 0) / 100;
 
   return {
     platformId: node.id,

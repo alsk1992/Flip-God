@@ -77,6 +77,39 @@ export interface WalmartFeedResponse {
   itemsFailed?: number;
 }
 
+export interface WalmartCancelLineItem {
+  lineNumber: string;
+  quantity: number;
+  reason: string;
+}
+
+export interface WalmartRefundLineItem {
+  lineNumber: string;
+  amount: number;
+  reason: string;
+  isFullRefund?: boolean;
+}
+
+export interface WalmartReturn {
+  returnOrderId: string;
+  customerOrderId?: string;
+  returnOrderDate?: string;
+  returnOrderLines?: Array<{
+    returnOrderLineNumber: string;
+    item?: { productName: string; sku: string };
+    refundAmount?: { currency: string; amount: number };
+    returnReason?: string;
+    status?: string;
+  }>;
+}
+
+export interface WalmartListingQualityItem {
+  sku: string;
+  productName?: string;
+  score?: number;
+  issues?: Array<{ issueType: string; issueDescription: string }>;
+}
+
 // ---- API Interface ----
 
 export interface WalmartSellerApi {
@@ -107,6 +140,19 @@ export interface WalmartSellerApi {
 
   // Feed status
   getFeedStatus(feedId: string): Promise<WalmartFeedResponse>;
+
+  cancelOrder(purchaseOrderId: string, lineItems: WalmartCancelLineItem[]): Promise<boolean>;
+  refundOrder(purchaseOrderId: string, lineItems: WalmartRefundLineItem[]): Promise<boolean>;
+
+  // Returns
+  getReturns(params?: { returnCreationStartDate?: string; limit?: number }): Promise<WalmartReturn[]>;
+  getReturnOrder(returnOrderId: string): Promise<WalmartReturn | null>;
+
+  // Bulk upload
+  bulkItemUpload(feedType: string, items: unknown[]): Promise<WalmartFeedResponse>;
+
+  // Insights
+  getListingQuality(params?: { limit?: number; nextCursor?: string }): Promise<{ items: WalmartListingQualityItem[]; nextCursor?: string }>;
 }
 
 // ---- Token management ----
@@ -155,7 +201,7 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
     const accessToken = await getAccessToken(credentials);
     const url = `${API_BASE}${path}`;
     const headers: Record<string, string> = {
-      'WM_SEC.ACCESS_TOKEN': accessToken,
+      'Authorization': `Bearer ${accessToken}`,
       'WM_SVC.NAME': 'FlipAgent',
       'WM_QOS.CORRELATION_ID': `flipagent-${Date.now()}`,
       'Accept': 'application/json',
@@ -222,17 +268,10 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
     // --- Pricing ---
     async updatePrice(sku: string, price: number, currency = 'USD'): Promise<WalmartFeedResponse> {
       const payload = {
-        PriceFeed: {
-          PriceHeader: { version: '1.5.1' },
-          Price: [{
-            itemIdentifier: { sku },
-            pricingList: {
-              pricing: [{
-                currentPrice: { currency, amount: price },
-              }],
-            },
-          }],
-        },
+        sku,
+        pricing: [{
+          currentPrice: { currency, amount: price },
+        }],
       };
       return walmartFetch<WalmartFeedResponse>('/price', { method: 'PUT', body: payload });
     },
@@ -345,9 +384,130 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       }
     },
 
+
+    async cancelOrder(purchaseOrderId: string, lineItems: WalmartCancelLineItem[]): Promise<boolean> {
+      const payload = {
+        orderCancellation: {
+          orderLines: {
+            orderLine: lineItems.map(li => ({
+              lineNumber: li.lineNumber,
+              orderLineStatuses: {
+                orderLineStatus: [{
+                  status: 'Cancelled',
+                  cancellationReason: li.reason,
+                  statusQuantity: { unitOfMeasurement: 'EACH', amount: String(li.quantity) },
+                }],
+              },
+            })),
+          },
+        },
+      };
+      try {
+        await walmartFetch(`/orders/${encodeURIComponent(purchaseOrderId)}/cancel`, { method: 'POST', body: payload });
+        logger.info({ purchaseOrderId, lines: lineItems.length }, 'Order cancelled');
+        return true;
+      } catch (err) {
+        logger.error({ purchaseOrderId, error: err instanceof Error ? err.message : String(err) }, 'Cancel order failed');
+        return false;
+      }
+    },
+
+    async refundOrder(purchaseOrderId: string, lineItems: WalmartRefundLineItem[]): Promise<boolean> {
+      const payload = {
+        orderRefund: {
+          orderLines: {
+            orderLine: lineItems.map(li => ({
+              lineNumber: li.lineNumber,
+              isFullRefund: li.isFullRefund ?? false,
+              refunds: {
+                refund: [{
+                  refundComments: li.reason,
+                  refundCharges: {
+                    refundCharge: [{
+                      refundReason: li.reason,
+                      charge: {
+                        chargeType: 'PRODUCT',
+                        chargeName: 'Item Price',
+                        chargeAmount: { currency: 'USD', amount: li.amount },
+                      },
+                    }],
+                  },
+                }],
+              },
+            })),
+          },
+        },
+      };
+      try {
+        await walmartFetch(`/orders/${encodeURIComponent(purchaseOrderId)}/refund`, { method: 'POST', body: payload });
+        logger.info({ purchaseOrderId, lines: lineItems.length }, 'Order refunded');
+        return true;
+      } catch (err) {
+        logger.error({ purchaseOrderId, error: err instanceof Error ? err.message : String(err) }, 'Refund order failed');
+        return false;
+      }
+    },
+
+    // --- Returns ---
+    async getReturns(params?: { returnCreationStartDate?: string; limit?: number }): Promise<WalmartReturn[]> {
+      const query = new URLSearchParams();
+      if (params?.returnCreationStartDate) query.set('returnCreationStartDate', params.returnCreationStartDate);
+      query.set('limit', String(params?.limit ?? 50));
+      try {
+        const data = await walmartFetch<{ returnOrders?: WalmartReturn[] }>(`/returns?${query.toString()}`);
+        return data.returnOrders ?? [];
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Get returns failed');
+        return [];
+      }
+    },
+
+    async getReturnOrder(returnOrderId: string): Promise<WalmartReturn | null> {
+      try {
+        return await walmartFetch<WalmartReturn>(`/returns/${encodeURIComponent(returnOrderId)}`);
+      } catch (err) {
+        logger.error({ returnOrderId, error: err instanceof Error ? err.message : String(err) }, 'Get return order failed');
+        return null;
+      }
+    },
     // --- Feed Status ---
     async getFeedStatus(feedId: string): Promise<WalmartFeedResponse> {
       return walmartFetch<WalmartFeedResponse>(`/feeds/${encodeURIComponent(feedId)}`);
+    },
+
+    async bulkItemUpload(feedType: string, items: unknown[]): Promise<WalmartFeedResponse> {
+      try {
+        const payload = { items };
+        const result = await walmartFetch<WalmartFeedResponse>(
+          `/feeds?feedType=${encodeURIComponent(feedType)}`,
+          { method: 'POST', body: payload },
+        );
+        logger.info({ feedType, feedId: result.feedId, itemCount: items.length }, 'Bulk item upload submitted');
+        return result;
+      } catch (err) {
+        logger.error({ feedType, error: err instanceof Error ? err.message : String(err) }, 'Bulk item upload failed');
+        throw err;
+      }
+    },
+
+    // --- Insights ---
+    async getListingQuality(params?: { limit?: number; nextCursor?: string }): Promise<{ items: WalmartListingQualityItem[]; nextCursor?: string }> {
+      const query = new URLSearchParams();
+      query.set('limit', String(params?.limit ?? 50));
+      if (params?.nextCursor) query.set('nextCursor', params.nextCursor);
+      try {
+        const data = await walmartFetch<{
+          payload?: WalmartListingQualityItem[];
+          nextCursor?: string;
+        }>(`/insights/items/listingQuality/score?${query.toString()}`);
+        return {
+          items: data.payload ?? [],
+          nextCursor: data.nextCursor,
+        };
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Get listing quality failed');
+        return { items: [] };
+      }
     },
   };
 }

@@ -68,9 +68,10 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
       logger.info({ query: options.query }, 'Searching Best Buy');
 
       const pageSize = Math.min(options.maxResults ?? 10, 100);
-      let filter = `(search=${encodeURIComponent(options.query)})`;
-      if (options.minPrice != null) filter += `&salePrice>=${options.minPrice}`;
-      if (options.maxPrice != null) filter += `&salePrice<=${options.maxPrice}`;
+      const filters: string[] = [`search=${encodeURIComponent(options.query)}`];
+      if (options.minPrice != null) filters.push(`salePrice>=${options.minPrice}`);
+      if (options.maxPrice != null) filters.push(`salePrice<=${options.maxPrice}`);
+      const filter = `(${filters.join('&')})`;
 
       try {
         const url = `${API_BASE}/products${filter}?apiKey=${apiKey}&format=json&pageSize=${pageSize}&show=sku,name,salePrice,regularPrice,onSale,freeShipping,shippingCost,inStoreAvailability,onlineAvailability,url,image,largeFrontImage,upc,manufacturer,categoryPath,customerReviewAverage,customerReviewCount`;

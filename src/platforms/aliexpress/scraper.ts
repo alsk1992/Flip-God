@@ -105,7 +105,7 @@ export function createAliExpressAdapter(credentials?: AliExpressCredentials): Pl
       logger.info({ productId }, 'Getting AliExpress product via Affiliate API');
 
       const response = await callAliExpressApi<AliExpressProductDetailResponse>(
-        'aliexpress.affiliate.productdetail.get',
+        'aliexpress.affiliate.product.detail.get',
         {
           product_ids: productId,
           target_currency: 'USD',

@@ -39,10 +39,27 @@ export interface ItemAspect {
   }>;
 }
 
+export interface CategoryTreeNode {
+  categoryId: string;
+  categoryName: string;
+  categoryTreeNodeLevel?: number;
+  childCategoryTreeNodes?: CategoryTreeNode[];
+  leafCategoryTreeNode?: boolean;
+  parentCategoryTreeNodeHref?: string;
+}
+
+export interface CategoryTree {
+  categoryTreeId: string;
+  categoryTreeVersion: string;
+  rootCategoryNode?: CategoryTreeNode;
+  applicableMarketplaceIds?: string[];
+}
+
 export interface EbayTaxonomyApi {
   getCategorySuggestions(query: string, marketplaceId?: string): Promise<CategorySuggestion[]>;
   getItemAspectsForCategory(categoryId: string, categoryTreeId?: string): Promise<ItemAspect[]>;
   getDefaultCategoryTreeId(marketplaceId?: string): Promise<string>;
+  getCategoryTree(treeId?: string): Promise<CategoryTree | null>;
 }
 
 export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonomyApi {
@@ -130,6 +147,29 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
 
       const data = await response.json() as { categoryTreeId: string; categoryTreeVersion: string };
       return data.categoryTreeId;
+    },
+
+    async getCategoryTree(treeId?: string): Promise<CategoryTree | null> {
+      const token = await getToken();
+      const resolvedTreeId = treeId ?? await this.getDefaultCategoryTreeId();
+
+      const response = await fetch(
+        `${baseUrl}/commerce/taxonomy/v1/category_tree/${encodeURIComponent(resolvedTreeId)}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` },
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error(
+          { status: response.status, treeId: resolvedTreeId, error: errorText },
+          'Failed to get category tree',
+        );
+        return null;
+      }
+
+      return await response.json() as CategoryTree;
     },
   };
 }

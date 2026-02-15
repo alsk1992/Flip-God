@@ -176,7 +176,7 @@ export function createCostcoAdapter(options?: {
               inStock?: boolean;
             };
 
-            if (data.finalOnlinePrice || data.listPrice) {
+            if (data.finalOnlinePrice != null || data.listPrice != null) {
               return {
                 platformId: productId,
                 platform: 'amazon' as any,

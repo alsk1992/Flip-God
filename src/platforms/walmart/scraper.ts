@@ -42,9 +42,7 @@ export function createWalmartAdapter(credentials?: WalmartCredentials): Platform
   function getHeaders(): Record<string, string> {
     if (!credentials) return {};
     return {
-      'WM_SEC.ACCESS_TOKEN': credentials.clientSecret,
-      'WM_CONSUMER.ID': credentials.consumerId ?? credentials.clientId,
-      'WM_QOS.CORRELATION_ID': `flipagent-${Date.now()}`,
+      'apiKey': credentials.clientId,
       'Accept': 'application/json',
     };
   }
@@ -117,7 +115,9 @@ export function createWalmartAdapter(credentials?: WalmartCredentials): Platform
         return null;
       }
 
-      const item = await response.json() as WalmartApiItem;
+      const data = await response.json() as { items?: WalmartApiItem[] };
+      const item = data.items?.[0];
+      if (!item) return null;
       return parseItem(item);
     },
 

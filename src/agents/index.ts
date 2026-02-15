@@ -63,9 +63,44 @@ import { createAmazonSpApi } from '../platforms/amazon/sp-api';
 import { createEbayFinancesApi } from '../platforms/ebay/finances';
 import { createEbayAnalyticsApi } from '../platforms/ebay/analytics';
 import { createEbayMarketingApi } from '../platforms/ebay/marketing';
+import { createEbayBrowseExtendedApi } from '../platforms/ebay/browse-extended';
+import { createEbaySellerExtendedApi } from '../platforms/ebay/seller-extended';
+import { createEbayCatalogApi } from '../platforms/ebay/catalog';
+import { createEbayInsightsApi } from '../platforms/ebay/insights';
+import { createEbayComplianceApi } from '../platforms/ebay/compliance';
+import { createEbayFeedApi } from '../platforms/ebay/feed';
+import { createEbayNotificationApi } from '../platforms/ebay/notification';
+import { createEbayLogisticsApi } from '../platforms/ebay/logistics';
+import { createEbayNegotiationApi } from '../platforms/ebay/negotiation';
+import { createEbayMetadataApi } from '../platforms/ebay/metadata';
 import { createKeepaApi } from '../platforms/keepa';
 import { createEasyPostApi } from '../platforms/easypost';
 import { createWalmartSellerApi } from '../platforms/walmart/seller';
+import { createBestBuyAdapter } from '../platforms/bestbuy/scraper';
+import { createBestBuyExtendedApi } from '../platforms/bestbuy/extended';
+import { createTargetAdapter } from '../platforms/target/scraper';
+import { createHomeDepotAdapter } from '../platforms/homedepot/scraper';
+import { createCostcoAdapter } from '../platforms/costco/scraper';
+import { createPoshmarkAdapter } from '../platforms/poshmark/scraper';
+import { createMercariAdapter } from '../platforms/mercari/scraper';
+import { createFacebookAdapter } from '../platforms/facebook/scraper';
+import { createFaireAdapter } from '../platforms/faire/scraper';
+import { createFaireExtendedApi } from '../platforms/faire/extended';
+import { createBStockAdapter } from '../platforms/bstock/scraper';
+import { createBulqAdapter } from '../platforms/bulq/scraper';
+import { createLiquidationAdapter } from '../platforms/liquidation/scraper';
+import { createWalmartAffiliateExtendedApi } from '../platforms/walmart/affiliate-extended';
+import { createWalmartMarketplaceExtendedApi } from '../platforms/walmart/marketplace-extended';
+import { createAmazonSpApiExtended } from '../platforms/amazon/sp-api-extended';
+import { createAmazonSpApiComplete } from '../platforms/amazon/sp-api-complete';
+import { createAmazonPaApiExtended } from '../platforms/amazon/pa-api-extended';
+import { createAliExpressDiscoveryApi } from '../platforms/aliexpress/discovery';
+import {
+  generateAffiliateLink,
+  getDsProductDetails,
+  getDsOrderTracking,
+  queryDsFreight,
+} from '../platforms/aliexpress/complete';
 
 const logger = createLogger('agent');
 
@@ -154,7 +189,7 @@ When presenting margins, use percentage format (e.g., "32% margin").
 
 {{SKILLS}}
 
-Available platforms: amazon, ebay, walmart, aliexpress
+Available platforms: amazon, ebay, walmart, aliexpress, bestbuy, target, costco, homedepot, poshmark, mercari, facebook, faire, bstock, bulq, liquidation
 
 Keep responses concise but informative.`;
 
@@ -1007,6 +1042,360 @@ function defineTools(): ToolDefinition[] {
     },
 
     // -------------------------------------------------------------------------
+    // eBay Extended APIs — Browse, Catalog, Insights, Compliance, Seller, Feed, Notification, Logistics, Negotiation, Metadata
+    // -------------------------------------------------------------------------
+    {
+      name: 'ebay_batch_get_items',
+      description: 'Get multiple eBay items in one call by item IDs (up to 20).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          itemIds: { type: 'string', description: 'Comma-separated eBay item IDs (e.g., "v1|123|0,v1|456|0")' },
+        },
+        required: ['itemIds'],
+      },
+    },
+    {
+      name: 'ebay_legacy_item',
+      description: 'Look up an eBay item by legacy item ID (classic numeric eBay ID).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          legacyId: { type: 'string', description: 'Legacy eBay item ID (numeric)' },
+        },
+        required: ['legacyId'],
+      },
+    },
+    {
+      name: 'ebay_search_by_image',
+      description: 'Search eBay using an image URL (visual similarity search). Great for finding comparable items.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          imageUrl: { type: 'string', description: 'URL of the image to search with' },
+          query: { type: 'string', description: 'Optional keyword filter to refine image results' },
+          limit: { type: 'number', description: 'Max results (default: 20)', default: 20 },
+        },
+        required: ['imageUrl'],
+      },
+    },
+    {
+      name: 'ebay_search_catalog',
+      description: 'Search eBay product catalog by keyword or GTIN/UPC. Returns ePIDs for catalog-based listings.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search keywords or GTIN/UPC' },
+          limit: { type: 'number', description: 'Max results (default: 20)', default: 20 },
+          categoryId: { type: 'string', description: 'Filter by eBay category ID' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'ebay_get_catalog_product',
+      description: 'Get eBay catalog product details by ePID — aspects, images, identifiers.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          epid: { type: 'string', description: 'eBay product ID (ePID)' },
+        },
+        required: ['epid'],
+      },
+    },
+    {
+      name: 'ebay_sold_items',
+      description: 'Search recently sold items on eBay. Essential for pricing research, sales velocity, and comp analysis.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search keywords for sold items' },
+          limit: { type: 'number', description: 'Max results (default: 20)', default: 20 },
+          filter: { type: 'string', description: 'eBay filter string (default: fixed-price new items)' },
+          sort: { type: 'string', description: 'Sort order (default: newlyListed)' },
+          categoryIds: { type: 'string', description: 'Filter by category IDs' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'ebay_listing_violations',
+      description: 'Get listing violations affecting your eBay account. Critical for seller health monitoring.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          complianceType: { type: 'string', description: 'Type of compliance violation', enum: ['PRODUCT_ADOPTION', 'OUTSIDE_EBAY_BUYING_AND_SELLING', 'HTTPS', 'PRODUCT_IDENTITY'] },
+          limit: { type: 'number', description: 'Max results (default: 100)', default: 100 },
+          offset: { type: 'number', description: 'Offset for pagination', default: 0 },
+        },
+        required: ['complianceType'],
+      },
+    },
+    {
+      name: 'ebay_violations_summary',
+      description: 'Get summary count of listing violations by type. Quick health check.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'ebay_suppress_violation',
+      description: 'Suppress/acknowledge a known eBay listing violation.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          listingId: { type: 'string', description: 'eBay listing ID with the violation' },
+          complianceType: { type: 'string', description: 'Type of violation to suppress', enum: ['PRODUCT_ADOPTION', 'OUTSIDE_EBAY_BUYING_AND_SELLING', 'HTTPS', 'PRODUCT_IDENTITY'] },
+        },
+        required: ['listingId', 'complianceType'],
+      },
+    },
+    {
+      name: 'ebay_get_inventory_item',
+      description: 'Get a single eBay inventory item by SKU with full details (product, condition, availability).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string', description: 'SKU of the inventory item' },
+        },
+        required: ['sku'],
+      },
+    },
+    {
+      name: 'ebay_bulk_create_inventory',
+      description: 'Bulk create or replace multiple eBay inventory items at once.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            description: 'Array of inventory items to create/replace',
+            items: {
+              type: 'object',
+              properties: {
+                sku: { type: 'string', description: 'SKU' },
+                product: { type: 'object', description: 'Product details (title, description, imageUrls, aspects)' },
+                condition: { type: 'string', description: 'Condition (e.g., NEW, USED_EXCELLENT)' },
+                availability: { type: 'object', description: 'Availability (shipToLocationAvailability: { quantity })' },
+              },
+              required: ['sku', 'product', 'condition', 'availability'],
+            },
+          },
+        },
+        required: ['items'],
+      },
+    },
+    {
+      name: 'ebay_get_offers_for_sku',
+      description: 'Get all eBay offers for an inventory item by SKU.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string', description: 'SKU to get offers for' },
+        },
+        required: ['sku'],
+      },
+    },
+    {
+      name: 'ebay_create_inventory_location',
+      description: 'Create a new eBay inventory location (required for listings). Sets up your shipping origin.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          merchantLocationKey: { type: 'string', description: 'Unique key for this location (e.g., "warehouse-1")' },
+          name: { type: 'string', description: 'Display name for the location' },
+          city: { type: 'string', description: 'City' },
+          stateOrProvince: { type: 'string', description: 'State or province' },
+          postalCode: { type: 'string', description: 'Postal/ZIP code' },
+          country: { type: 'string', description: 'Country code (e.g., US)', default: 'US' },
+        },
+        required: ['merchantLocationKey', 'name', 'city', 'stateOrProvince', 'postalCode'],
+      },
+    },
+    {
+      name: 'ebay_get_inventory_locations',
+      description: 'List all eBay inventory locations configured for your account.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'ebay_create_feed_task',
+      description: 'Create an eBay inventory feed task for bulk uploads.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          feedType: { type: 'string', description: 'Feed type (e.g., LMS_ADD_ITEM, LMS_REVISE_ITEM)' },
+          schemaVersion: { type: 'string', description: 'Schema version (e.g., 1.0)' },
+        },
+        required: ['feedType', 'schemaVersion'],
+      },
+    },
+    {
+      name: 'ebay_get_feed_task',
+      description: 'Check status of an eBay feed task.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'Feed task ID' },
+        },
+        required: ['taskId'],
+      },
+    },
+    {
+      name: 'ebay_create_notification',
+      description: 'Create an eBay notification destination (webhook URL for event delivery).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Destination name' },
+          endpoint: { type: 'string', description: 'Webhook URL to receive notifications' },
+          verificationToken: { type: 'string', description: 'Token for eBay to verify your endpoint' },
+        },
+        required: ['name', 'endpoint', 'verificationToken'],
+      },
+    },
+    {
+      name: 'ebay_subscribe_notification',
+      description: 'Subscribe to an eBay notification topic (e.g., order created, item sold).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          topicId: { type: 'string', description: 'Notification topic ID' },
+          destinationId: { type: 'string', description: 'Destination ID to deliver notifications to' },
+        },
+        required: ['topicId', 'destinationId'],
+      },
+    },
+    {
+      name: 'ebay_get_notification_topics',
+      description: 'List available eBay notification topics you can subscribe to.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'ebay_shipping_quote',
+      description: 'Get an eBay shipping quote for a package. Returns carrier rates with estimated delivery.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'eBay order ID' },
+          dimensions: {
+            type: 'object',
+            description: 'Package dimensions',
+            properties: {
+              height: { type: 'number' },
+              length: { type: 'number' },
+              width: { type: 'number' },
+              unit: { type: 'string', enum: ['INCH', 'CENTIMETER'], default: 'INCH' },
+            },
+            required: ['height', 'length', 'width'],
+          },
+          weight: {
+            type: 'object',
+            description: 'Package weight',
+            properties: {
+              value: { type: 'number' },
+              unit: { type: 'string', enum: ['POUND', 'KILOGRAM', 'OUNCE', 'GRAM'], default: 'POUND' },
+            },
+            required: ['value'],
+          },
+          shipFrom: {
+            type: 'object',
+            description: 'Ship from address',
+            properties: {
+              postalCode: { type: 'string' },
+              country: { type: 'string', default: 'US' },
+            },
+            required: ['postalCode'],
+          },
+          shipTo: {
+            type: 'object',
+            description: 'Ship to address',
+            properties: {
+              postalCode: { type: 'string' },
+              country: { type: 'string', default: 'US' },
+            },
+            required: ['postalCode'],
+          },
+        },
+        required: ['orderId', 'dimensions', 'weight', 'shipFrom', 'shipTo'],
+      },
+    },
+    {
+      name: 'ebay_create_shipment',
+      description: 'Create an eBay shipping label from a shipping quote. Purchase a label at quoted rate.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          shippingQuoteId: { type: 'string', description: 'Shipping quote ID from ebay_shipping_quote' },
+          rateId: { type: 'string', description: 'Rate ID to purchase (from the quote rates)' },
+        },
+        required: ['shippingQuoteId', 'rateId'],
+      },
+    },
+    {
+      name: 'ebay_download_label',
+      description: 'Download an eBay shipping label file (returns base64-encoded PDF).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          shipmentId: { type: 'string', description: 'Shipment ID from ebay_create_shipment' },
+        },
+        required: ['shipmentId'],
+      },
+    },
+    {
+      name: 'ebay_send_offer',
+      description: 'Send offers to interested buyers on eBay (watchers/cart adders). Proactive seller-initiated offers.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          offeredItems: {
+            type: 'array',
+            description: 'Items to offer',
+            items: {
+              type: 'object',
+              properties: {
+                listingId: { type: 'string', description: 'eBay listing ID' },
+                price: { type: 'number', description: 'Offer price in USD' },
+                quantity: { type: 'number', description: 'Quantity to offer', default: 1 },
+              },
+              required: ['listingId', 'price'],
+            },
+          },
+          message: { type: 'string', description: 'Optional message to the buyer' },
+          allowCounterOffer: { type: 'boolean', description: 'Allow counter offers (default: true)', default: true },
+        },
+        required: ['offeredItems'],
+      },
+    },
+    {
+      name: 'ebay_item_conditions',
+      description: 'Get allowed item conditions for an eBay category. Tells you what conditions (New, Used, etc.) are valid.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string', description: 'eBay category ID (optional — returns all if omitted)' },
+        },
+      },
+    },
+    {
+      name: 'ebay_marketplace_return_policies',
+      description: 'Get marketplace return policies for an eBay category — what return options are available.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string', description: 'eBay category ID (optional — returns all if omitted)' },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Keepa — Amazon price intelligence
     // -------------------------------------------------------------------------
     {
@@ -1292,6 +1681,350 @@ function defineTools(): ToolDefinition[] {
     },
 
     // -------------------------------------------------------------------------
+    // Amazon SP-API Extended tools
+    // -------------------------------------------------------------------------
+    {
+      name: 'amazon_sp_listing_restrictions',
+      description: 'Check if you are restricted/gated from selling an ASIN on Amazon. Critical for arbitrage — shows if brand approval is needed.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          asin: { type: 'string', description: 'Amazon ASIN to check restrictions for' },
+          conditionType: { type: 'string', description: 'Condition type (e.g., new_new, used_very_good)', default: 'new_new' },
+        },
+        required: ['asin'],
+      },
+    },
+    {
+      name: 'amazon_sp_financial_events',
+      description: 'Get Amazon financial events (sales, refunds, fees) for reconciliation. Filter by order ID or date range.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'Amazon order ID for order-specific events (optional)' },
+          postedAfter: { type: 'string', description: 'ISO date — events posted after this (default: last 30 days)' },
+          postedBefore: { type: 'string', description: 'ISO date — events posted before this' },
+        },
+      },
+    },
+    {
+      name: 'amazon_sp_confirm_shipment',
+      description: 'Confirm shipment with tracking for a seller-fulfilled Amazon order.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'Amazon order ID' },
+          packageReferenceId: { type: 'string', description: 'Your package reference ID' },
+          carrierCode: { type: 'string', description: 'Carrier code (e.g., USPS, UPS, FEDEX)' },
+          trackingNumber: { type: 'string', description: 'Tracking number' },
+          shipDate: { type: 'string', description: 'ISO date of shipment' },
+          orderItems: { type: 'array', description: 'Items being shipped [{orderItemId, quantity}]', items: { type: 'object', properties: { orderItemId: { type: 'string' }, quantity: { type: 'number' } }, required: ['orderItemId', 'quantity'] } },
+        },
+        required: ['orderId', 'packageReferenceId', 'carrierCode', 'trackingNumber', 'shipDate', 'orderItems'],
+      },
+    },
+    {
+      name: 'amazon_sp_fulfillment_preview',
+      description: 'Preview Multi-Channel Fulfillment (MCF) options and fees. Use FBA inventory to fulfill non-Amazon orders.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Recipient name' },
+          addressLine1: { type: 'string', description: 'Street address' },
+          city: { type: 'string', description: 'City' },
+          stateOrRegion: { type: 'string', description: 'State/region code' },
+          postalCode: { type: 'string', description: 'Postal/ZIP code' },
+          countryCode: { type: 'string', description: 'Country code (e.g., US)', default: 'US' },
+          items: { type: 'array', description: 'Items to fulfill [{sellerSku, quantity}]', items: { type: 'object', properties: { sellerSku: { type: 'string' }, quantity: { type: 'number' } }, required: ['sellerSku', 'quantity'] } },
+        },
+        required: ['name', 'addressLine1', 'city', 'stateOrRegion', 'postalCode', 'items'],
+      },
+    },
+    {
+      name: 'amazon_sp_create_mcf_order',
+      description: 'Create a Multi-Channel Fulfillment order — ship FBA inventory to a non-Amazon buyer.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sellerFulfillmentOrderId: { type: 'string', description: 'Your unique order ID' },
+          displayableOrderId: { type: 'string', description: 'Customer-facing order ID' },
+          displayableOrderComment: { type: 'string', description: 'Comment shown to customer' },
+          shippingSpeedCategory: { type: 'string', description: 'Shipping speed', enum: ['Standard', 'Expedited', 'Priority'] },
+          name: { type: 'string', description: 'Recipient name' },
+          addressLine1: { type: 'string', description: 'Street address' },
+          city: { type: 'string', description: 'City' },
+          stateOrRegion: { type: 'string', description: 'State/region code' },
+          postalCode: { type: 'string', description: 'Postal/ZIP code' },
+          countryCode: { type: 'string', description: 'Country code (e.g., US)', default: 'US' },
+          items: { type: 'array', description: 'Items [{sellerSku, sellerFulfillmentOrderItemId, quantity}]', items: { type: 'object', properties: { sellerSku: { type: 'string' }, sellerFulfillmentOrderItemId: { type: 'string' }, quantity: { type: 'number' } }, required: ['sellerSku', 'sellerFulfillmentOrderItemId', 'quantity'] } },
+        },
+        required: ['sellerFulfillmentOrderId', 'displayableOrderId', 'displayableOrderComment', 'shippingSpeedCategory', 'name', 'addressLine1', 'city', 'stateOrRegion', 'postalCode', 'items'],
+      },
+    },
+    {
+      name: 'amazon_sp_buy_shipping',
+      description: 'Purchase a shipping label via Amazon Buy Shipping. First get rates, then use serviceId here.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          clientReferenceId: { type: 'string', description: 'Your unique reference ID for this shipment' },
+          serviceId: { type: 'string', description: 'Service ID from getRates response' },
+          shipFrom: { type: 'object', description: 'Ship-from address {name, addressLine1, city, stateOrRegion, postalCode, countryCode}' },
+          shipTo: { type: 'object', description: 'Ship-to address (same fields)' },
+          packages: { type: 'array', description: 'Packages [{dimensions: {length,width,height,unit}, weight: {value,unit}}]', items: { type: 'object' } },
+        },
+        required: ['clientReferenceId', 'serviceId', 'shipFrom', 'shipTo', 'packages'],
+      },
+    },
+    {
+      name: 'amazon_sp_get_shipping_tracking',
+      description: 'Get shipping tracking info for an Amazon shipment by tracking ID and carrier ID.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          trackingId: { type: 'string', description: 'Tracking ID' },
+          carrierId: { type: 'string', description: 'Carrier ID' },
+        },
+        required: ['trackingId', 'carrierId'],
+      },
+    },
+    {
+      name: 'amazon_sp_create_report',
+      description: 'Request an Amazon report (inventory, orders, returns). Poll with amazon_sp_get_report for status.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          reportType: { type: 'string', description: 'Report type (e.g., GET_FLAT_FILE_OPEN_LISTINGS_DATA, GET_FBA_MYI_UNSUPPRESSED_INVENTORY_DATA)' },
+          startDate: { type: 'string', description: 'ISO date for data start time (optional)' },
+          endDate: { type: 'string', description: 'ISO date for data end time (optional)' },
+        },
+        required: ['reportType'],
+      },
+    },
+    {
+      name: 'amazon_sp_get_report',
+      description: 'Get Amazon report status and download URL. Poll until status is DONE.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          reportId: { type: 'string', description: 'Report ID from createReport' },
+        },
+        required: ['reportId'],
+      },
+    },
+    // -------------------------------------------------------------------------
+    // Amazon SP-API Complete tools
+    // -------------------------------------------------------------------------
+    {
+      name: 'amazon_sp_get_catalog_item',
+      description: 'Get detailed Amazon catalog info for a single ASIN — summaries, images, sales ranks, dimensions, attributes.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          asin: { type: 'string', description: 'Amazon ASIN' },
+        },
+        required: ['asin'],
+      },
+    },
+    {
+      name: 'amazon_sp_item_offers',
+      description: 'Get all seller offers for an ASIN — Buy Box winner, pricing, fulfillment channel.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          asin: { type: 'string', description: 'Amazon ASIN' },
+        },
+        required: ['asin'],
+      },
+    },
+    {
+      name: 'amazon_sp_batch_fees',
+      description: 'Estimate Amazon fees for multiple ASINs at once.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', description: 'Items [{asin, price, currencyCode?}]', items: { type: 'object', properties: { asin: { type: 'string' }, price: { type: 'number' }, currencyCode: { type: 'string', default: 'USD' } }, required: ['asin', 'price'] } },
+        },
+        required: ['items'],
+      },
+    },
+    {
+      name: 'amazon_sp_get_order_details',
+      description: 'Get single Amazon order details including status, totals, dates.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'Amazon order ID' },
+        },
+        required: ['orderId'],
+      },
+    },
+    {
+      name: 'amazon_sp_get_order_items',
+      description: 'Get line items for an Amazon order — ASINs, quantities, prices, SKUs.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'Amazon order ID' },
+        },
+        required: ['orderId'],
+      },
+    },
+    {
+      name: 'amazon_sp_delete_listing',
+      description: 'Delete an Amazon listing by seller SKU.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sellerId: { type: 'string', description: 'Your Amazon seller ID' },
+          sku: { type: 'string', description: 'Seller SKU to delete' },
+        },
+        required: ['sellerId', 'sku'],
+      },
+    },
+    {
+      name: 'amazon_sp_order_metrics',
+      description: 'Get aggregated Amazon order metrics — units, revenue, order counts for a time period.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          interval: { type: 'string', description: 'Time interval (e.g., "2024-01-01T00:00:00Z--2024-02-01T00:00:00Z")' },
+          granularity: { type: 'string', description: 'Aggregation granularity', enum: ['Day', 'Week', 'Month'] },
+        },
+        required: ['interval', 'granularity'],
+      },
+    },
+    {
+      name: 'amazon_sp_data_kiosk_query',
+      description: 'Run a Data Kiosk analytics query on Amazon. Returns a queryId to poll.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Data Kiosk query string' },
+        },
+        required: ['query'],
+      },
+    },
+    // -------------------------------------------------------------------------
+    // AliExpress Discovery tools
+    // -------------------------------------------------------------------------
+    {
+      name: 'aliexpress_image_search',
+      description: 'Search AliExpress products by image URL — reverse image search to find cheaper suppliers.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          imageUrl: { type: 'string', description: 'URL of the product image to search with' },
+        },
+        required: ['imageUrl'],
+      },
+    },
+    {
+      name: 'aliexpress_affiliate_orders',
+      description: 'Get AliExpress affiliate order commissions for a date range.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          startTime: { type: 'string', description: 'Start time (YYYY-MM-DD HH:mm:ss)' },
+          endTime: { type: 'string', description: 'End time (YYYY-MM-DD HH:mm:ss)' },
+          status: { type: 'string', description: 'Order status filter' },
+          pageNo: { type: 'number', description: 'Page number (default: 1)' },
+          pageSize: { type: 'number', description: 'Page size (default: 50)' },
+        },
+      },
+    },
+    {
+      name: 'aliexpress_ds_feed',
+      description: 'Get AliExpress dropshipping product recommendation feed.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string', description: 'Category ID to filter' },
+          pageNo: { type: 'number', description: 'Page number (default: 1)' },
+          pageSize: { type: 'number', description: 'Page size (default: 20)' },
+          country: { type: 'string', description: 'Target country (default: US)' },
+          sort: { type: 'string', description: 'Sort order' },
+        },
+      },
+    },
+    {
+      name: 'aliexpress_create_dispute',
+      description: 'Create a dispute for an AliExpress order.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'number', description: 'AliExpress order ID' },
+          reason: { type: 'string', description: 'Dispute reason' },
+          description: { type: 'string', description: 'Detailed description' },
+          imageUrls: { type: 'array', items: { type: 'string' }, description: 'Evidence image URLs' },
+        },
+        required: ['orderId', 'reason', 'description'],
+      },
+    },
+    {
+      name: 'aliexpress_dispute_detail',
+      description: 'Get details and status of an AliExpress dispute.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          disputeId: { type: 'number', description: 'Dispute/issue ID' },
+        },
+        required: ['disputeId'],
+      },
+    },
+    // -------------------------------------------------------------------------
+    // AliExpress Complete tools
+    // -------------------------------------------------------------------------
+    {
+      name: 'aliexpress_generate_affiliate_link',
+      description: 'Generate affiliate tracking links for AliExpress product URLs or IDs.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sourceValues: { type: 'string', description: 'Comma-separated product URLs or IDs' },
+          promotionLinkType: { type: 'number', description: '0=normal, 1=hot link (default: 0)' },
+          trackingId: { type: 'string', description: 'Your tracking ID (optional)' },
+        },
+        required: ['sourceValues'],
+      },
+    },
+    {
+      name: 'aliexpress_ds_product_detail',
+      description: 'Get detailed AliExpress dropship product info — SKU variants, inventory, shipping options.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string', description: 'AliExpress product ID' },
+        },
+        required: ['productId'],
+      },
+    },
+    {
+      name: 'aliexpress_ds_tracking',
+      description: 'Get dropship order tracking/logistics details from AliExpress.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'AliExpress order ID' },
+        },
+        required: ['orderId'],
+      },
+    },
+    {
+      name: 'aliexpress_query_freight',
+      description: 'Query shipping freight options for an AliExpress dropship product.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          productId: { type: 'string', description: 'AliExpress product ID' },
+          quantity: { type: 'number', description: 'Quantity to ship' },
+          shipToCountry: { type: 'string', description: 'Destination country code (default: US)', default: 'US' },
+        },
+        required: ['productId', 'quantity'],
+      },
+    },
+
+    // -------------------------------------------------------------------------
     // Meta tool (core)
     // -------------------------------------------------------------------------
     {
@@ -1301,8 +2034,296 @@ function defineTools(): ToolDefinition[] {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'Search query describing what you need' },
-          platform: { type: 'string', description: 'Filter by platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress'] },
-          category: { type: 'string', description: 'Filter by category', enum: ['scanning', 'listing', 'fulfillment', 'analytics', 'pricing', 'admin'] },
+          platform: { type: 'string', description: 'Filter by platform', enum: ['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation', 'keepa', 'easypost'] },
+          category: { type: 'string', description: 'Filter by category', enum: ['scanning', 'listing', 'fulfillment', 'analytics', 'pricing', 'admin', 'discovery'] },
+        },
+        required: ['query'],
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Additional platform scanners
+    // -------------------------------------------------------------------------
+    {
+      name: 'scan_bestbuy',
+      description: 'Search Best Buy for products. Great for electronics deals, open-box items, and in-store availability.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_target',
+      description: 'Search Target for products. Good for household, groceries, and everyday items.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_costco',
+      description: 'Search Costco for bulk/wholesale products. Great for high-value items and electronics.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_homedepot',
+      description: 'Search Home Depot for home improvement, tools, and building materials.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_poshmark',
+      description: 'Search Poshmark for secondhand fashion, clothing, and accessories. Flat $7.97 shipping.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+          minPrice: { type: 'number', description: 'Min price filter' },
+          maxPrice: { type: 'number', description: 'Max price filter' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_mercari',
+      description: 'Search Mercari Japan for products. Popular for Japanese goods, electronics, fashion.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+          minPrice: { type: 'number', description: 'Min price in JPY' },
+          maxPrice: { type: 'number', description: 'Max price in JPY' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_facebook',
+      description: 'Search Facebook Marketplace for local deals. Great for used items and local pickup.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+          minPrice: { type: 'number', description: 'Min price filter' },
+          maxPrice: { type: 'number', description: 'Max price filter' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_faire',
+      description: 'Search Faire for wholesale products. Great for finding wholesale-to-retail arbitrage opportunities.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_bstock',
+      description: 'Search B-Stock liquidation auctions. Returns, overstock, and shelf-pulls from major retailers.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_bulq',
+      description: 'Search BULQ liquidation lots. Bulk lots of returned and overstock merchandise.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'scan_liquidation',
+      description: 'Search Liquidation.com for wholesale lots and pallets. Returns, overstock, and salvage goods.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          maxResults: { type: 'number', description: 'Max results (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Extended tools for new platforms
+    // -------------------------------------------------------------------------
+    {
+      name: 'bestbuy_on_sale',
+      description: 'Get Best Buy on-sale items with discounts. Filter by category and price range.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string', description: 'Best Buy category ID' },
+          minPrice: { type: 'number', description: 'Min sale price' },
+          maxPrice: { type: 'number', description: 'Max sale price' },
+          pageSize: { type: 'number', description: 'Results per page (default: 25)' },
+        },
+      },
+    },
+    {
+      name: 'bestbuy_open_box',
+      description: 'Get Best Buy open-box deals. Discounted items with minor cosmetic imperfections.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          categoryId: { type: 'string', description: 'Best Buy category ID' },
+          pageSize: { type: 'number', description: 'Results per page (default: 25)' },
+        },
+      },
+    },
+    {
+      name: 'bestbuy_stores',
+      description: 'Find Best Buy store locations near coordinates. Useful for in-store pickup arbitrage.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          lat: { type: 'number', description: 'Latitude' },
+          lng: { type: 'number', description: 'Longitude' },
+          radius: { type: 'number', description: 'Search radius in miles (default: 25)' },
+        },
+        required: ['lat', 'lng'],
+      },
+    },
+    {
+      name: 'bestbuy_product_availability',
+      description: 'Check Best Buy in-store availability for a product by SKU.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string', description: 'Best Buy product SKU' },
+          storeIds: { type: 'string', description: 'Comma-separated store IDs (optional)' },
+        },
+        required: ['sku'],
+      },
+    },
+    {
+      name: 'target_store_availability',
+      description: 'Check Target in-store product availability at nearby stores.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tcin: { type: 'string', description: 'Target product TCIN' },
+          zipCode: { type: 'string', description: 'ZIP code for store search' },
+        },
+        required: ['tcin', 'zipCode'],
+      },
+    },
+    {
+      name: 'poshmark_closet',
+      description: 'Browse a Poshmark seller\'s closet. See all their listings — useful for competitor research.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'Poshmark username' },
+          maxResults: { type: 'number', description: 'Max items (default: 48)' },
+        },
+        required: ['userId'],
+      },
+    },
+    {
+      name: 'mercari_seller_profile',
+      description: 'Get a Mercari seller\'s profile — ratings, items sold, member since. Useful for seller vetting.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string', description: 'Mercari user ID' },
+        },
+        required: ['userId'],
+      },
+    },
+    {
+      name: 'walmart_reviews',
+      description: 'Get Walmart product reviews for an item. Useful for product research and quality assessment.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'Walmart item ID' },
+        },
+        required: ['itemId'],
+      },
+    },
+    {
+      name: 'walmart_nearby_stores',
+      description: 'Find Walmart stores near a location by ZIP code or coordinates.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          zip: { type: 'string', description: 'ZIP code' },
+          lat: { type: 'number', description: 'Latitude (alternative to zip)' },
+          lon: { type: 'number', description: 'Longitude (alternative to zip)' },
+        },
+      },
+    },
+    {
+      name: 'walmart_recommendations',
+      description: 'Get Walmart product recommendations based on an item. Useful for finding similar/related products.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'Walmart item ID to get recommendations for' },
+        },
+        required: ['itemId'],
+      },
+    },
+    {
+      name: 'walmart_repricer',
+      description: 'Create a Walmart repricing strategy for automated price adjustments.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Strategy name' },
+          enabled: { type: 'boolean', description: 'Enable strategy (default: true)' },
+          type: { type: 'string', description: 'Strategy type', enum: ['BUY_BOX_ELIGIBLE', 'COMPETITIVE_PRICING'] },
+        },
+        required: ['name', 'type'],
+      },
+    },
+    {
+      name: 'walmart_catalog_search',
+      description: 'Search the Walmart marketplace catalog for item setup. Returns UPC/GTIN matches for listing.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Product name or UPC/GTIN' },
         },
         required: ['query'],
       },
@@ -2804,6 +3825,474 @@ async function executeTool(
     }
 
     // -----------------------------------------------------------------------
+    // Amazon SP-API Extended tools
+    // -----------------------------------------------------------------------
+    case 'amazon_sp_listing_restrictions': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtRestr = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const restrictions = await spExtRestr.getListingsRestrictions(
+        input.asin as string,
+        input.conditionType as string | undefined,
+      );
+      return { status: 'ok', ...restrictions };
+    }
+
+    case 'amazon_sp_financial_events': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtFin = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const finEvents = await spExtFin.listFinancialEvents({
+        orderId: input.orderId as string | undefined,
+        postedAfter: input.postedAfter as string | undefined,
+        postedBefore: input.postedBefore as string | undefined,
+      });
+      return { status: 'ok', ...finEvents };
+    }
+
+    case 'amazon_sp_confirm_shipment': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtShip = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      await spExtShip.confirmShipment(input.orderId as string, {
+        packageReferenceId: input.packageReferenceId as string,
+        carrierCode: input.carrierCode as string,
+        trackingNumber: input.trackingNumber as string,
+        shipDate: input.shipDate as string,
+        orderItems: input.orderItems as Array<{ orderItemId: string; quantity: number }>,
+      });
+      return { status: 'ok', message: 'Shipment confirmed successfully.' };
+    }
+
+    case 'amazon_sp_fulfillment_preview': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtPrev = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const preview = await spExtPrev.getFulfillmentPreview(
+        {
+          name: input.name as string,
+          addressLine1: input.addressLine1 as string,
+          city: input.city as string,
+          stateOrRegion: input.stateOrRegion as string,
+          postalCode: input.postalCode as string,
+          countryCode: (input.countryCode as string) ?? 'US',
+        },
+        input.items as Array<{ sellerSku: string; quantity: number }>,
+      );
+      return { status: 'ok', ...preview };
+    }
+
+    case 'amazon_sp_create_mcf_order': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtMcf = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      await spExtMcf.createFulfillmentOrder({
+        sellerFulfillmentOrderId: input.sellerFulfillmentOrderId as string,
+        displayableOrderId: input.displayableOrderId as string,
+        displayableOrderDate: new Date().toISOString(),
+        displayableOrderComment: input.displayableOrderComment as string,
+        shippingSpeedCategory: input.shippingSpeedCategory as 'Standard' | 'Expedited' | 'Priority',
+        destinationAddress: {
+          name: input.name as string,
+          addressLine1: input.addressLine1 as string,
+          city: input.city as string,
+          stateOrRegion: input.stateOrRegion as string,
+          postalCode: input.postalCode as string,
+          countryCode: (input.countryCode as string) ?? 'US',
+        },
+        items: input.items as Array<{ sellerSku: string; sellerFulfillmentOrderItemId: string; quantity: number }>,
+      });
+      return { status: 'ok', message: 'MCF fulfillment order created successfully.' };
+    }
+
+    case 'amazon_sp_buy_shipping': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtBuy = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const shipResult = await spExtBuy.purchaseShipment({
+        clientReferenceId: input.clientReferenceId as string,
+        shipFrom: input.shipFrom as any,
+        shipTo: input.shipTo as any,
+        packages: input.packages as any[],
+        selectedService: { serviceId: input.serviceId as string },
+      });
+      return { status: 'ok', ...shipResult };
+    }
+
+    case 'amazon_sp_get_shipping_tracking': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtTrack = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const tracking = await spExtTrack.getTracking(
+        input.trackingId as string,
+        input.carrierId as string,
+      );
+      if (!tracking) {
+        return { status: 'error', message: 'Tracking not found.' };
+      }
+      return { status: 'ok', ...tracking };
+    }
+
+    case 'amazon_sp_create_report': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtRpt = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const reportResult = await spExtRpt.createReport(
+        input.reportType as string,
+        input.startDate as string | undefined,
+        input.endDate as string | undefined,
+      );
+      return { status: 'ok', ...reportResult };
+    }
+
+    case 'amazon_sp_get_report': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spExtRptGet = createAmazonSpApiExtended({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const report = await spExtRptGet.getReport(input.reportId as string);
+      let downloadUrl: string | undefined;
+      if (report.reportDocumentId) {
+        const doc = await spExtRptGet.getReportDocument(report.reportDocumentId);
+        downloadUrl = doc.url;
+      }
+      return { status: 'ok', ...report, downloadUrl };
+    }
+
+    // -----------------------------------------------------------------------
+    // Amazon SP-API Complete tools
+    // -----------------------------------------------------------------------
+    case 'amazon_sp_get_catalog_item': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompCat = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const catalogItem = await spCompCat.getCatalogItem(input.asin as string);
+      if (!catalogItem) {
+        return { status: 'error', message: `ASIN ${input.asin} not found.` };
+      }
+      return { status: 'ok', ...catalogItem };
+    }
+
+    case 'amazon_sp_item_offers': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompOffers = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const offers = await spCompOffers.getItemOffers(input.asin as string);
+      if (!offers) {
+        return { status: 'error', message: `No offers found for ASIN ${input.asin}.` };
+      }
+      return { status: 'ok', data: offers };
+    }
+
+    case 'amazon_sp_batch_fees': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompFees = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const feeResults = await spCompFees.getMyFeesEstimates(
+        input.items as Array<{ asin: string; price: number; currencyCode?: string }>,
+      );
+      return { status: 'ok', fees: feeResults, count: feeResults.length };
+    }
+
+    case 'amazon_sp_get_order_details': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompOrd = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const order = await spCompOrd.getOrder(input.orderId as string);
+      if (!order) {
+        return { status: 'error', message: `Order ${input.orderId} not found.` };
+      }
+      return { status: 'ok', ...order };
+    }
+
+    case 'amazon_sp_get_order_items': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompOrdItems = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const orderItems = await spCompOrdItems.getOrderItems(input.orderId as string);
+      if (!orderItems) {
+        return { status: 'error', message: `Order items for ${input.orderId} not found.` };
+      }
+      return { status: 'ok', ...orderItems };
+    }
+
+    case 'amazon_sp_delete_listing': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompDel = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      await spCompDel.deleteListingsItem(input.sellerId as string, input.sku as string);
+      return { status: 'ok', message: `Listing ${input.sku} deleted.` };
+    }
+
+    case 'amazon_sp_order_metrics': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompMetrics = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const metrics = await spCompMetrics.getOrderMetrics({
+        interval: input.interval as string,
+        granularity: input.granularity as 'Day' | 'Week' | 'Month',
+      });
+      return { status: 'ok', ...metrics };
+    }
+
+    case 'amazon_sp_data_kiosk_query': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
+      }
+      const spCompKiosk = createAmazonSpApiComplete({
+        clientId: creds.amazon.spClientId!,
+        clientSecret: creds.amazon.spClientSecret!,
+        refreshToken: creds.amazon.spRefreshToken,
+      });
+      const queryResult = await spCompKiosk.createQuery(input.query as string);
+      return { status: 'ok', ...queryResult };
+    }
+
+    // -----------------------------------------------------------------------
+    // AliExpress Discovery tools
+    // -----------------------------------------------------------------------
+    case 'aliexpress_image_search': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const aeDiscImg = createAliExpressDiscoveryApi({
+        appKey: creds.aliexpress.appKey,
+        appSecret: creds.aliexpress.appSecret,
+        accessToken: creds.aliexpress.accessToken,
+      });
+      const imageResults = await aeDiscImg.imageSearch(input.imageUrl as string);
+      return { status: 'ok', products: imageResults, count: imageResults.length };
+    }
+
+    case 'aliexpress_affiliate_orders': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const aeDiscAff = createAliExpressDiscoveryApi({
+        appKey: creds.aliexpress.appKey,
+        appSecret: creds.aliexpress.appSecret,
+        accessToken: creds.aliexpress.accessToken,
+      });
+      const affOrders = await aeDiscAff.getAffiliateOrders({
+        start_time: input.startTime as string | undefined,
+        end_time: input.endTime as string | undefined,
+        status: input.status as string | undefined,
+        page_no: input.pageNo as number | undefined,
+        page_size: input.pageSize as number | undefined,
+      });
+      return { status: 'ok', orders: affOrders, count: affOrders.length };
+    }
+
+    case 'aliexpress_ds_feed': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const aeDiscFeed = createAliExpressDiscoveryApi({
+        appKey: creds.aliexpress.appKey,
+        appSecret: creds.aliexpress.appSecret,
+        accessToken: creds.aliexpress.accessToken,
+      });
+      const feedProducts = await aeDiscFeed.getDsRecommendFeed({
+        category_id: input.categoryId as string | undefined,
+        page_no: input.pageNo as number | undefined,
+        page_size: input.pageSize as number | undefined,
+        country: input.country as string | undefined,
+        sort: input.sort as string | undefined,
+      });
+      return { status: 'ok', products: feedProducts, count: feedProducts.length };
+    }
+
+    case 'aliexpress_create_dispute': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const aeDiscDisp = createAliExpressDiscoveryApi({
+        appKey: creds.aliexpress.appKey,
+        appSecret: creds.aliexpress.appSecret,
+        accessToken: creds.aliexpress.accessToken,
+      });
+      const disputeResult = await aeDiscDisp.createDispute({
+        order_id: input.orderId as number,
+        reason: input.reason as string,
+        description: input.description as string,
+        image_urls: input.imageUrls as string[] | undefined,
+      });
+      return { status: 'ok', ...disputeResult };
+    }
+
+    case 'aliexpress_dispute_detail': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const aeDiscDispDet = createAliExpressDiscoveryApi({
+        appKey: creds.aliexpress.appKey,
+        appSecret: creds.aliexpress.appSecret,
+        accessToken: creds.aliexpress.accessToken,
+      });
+      const dispute = await aeDiscDispDet.getDisputeDetail(input.disputeId as number);
+      if (!dispute) {
+        return { status: 'error', message: `Dispute ${input.disputeId} not found.` };
+      }
+      return { status: 'ok', ...dispute };
+    }
+
+    // -----------------------------------------------------------------------
+    // AliExpress Complete tools
+    // -----------------------------------------------------------------------
+    case 'aliexpress_generate_affiliate_link': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const affLinks = await generateAffiliateLink(
+        {
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        },
+        {
+          sourceValues: input.sourceValues as string,
+          promotionLinkType: input.promotionLinkType as number | undefined,
+          trackingId: input.trackingId as string | undefined,
+        },
+      );
+      return { status: 'ok', links: affLinks, count: affLinks.length };
+    }
+
+    case 'aliexpress_ds_product_detail': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const dsProduct = await getDsProductDetails(
+        {
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        },
+        input.productId as string,
+      );
+      if (!dsProduct) {
+        return { status: 'error', message: `Product ${input.productId} not found.` };
+      }
+      return { status: 'ok', ...dsProduct };
+    }
+
+    case 'aliexpress_ds_tracking': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const dsTracking = await getDsOrderTracking(
+        {
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        },
+        input.orderId as string,
+      );
+      if (!dsTracking) {
+        return { status: 'error', message: `Tracking for order ${input.orderId} not found.` };
+      }
+      return { status: 'ok', ...dsTracking };
+    }
+
+    case 'aliexpress_query_freight': {
+      if (!creds.aliexpress) {
+        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      }
+      const freightOptions = await queryDsFreight(
+        {
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        },
+        {
+          productId: input.productId as string,
+          quantity: input.quantity as number,
+          shipToCountry: input.shipToCountry as string | undefined,
+        },
+      );
+      return { status: 'ok', options: freightOptions, count: freightOptions.length };
+    }
+
+    // -----------------------------------------------------------------------
     // eBay Finances / Analytics / Marketing
     // -----------------------------------------------------------------------
     case 'ebay_get_transactions': {
@@ -2906,6 +4395,333 @@ async function executeTool(
         (input.bidPercentage as string) ?? '5.0',
       );
       return { status: 'ok', ...result };
+    }
+
+    // -----------------------------------------------------------------------
+    // eBay Extended APIs — Browse, Catalog, Insights, Compliance, Seller Extended, Feed, Notification, Logistics, Negotiation, Metadata
+    // -----------------------------------------------------------------------
+    case 'ebay_batch_get_items': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const browseExtApi = createEbayBrowseExtendedApi(creds.ebay);
+      const itemIds = (input.itemIds as string).split(',').map(s => s.trim());
+      const items = await browseExtApi.getItems(itemIds);
+      return { status: 'ok', items, count: items.length };
+    }
+
+    case 'ebay_legacy_item': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const browseExtApi2 = createEbayBrowseExtendedApi(creds.ebay);
+      const item = await browseExtApi2.getItemByLegacyId(input.legacyId as string);
+      if (!item) {
+        return { status: 'error', message: 'Item not found for legacy ID.' };
+      }
+      return { status: 'ok', item };
+    }
+
+    case 'ebay_search_by_image': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const browseExtApi3 = createEbayBrowseExtendedApi(creds.ebay);
+      const imageResults = await browseExtApi3.searchByImage(
+        input.imageUrl as string,
+        {
+          query: input.query as string | undefined,
+          limit: typeof input.limit === 'number' ? input.limit : undefined,
+        },
+      );
+      return { status: 'ok', items: imageResults, count: imageResults.length };
+    }
+
+    case 'ebay_search_catalog': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const catalogApi = createEbayCatalogApi(creds.ebay);
+      const catalogResults = await catalogApi.searchCatalog(
+        input.query as string,
+        {
+          limit: typeof input.limit === 'number' ? input.limit : undefined,
+          categoryId: input.categoryId as string | undefined,
+        },
+      );
+      return { status: 'ok', products: catalogResults, count: catalogResults.length };
+    }
+
+    case 'ebay_get_catalog_product': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const catalogApi2 = createEbayCatalogApi(creds.ebay);
+      const catalogProduct = await catalogApi2.getCatalogProduct(input.epid as string);
+      if (!catalogProduct) {
+        return { status: 'error', message: 'Catalog product not found.' };
+      }
+      return { status: 'ok', product: catalogProduct };
+    }
+
+    case 'ebay_sold_items': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const insightsApi = createEbayInsightsApi(creds.ebay);
+      const soldResult = await insightsApi.searchSoldItems(
+        input.query as string,
+        {
+          limit: typeof input.limit === 'number' ? input.limit : undefined,
+          filter: input.filter as string | undefined,
+          sort: input.sort as string | undefined,
+          categoryIds: input.categoryIds as string | undefined,
+        },
+      );
+      return { status: 'ok', items: soldResult.items, total: soldResult.total, count: soldResult.items.length };
+    }
+
+    case 'ebay_listing_violations': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const complianceApi = createEbayComplianceApi(creds.ebay);
+      const violations = await complianceApi.getListingViolations({
+        complianceType: input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
+        limit: typeof input.limit === 'number' ? input.limit : undefined,
+        offset: typeof input.offset === 'number' ? input.offset : undefined,
+      });
+      return { status: 'ok', ...violations };
+    }
+
+    case 'ebay_violations_summary': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const complianceApi2 = createEbayComplianceApi(creds.ebay);
+      const summary = await complianceApi2.getListingViolationsSummary();
+      return { status: 'ok', ...summary };
+    }
+
+    case 'ebay_suppress_violation': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const complianceApi3 = createEbayComplianceApi(creds.ebay);
+      await complianceApi3.suppressViolation(
+        input.listingId as string,
+        input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
+      );
+      return { status: 'ok', message: 'Violation suppressed.' };
+    }
+
+    case 'ebay_get_inventory_item': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const sellerExtApi = createEbaySellerExtendedApi(creds.ebay);
+      const inventoryItem = await sellerExtApi.getInventoryItem(input.sku as string);
+      return { status: 'ok', item: inventoryItem };
+    }
+
+    case 'ebay_bulk_create_inventory': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const sellerExtApi2 = createEbaySellerExtendedApi(creds.ebay);
+      const bulkItems = input.items as Array<{ sku: string; product: object; condition: string; availability: object }>;
+      const bulkResult = await sellerExtApi2.bulkCreateOrReplaceInventoryItem(bulkItems);
+      return { status: 'ok', ...bulkResult };
+    }
+
+    case 'ebay_get_offers_for_sku': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const sellerExtApi3 = createEbaySellerExtendedApi(creds.ebay);
+      const offersResult = await sellerExtApi3.getOffers(input.sku as string);
+      return { status: 'ok', ...offersResult };
+    }
+
+    case 'ebay_create_inventory_location': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const sellerExtApi4 = createEbaySellerExtendedApi(creds.ebay);
+      await sellerExtApi4.createInventoryLocation(
+        input.merchantLocationKey as string,
+        {
+          name: input.name as string,
+          location: {
+            address: {
+              city: input.city as string,
+              stateOrProvince: input.stateOrProvince as string,
+              postalCode: input.postalCode as string,
+              country: (input.country as string) ?? 'US',
+            },
+          },
+          merchantLocationStatus: 'ENABLED',
+          locationTypes: ['WAREHOUSE'],
+        },
+      );
+      return { status: 'ok', message: 'Inventory location created.', merchantLocationKey: input.merchantLocationKey };
+    }
+
+    case 'ebay_get_inventory_locations': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const sellerExtApi5 = createEbaySellerExtendedApi(creds.ebay);
+      const locations = await sellerExtApi5.getInventoryLocations();
+      return { status: 'ok', ...locations };
+    }
+
+    case 'ebay_create_feed_task': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const feedApi = createEbayFeedApi(creds.ebay);
+      const taskId = await feedApi.createInventoryTask({
+        feedType: input.feedType as string,
+        schemaVersion: input.schemaVersion as string,
+      });
+      if (!taskId) {
+        return { status: 'error', message: 'Failed to create feed task.' };
+      }
+      return { status: 'ok', taskId };
+    }
+
+    case 'ebay_get_feed_task': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const feedApi2 = createEbayFeedApi(creds.ebay);
+      const task = await feedApi2.getInventoryTask(input.taskId as string);
+      if (!task) {
+        return { status: 'error', message: 'Feed task not found.' };
+      }
+      return { status: 'ok', task };
+    }
+
+    case 'ebay_create_notification': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const notifApi = createEbayNotificationApi(creds.ebay);
+      const destinationId = await notifApi.createDestination({
+        name: input.name as string,
+        deliveryConfig: {
+          endpoint: input.endpoint as string,
+          verificationToken: input.verificationToken as string,
+        },
+      });
+      if (!destinationId) {
+        return { status: 'error', message: 'Failed to create notification destination.' };
+      }
+      return { status: 'ok', destinationId };
+    }
+
+    case 'ebay_subscribe_notification': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const notifApi2 = createEbayNotificationApi(creds.ebay);
+      const subscriptionId = await notifApi2.createSubscription({
+        topicId: input.topicId as string,
+        destinationId: input.destinationId as string,
+        status: 'ENABLED',
+      });
+      if (!subscriptionId) {
+        return { status: 'error', message: 'Failed to create notification subscription.' };
+      }
+      return { status: 'ok', subscriptionId };
+    }
+
+    case 'ebay_get_notification_topics': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const notifApi3 = createEbayNotificationApi(creds.ebay);
+      const topics = await notifApi3.getTopics();
+      return { status: 'ok', topics, count: topics.length };
+    }
+
+    case 'ebay_shipping_quote': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const logisticsApi = createEbayLogisticsApi(creds.ebay);
+      const dims = input.dimensions as { height: number; length: number; width: number; unit?: string };
+      const wt = input.weight as { value: number; unit?: string };
+      const sf = input.shipFrom as { postalCode: string; country?: string };
+      const st = input.shipTo as { postalCode: string; country?: string };
+      const quote = await logisticsApi.createShippingQuote({
+        orders: [{ orderId: input.orderId as string }],
+        packageSpecification: {
+          dimensions: { height: dims.height, length: dims.length, width: dims.width, unit: (dims.unit as 'INCH' | 'CENTIMETER') ?? 'INCH' },
+          weight: { value: wt.value, unit: (wt.unit as 'POUND' | 'KILOGRAM' | 'OUNCE' | 'GRAM') ?? 'POUND' },
+        },
+        shipFrom: { postalCode: sf.postalCode, country: sf.country ?? 'US' },
+        shipTo: { postalCode: st.postalCode, country: st.country ?? 'US' },
+      });
+      return { status: 'ok', ...quote };
+    }
+
+    case 'ebay_create_shipment': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const logisticsApi2 = createEbayLogisticsApi(creds.ebay);
+      const shipment = await logisticsApi2.createFromShippingQuote({
+        shippingQuoteId: input.shippingQuoteId as string,
+        rateId: input.rateId as string,
+      });
+      return { status: 'ok', ...shipment };
+    }
+
+    case 'ebay_download_label': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const logisticsApi3 = createEbayLogisticsApi(creds.ebay);
+      const labelBase64 = await logisticsApi3.downloadLabelFile(input.shipmentId as string);
+      return { status: 'ok', labelBase64, format: 'pdf' };
+    }
+
+    case 'ebay_send_offer': {
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      }
+      const negotiationApi = createEbayNegotiationApi(creds.ebay);
+      const offeredItems = (input.offeredItems as Array<{ listingId: string; price: number; quantity?: number }>).map(item => ({
+        listingId: item.listingId,
+        price: { value: item.price.toFixed(2), currency: 'USD' },
+        quantity: item.quantity ?? 1,
+      }));
+      const offerResult = await negotiationApi.sendOfferToInterestedBuyers({
+        offeredItems,
+        message: input.message as string | undefined,
+        allowCounterOffer: input.allowCounterOffer !== false,
+      });
+      return { status: 'ok', ...offerResult };
+    }
+
+    case 'ebay_item_conditions': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const metadataApi = createEbayMetadataApi(creds.ebay);
+      const conditionPolicies = await metadataApi.getItemConditionPolicies(input.categoryId as string | undefined);
+      return { status: 'ok', ...conditionPolicies };
+    }
+
+    case 'ebay_marketplace_return_policies': {
+      if (!creds.ebay) {
+        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      }
+      const metadataApi2 = createEbayMetadataApi(creds.ebay);
+      const returnPolicies = await metadataApi2.getReturnPolicies(input.categoryId as string | undefined);
+      return { status: 'ok', ...returnPolicies };
     }
 
     // -----------------------------------------------------------------------
@@ -3447,6 +5263,254 @@ async function executeTool(
         outOfStock,
         results: syncResults.slice(0, 20),
       };
+    }
+
+    // -----------------------------------------------------------------------
+    // Additional platform scanners
+    // -----------------------------------------------------------------------
+    case 'scan_bestbuy': {
+      const adapter = createBestBuyAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_target': {
+      const adapter = createTargetAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_costco': {
+      const adapter = createCostcoAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_homedepot': {
+      const adapter = createHomeDepotAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_poshmark': {
+      const adapter = createPoshmarkAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_mercari': {
+      const adapter = createMercariAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_facebook': {
+      const adapter = createFacebookAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_faire': {
+      const adapter = createFaireAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_bstock': {
+      const adapter = createBStockAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_bulq': {
+      const adapter = createBulqAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    case 'scan_liquidation': {
+      const adapter = createLiquidationAdapter();
+      const results = await adapter.search({
+        query: input.query as string,
+        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+      });
+      storeResults(context.db, results);
+      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+    }
+
+    // -----------------------------------------------------------------------
+    // Extended tools for new platforms
+    // -----------------------------------------------------------------------
+    case 'bestbuy_on_sale': {
+      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+      const result = await api.getOnSaleItems({
+        categoryId: input.categoryId as string | undefined,
+        minSalePrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+        maxSalePrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+        pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
+      });
+      return { status: 'ok', ...result };
+    }
+
+    case 'bestbuy_open_box': {
+      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+      const result = await api.getOpenBoxItems({
+        categoryId: input.categoryId as string | undefined,
+        pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
+      });
+      return { status: 'ok', ...result };
+    }
+
+    case 'bestbuy_stores': {
+      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+      const stores = await api.getStores({
+        lat: input.lat as number,
+        lng: input.lng as number,
+        radius: typeof input.radius === 'number' ? input.radius : 25,
+      });
+      return { status: 'ok', stores, count: stores.length };
+    }
+
+    case 'bestbuy_product_availability': {
+      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+      const storeIdsList = typeof input.storeIds === 'string' && input.storeIds
+        ? input.storeIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+        : undefined;
+      const availability = await api.getProductAvailability(
+        input.sku as string,
+        storeIdsList,
+      );
+      return { status: 'ok', availability, count: availability.length };
+    }
+
+    case 'target_store_availability': {
+      const adapter = createTargetAdapter();
+      const availability = await adapter.getStoreAvailability(
+        input.tcin as string,
+        input.zipCode as string | undefined,
+      );
+      return { status: 'ok', availability, count: availability.length };
+    }
+
+    case 'poshmark_closet': {
+      const adapter = createPoshmarkAdapter();
+      const results = await adapter.getUserCloset(
+        input.userId as string,
+        { maxResults: typeof input.maxResults === 'number' ? input.maxResults : 48 },
+      );
+      return { status: 'ok', results: results.slice(0, 48), count: results.length };
+    }
+
+    case 'mercari_seller_profile': {
+      const adapter = createMercariAdapter();
+      const profile = await adapter.getSellerProfile(input.userId as string);
+      if (!profile) {
+        return { status: 'error', message: 'Seller profile not found or Mercari API unavailable.' };
+      }
+      return { status: 'ok', profile };
+    }
+
+    case 'walmart_reviews': {
+      if (!creds.walmart) {
+        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      }
+      const api = createWalmartAffiliateExtendedApi(creds.walmart);
+      const reviews = await api.getReviews(input.itemId as string);
+      if (!reviews) {
+        return { status: 'error', message: 'Reviews not found or Walmart API unavailable.' };
+      }
+      return { status: 'ok', ...reviews };
+    }
+
+    case 'walmart_nearby_stores': {
+      if (!creds.walmart) {
+        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      }
+      const api = createWalmartAffiliateExtendedApi(creds.walmart);
+      const stores = await api.getStores({
+        zip: input.zip as string | undefined,
+        lat: typeof input.lat === 'number' ? input.lat : undefined,
+        lon: typeof input.lon === 'number' ? input.lon : undefined,
+      });
+      return { status: 'ok', stores, count: stores.length };
+    }
+
+    case 'walmart_recommendations': {
+      if (!creds.walmart) {
+        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      }
+      const api = createWalmartAffiliateExtendedApi(creds.walmart);
+      const items = await api.getRecommendations(input.itemId as string);
+      return { status: 'ok', items, count: items.length };
+    }
+
+    case 'walmart_repricer': {
+      if (!creds.walmart) {
+        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      }
+      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart);
+      const strategy = await mpApi.createRepricerStrategy({
+        name: input.name as string,
+        type: input.type as 'BUY_BOX_ELIGIBLE' | 'COMPETITIVE_PRICING',
+        enabled: typeof input.enabled === 'boolean' ? input.enabled : true,
+        repriceOptions: {},
+      });
+      return { status: 'ok', strategy };
+    }
+
+    case 'walmart_catalog_search': {
+      if (!creds.walmart) {
+        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      }
+      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart);
+      const results = await mpApi.catalogSearch(input.query as string);
+      return { status: 'ok', results, count: results.length };
     }
 
     // -----------------------------------------------------------------------

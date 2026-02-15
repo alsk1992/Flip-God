@@ -188,7 +188,7 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
         handlingTime: { value: params.handlingTimeDays, unit: 'DAY' },
         shippingOptions: [{
           optionType: 'DOMESTIC',
-          costType: params.freeShipping ? 'FLAT_RATE' : 'FLAT_RATE',
+          costType: 'FLAT_RATE',
           shippingServices: [{
             shippingServiceCode: params.shippingServiceCode,
             freeShipping: params.freeShipping ?? false,
@@ -261,7 +261,7 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
       const response = await fetch(
         `${baseUrl}/sell/inventory/v1/location/${encodeURIComponent(params.merchantLocationKey)}`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

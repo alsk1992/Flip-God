@@ -13,6 +13,13 @@ import { signRequest, MARKETPLACE_HOSTS, type AmazonSigningConfig } from './auth
 
 const logger = createLogger('amazon');
 
+const MARKETPLACE_DOMAINS: Record<string, string> = {
+  US: 'www.amazon.com', UK: 'www.amazon.co.uk', DE: 'www.amazon.de',
+  FR: 'www.amazon.fr', IT: 'www.amazon.it', ES: 'www.amazon.es',
+  JP: 'www.amazon.co.jp', CA: 'www.amazon.ca', AU: 'www.amazon.com.au',
+  IN: 'www.amazon.in', MX: 'www.amazon.com.mx', BR: 'www.amazon.com.br',
+};
+
 /** Standard resources to request from PA-API */
 const SEARCH_RESOURCES = [
   'ItemInfo.Title',
@@ -34,7 +41,7 @@ function parseItem(item: PaApiItem): ProductSearchResult {
   const isFreeShipping = listing?.DeliveryInfo?.IsFreeShippingEligible ?? false;
   const seller = listing?.MerchantInfo?.Name ?? 'Unknown';
   const availability = listing?.Availability?.Type ?? '';
-  const inStock = availability !== 'OutOfStock' && availability !== '';
+  const inStock = availability !== 'OutOfStock';
 
   const upcList = item.ItemInfo?.ExternalIds?.UPCs?.DisplayValues;
 
@@ -84,7 +91,7 @@ export function createAmazonAdapter(credentials?: AmazonCredentials): PlatformAd
         Keywords: options.query,
         PartnerTag: credentials.partnerTag,
         PartnerType: 'Associates',
-        Marketplace: `www.amazon.${credentials.marketplace === 'UK' ? 'co.uk' : credentials.marketplace === 'JP' ? 'co.jp' : 'com'}`,
+        Marketplace: MARKETPLACE_DOMAINS[credentials.marketplace ?? 'US'] ?? 'www.amazon.com',
         ItemCount: Math.min(options.maxResults ?? 10, 10),
         Resources: SEARCH_RESOURCES,
         ...(options.category ? { SearchIndex: options.category } : {}),

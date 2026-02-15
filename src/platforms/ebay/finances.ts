@@ -51,6 +51,18 @@ export interface EbayFundsSummary {
   totalFunds: { value: string; currency: string };
 }
 
+export interface EbayTransactionSummary {
+  creditCount?: number;
+  creditAmount?: { value: string; currency: string };
+  debitCount?: number;
+  debitAmount?: { value: string; currency: string };
+  adjustmentCount?: number;
+  adjustmentAmount?: { value: string; currency: string };
+  balanceTransferCount?: number;
+  balanceTransferAmount?: { value: string; currency: string };
+  totalFeeAmount?: { value: string; currency: string };
+}
+
 export interface EbayFinancesApi {
   getTransactions(params?: {
     filter?: string;
@@ -58,6 +70,10 @@ export interface EbayFinancesApi {
     limit?: number;
     offset?: number;
   }): Promise<{ transactions: EbayTransaction[]; total: number }>;
+
+  getTransactionSummary(params?: {
+    filter?: string;
+  }): Promise<EbayTransactionSummary | null>;
 
   getPayouts(params?: {
     filter?: string;
@@ -69,6 +85,8 @@ export interface EbayFinancesApi {
   getPayout(payoutId: string): Promise<EbayPayout | null>;
 
   getFundsSummary(): Promise<EbayFundsSummary | null>;
+
+  getSellerFundsSummary(): Promise<EbayFundsSummary | null>;
 }
 
 export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinancesApi {
@@ -106,6 +124,25 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
 
       const data = await response.json() as { transactions?: EbayTransaction[]; total?: number };
       return { transactions: data.transactions ?? [], total: data.total ?? 0 };
+    },
+
+    async getTransactionSummary(params?) {
+      const token = await getToken();
+      const qp = new URLSearchParams();
+      if (params?.filter) qp.set('filter', params.filter);
+
+      const response = await fetch(
+        `${baseUrl}/sell/finances/v1/transaction_summary?${qp.toString()}`,
+        { headers: { 'Authorization': `Bearer ${token}` } },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.error({ status: response.status, error: errorText }, 'Failed to get transaction summary');
+        return null;
+      }
+
+      return await response.json() as EbayTransactionSummary;
     },
 
     async getPayouts(params?) {
@@ -162,6 +199,10 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
       }
 
       return await response.json() as EbayFundsSummary;
+    },
+
+    async getSellerFundsSummary() {
+      return this.getFundsSummary();
     },
   };
 }

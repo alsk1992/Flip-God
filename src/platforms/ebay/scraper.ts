@@ -72,7 +72,7 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
       // Price filter
       const priceFilters: string[] = [];
       if (options.minPrice != null) {
-        priceFilters.push(`price:[${options.minPrice}..`);
+        priceFilters.push(`price:[${options.minPrice}..]`);
       }
       if (options.maxPrice != null) {
         if (priceFilters.length > 0) {

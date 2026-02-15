@@ -52,7 +52,16 @@ function parseProduct(item: TargetProduct): ProductSearchResult {
   };
 }
 
-export function createTargetAdapter(): PlatformAdapter {
+export interface TargetStoreAvailability {
+  storeId: string;
+  storeName: string;
+  available: boolean;
+  pickupType?: string;
+}
+
+export function createTargetAdapter(): PlatformAdapter & {
+  getStoreAvailability(tcin: string, zipCode?: string): Promise<TargetStoreAvailability[]>;
+} {
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
@@ -121,6 +130,58 @@ export function createTargetAdapter(): PlatformAdapter {
     async checkStock(productId: string): Promise<{ inStock: boolean; quantity?: number }> {
       const product = await this.getProduct(productId);
       return { inStock: product?.inStock ?? false };
+    },
+
+    async getStoreAvailability(tcin: string, zipCode?: string): Promise<TargetStoreAvailability[]> {
+      logger.info({ tcin, zipCode }, 'Checking Target store availability');
+
+      const params = new URLSearchParams({
+        key: 'ff457966e64d5e877fdbad070f276d18ecec4a01',
+        tcin,
+        nearby: zipCode ?? '90210',
+        limit: '5',
+        include_only_available_stores: 'false',
+      });
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/redsky_aggregations/v1/web/fiats_v1?${params.toString()}`,
+          { headers },
+        );
+        if (!response.ok) {
+          logger.error({ status: response.status }, 'Target store availability lookup failed');
+          return [];
+        }
+
+        const data = await response.json() as {
+          data?: {
+            fulfillment_fiats?: Array<{
+              store_options?: Array<{
+                store_id?: string;
+                store_name?: string;
+                in_store_only?: { availability_status?: string };
+                order_pickup?: { availability_status?: string; pickup_type?: string };
+              }>;
+            }>;
+          };
+        };
+
+        const storeOptions = data?.data?.fulfillment_fiats?.[0]?.store_options ?? [];
+        return storeOptions.map((store) => {
+          const pickupStatus = store.order_pickup?.availability_status;
+          const inStoreStatus = store.in_store_only?.availability_status;
+          const available = pickupStatus === 'IN_STOCK' || inStoreStatus === 'IN_STOCK';
+          return {
+            storeId: store.store_id ?? '',
+            storeName: store.store_name ?? '',
+            available,
+            pickupType: store.order_pickup?.pickup_type,
+          };
+        });
+      } catch (err) {
+        logger.error({ tcin, err }, 'Target store availability error');
+        return [];
+      }
     },
   };
 }

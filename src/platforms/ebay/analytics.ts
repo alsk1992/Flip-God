@@ -31,6 +31,20 @@ export interface EbaySellerMetrics {
   count?: number;
 }
 
+export interface EbayRateLimit {
+  apiName: string;
+  apiContext: string;
+  resources?: Array<{
+    name: string;
+    rates: Array<{
+      limit: number;
+      remaining: number;
+      reset: string;
+      timeWindow: number;
+    }>;
+  }>;
+}
+
 export interface EbayAnalyticsApi {
   getTrafficReport(params: {
     dimension: 'DAY' | 'LISTING';
@@ -43,6 +57,8 @@ export interface EbayAnalyticsApi {
     metricType: 'ITEM_NOT_AS_DESCRIBED' | 'ITEM_NOT_RECEIVED';
     evaluationType: 'CURRENT' | 'PROJECTED';
   }): Promise<EbaySellerMetrics | null>;
+
+  getRateLimits(): Promise<EbayRateLimit[]>;
 }
 
 export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyticsApi {
@@ -83,12 +99,9 @@ export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyt
 
     async getCustomerServiceMetric(params) {
       const token = await getToken();
-      const qp = new URLSearchParams();
-      qp.set('customer_service_metric_type', params.metricType);
-      qp.set('evaluation_type', params.evaluationType);
 
       const response = await fetch(
-        `${baseUrl}/sell/analytics/v1/customer_service_metric?${qp.toString()}`,
+        `${baseUrl}/sell/analytics/v1/customer_service_metric/${encodeURIComponent(params.metricType)}/${encodeURIComponent(params.evaluationType)}`,
         { headers: { 'Authorization': `Bearer ${token}` } },
       );
 
@@ -100,6 +113,32 @@ export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyt
 
       const data = await response.json() as { marketplaceProfiles?: EbaySellerMetrics[] };
       return data.marketplaceProfiles?.[0] ?? null;
+    },
+
+    async getRateLimits() {
+      try {
+        const token = await getToken();
+        const qp = new URLSearchParams();
+        qp.set('api_name', 'buy');
+        qp.set('api_context', 'buy.browse');
+
+        const response = await fetch(
+          `${baseUrl}/developer/analytics/v1_beta/rate_limit?${qp.toString()}`,
+          { headers: { 'Authorization': `Bearer ${token}` } },
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error({ status: response.status, error: errorText }, 'Failed to get rate limits');
+          return [];
+        }
+
+        const data = await response.json() as { rateLimits?: EbayRateLimit[] };
+        return data.rateLimits ?? [];
+      } catch (err) {
+        logger.error({ err }, 'Error in getRateLimits');
+        return [];
+      }
     },
   };
 }

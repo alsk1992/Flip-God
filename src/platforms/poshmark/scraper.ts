@@ -71,7 +71,7 @@ const HEADERS: Record<string, string> = {
   'Referer': 'https://poshmark.com/',
 };
 
-export function createPoshmarkAdapter(cookies?: string): PlatformAdapter {
+export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { getUserCloset(userId: string, params?: { maxResults?: number; cursor?: string }): Promise<ProductSearchResult[]> } {
   const headers: Record<string, string> = {
     ...HEADERS,
     ...(cookies ? { Cookie: cookies } : {}),
@@ -199,6 +199,30 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter {
     async checkStock(productId: string): Promise<{ inStock: boolean; quantity?: number }> {
       const product = await this.getProduct(productId);
       return { inStock: product?.inStock ?? false };
+    },
+
+    async getUserCloset(userId: string, params?: { maxResults?: number; cursor?: string }): Promise<ProductSearchResult[]> {
+      logger.info({ userId }, 'Getting Poshmark user closet');
+      const maxResults = params?.maxResults ?? 48;
+      try {
+        const urlParams = new URLSearchParams({
+          summarize: 'true',
+          pm_version: '250.0.0',
+        });
+        if (params?.cursor) urlParams.set('max_id', params.cursor);
+        const url = `https://poshmark.com/vm-rest/users/${encodeURIComponent(userId)}/posts?${urlParams.toString()}`;
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+          logger.warn({ userId, status: response.status }, 'Poshmark closet fetch failed');
+          return [];
+        }
+        const data = await response.json() as { data?: PoshmarkPost[] };
+        const posts = data.data ?? [];
+        return posts.slice(0, maxResults).map(parsePost);
+      } catch (err) {
+        logger.error({ userId, err }, 'Poshmark closet error');
+        return [];
+      }
     },
   };
 }

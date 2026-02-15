@@ -209,7 +209,7 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
         pageSize: String(params.pageSize ?? 20),
       };
       if (params.keywords?.length) {
-        queryParams.keywords = params.keywords.join(',');
+        queryParams.keywords = params.keywords.join(' ');
       }
       if (params.identifiers?.length) {
         queryParams.identifiers = params.identifiers.join(',');

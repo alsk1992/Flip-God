@@ -206,6 +206,16 @@ export function inferToolMetadata(toolName: string, description: string): ToolMe
     ['ebay_', 'ebay'],
     ['walmart_', 'walmart'],
     ['aliexpress_', 'aliexpress'],
+    ['bestbuy_', 'bestbuy'],
+    ['target_', 'target'],
+    ['costco_', 'costco'],
+    ['homedepot_', 'homedepot'],
+    ['poshmark_', 'poshmark'],
+    ['mercari_', 'mercari'],
+    ['facebook_', 'facebook'],
+    ['faire_', 'faire'],
+    ['keepa_', 'keepa'],
+    ['easypost_', 'easypost'],
   ];
 
   for (const [prefix, platform] of platformPrefixes) {
@@ -221,6 +231,17 @@ export function inferToolMetadata(toolName: string, description: string): ToolMe
     scan_ebay: 'ebay',
     scan_walmart: 'walmart',
     scan_aliexpress: 'aliexpress',
+    scan_bestbuy: 'bestbuy',
+    scan_target: 'target',
+    scan_costco: 'costco',
+    scan_homedepot: 'homedepot',
+    scan_poshmark: 'poshmark',
+    scan_mercari: 'mercari',
+    scan_facebook: 'facebook',
+    scan_faire: 'faire',
+    scan_bstock: 'bstock',
+    scan_bulq: 'bulq',
+    scan_liquidation: 'liquidation',
     create_ebay_listing: 'ebay',
     create_amazon_listing: 'amazon',
     setup_amazon_credentials: 'amazon',
@@ -329,6 +350,28 @@ const PLATFORM_KEYWORDS: [RegExp, string][] = [
   [/\bwal[\s._-]?ma?r?t\b|\bwallmart\b/i, 'walmart'],
   // AliExpress: aliexpress, ali express, aliexpres, ali
   [/\bali[\s._-]?express?\b|\baliexpres\b/i, 'aliexpress'],
+  // Best Buy: bestbuy, best-buy
+  [/\bbest[\s._-]?buy\b/i, 'bestbuy'],
+  // Target
+  [/\btarget\b/i, 'target'],
+  // Costco
+  [/\bcostco\b/i, 'costco'],
+  // Home Depot: homedepot, home-depot
+  [/\bhome[\s._-]?depot\b/i, 'homedepot'],
+  // Poshmark: poshmark, posh
+  [/\bposh(?:mark)?\b/i, 'poshmark'],
+  // Mercari
+  [/\bmercari\b/i, 'mercari'],
+  // Facebook Marketplace: facebook, fb marketplace
+  [/\bfacebook\b|\bfb[\s._-]?market(?:place)?\b/i, 'facebook'],
+  // Faire (wholesale)
+  [/\bfaire\b/i, 'faire'],
+  // Liquidation platforms
+  [/\bb[\s._-]?stock\b/i, 'bstock'],
+  [/\bbulq\b/i, 'bulq'],
+  [/\bliquidation\b/i, 'liquidation'],
+  // Keepa
+  [/\bkeepa\b/i, 'keepa'],
 ];
 
 /**

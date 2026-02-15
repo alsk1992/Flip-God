@@ -50,6 +50,8 @@ export interface EbayMarketingApi {
     offset?: number;
   }): Promise<{ campaigns: EbayCampaign[]; total: number }>;
 
+  getCampaign(campaignId: string): Promise<EbayCampaign | null>;
+
   addAdToCampaign(campaignId: string, listingId: string, bidPercentage?: string): Promise<string>;
 
   getAdsInCampaign(campaignId: string, params?: {
@@ -133,6 +135,27 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
 
       const data = await response.json() as { campaigns?: EbayCampaign[]; total?: number };
       return { campaigns: data.campaigns ?? [], total: data.total ?? 0 };
+    },
+
+    async getCampaign(campaignId) {
+      try {
+        const token = await getToken();
+        const response = await fetch(
+          `${baseUrl}/sell/marketing/v1/ad_campaign/${encodeURIComponent(campaignId)}`,
+          { headers: { 'Authorization': `Bearer ${token}` } },
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error({ status: response.status, campaignId, error: errorText }, 'Failed to get campaign');
+          return null;
+        }
+
+        return await response.json() as EbayCampaign;
+      } catch (err) {
+        logger.error({ err, campaignId }, 'Error in getCampaign');
+        return null;
+      }
     },
 
     async addAdToCampaign(campaignId, listingId, bidPercentage?) {
