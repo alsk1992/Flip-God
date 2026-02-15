@@ -52,7 +52,7 @@ function parseProduct(item: CostcoSearchProduct): ProductSearchResult {
 
   return {
     platformId: productId,
-    platform: 'amazon' as any,
+    platform: 'costco',
     title: item.name ?? item.description ?? '',
     price,
     shipping: 0, // Costco includes shipping for most online items
@@ -102,7 +102,7 @@ export function createCostcoAdapter(options?: {
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'costco',
 
     async search(opts: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: opts.query }, 'Searching Costco');
@@ -179,7 +179,7 @@ export function createCostcoAdapter(options?: {
             if (data.finalOnlinePrice != null || data.listPrice != null) {
               return {
                 platformId: productId,
-                platform: 'amazon' as any,
+                platform: 'costco',
                 title: data.productName ?? '',
                 price: data.finalOnlinePrice ?? data.listPrice ?? 0,
                 shipping: 0,

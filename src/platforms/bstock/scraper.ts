@@ -43,7 +43,7 @@ interface BStockLot {
 function parseLot(item: BStockLot): ProductSearchResult {
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'bstock',
     title: item.title,
     price: item.currentBid ?? 0,
     shipping: 0,
@@ -131,7 +131,7 @@ function extractAuctionsFromHtml(html: string): BStockLot[] {
 
 export function createBStockAdapter(): PlatformAdapter {
   return {
-    platform: 'amazon' as any,
+    platform: 'bstock',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching B-Stock');

@@ -36,7 +36,7 @@ function parseProduct(item: BestBuyProduct): ProductSearchResult {
   const price = item.salePrice ?? item.regularPrice ?? 0;
   return {
     platformId: String(item.sku),
-    platform: 'amazon' as any,
+    platform: 'bestbuy',
     title: item.name,
     price,
     shipping: item.freeShipping ? 0 : (item.shippingCost ?? 5.99),
@@ -61,7 +61,7 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
   const apiKey = config?.apiKey ?? process.env.BESTBUY_API_KEY;
 
   return {
-    platform: 'amazon' as any,
+    platform: 'bestbuy',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       if (!apiKey) { logger.warn('Best Buy API key not configured'); return []; }

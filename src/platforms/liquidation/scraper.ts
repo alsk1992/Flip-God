@@ -45,7 +45,7 @@ interface LiquidationAuction {
 function parseAuction(item: LiquidationAuction): ProductSearchResult {
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'liquidation',
     title: item.title,
     price: item.currentBid,
     shipping: 0,
@@ -137,7 +137,7 @@ function extractAuctionsFromHtml(html: string): LiquidationAuction[] {
 
 export function createLiquidationAdapter(): PlatformAdapter {
   return {
-    platform: 'amazon' as any,
+    platform: 'liquidation',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Liquidation.com');

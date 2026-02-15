@@ -28,7 +28,7 @@ function parseProduct(item: HDProduct): ProductSearchResult {
   const price = item.pricing?.value ?? 0;
   return {
     platformId: item.itemId,
-    platform: 'amazon' as any,
+    platform: 'homedepot',
     title: item.identifiers?.productLabel ?? '',
     price,
     shipping: price >= 45 ? 0 : 7.99,
@@ -75,7 +75,7 @@ export function createHomeDepotAdapter(): PlatformAdapter {
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'homedepot',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Home Depot');

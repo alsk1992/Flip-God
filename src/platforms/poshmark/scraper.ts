@@ -49,7 +49,7 @@ function parsePost(item: PoshmarkPost): ProductSearchResult {
 
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'poshmark',
     title: item.title,
     price,
     shipping: 7.97, // Poshmark flat rate shipping
@@ -78,7 +78,7 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { get
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'poshmark',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Poshmark');

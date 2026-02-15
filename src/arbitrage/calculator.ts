@@ -48,6 +48,7 @@ function getCategoryFee(platform: Platform, category?: string): number {
     case 'ebay': return EBAY_CATEGORY_FEES[cat] ?? 12.9;
     case 'walmart': return WALMART_CATEGORY_FEES[cat] ?? 15;
     case 'aliexpress': return 8;
+    default: return DEFAULT_FEE_SCHEDULES[platform].sellerFeePct;
   }
 }
 
@@ -77,6 +78,83 @@ const DEFAULT_FEE_SCHEDULES: Record<Platform, FeeStructure> = {
   aliexpress: {
     platform: 'aliexpress',
     sellerFeePct: 8,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  bestbuy: {
+    platform: 'bestbuy',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 5.99,
+  },
+  target: {
+    platform: 'target',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 5.99,
+  },
+  costco: {
+    platform: 'costco',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  homedepot: {
+    platform: 'homedepot',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 5.99,
+  },
+  poshmark: {
+    platform: 'poshmark',
+    sellerFeePct: 20,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 7.97,
+  },
+  mercari: {
+    platform: 'mercari',
+    sellerFeePct: 10,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  facebook: {
+    platform: 'facebook',
+    sellerFeePct: 5,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  faire: {
+    platform: 'faire',
+    sellerFeePct: 15,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  bstock: {
+    platform: 'bstock',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  bulq: {
+    platform: 'bulq',
+    sellerFeePct: 0,
+    fixedFee: 0,
+    paymentProcessingPct: 0,
+    shippingEstimate: 0,
+  },
+  liquidation: {
+    platform: 'liquidation',
+    sellerFeePct: 0,
     fixedFee: 0,
     paymentProcessingPct: 0,
     shippingEstimate: 0,

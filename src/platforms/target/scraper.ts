@@ -36,7 +36,7 @@ function parseProduct(item: TargetProduct): ProductSearchResult {
   const price = item.price?.current_retail ?? item.price?.current_retail_min ?? 0;
   return {
     platformId: item.tcin,
-    platform: 'amazon' as any,
+    platform: 'target',
     title: item.item?.product_description?.title ?? '',
     price,
     shipping: 0,
@@ -68,7 +68,7 @@ export function createTargetAdapter(): PlatformAdapter & {
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'target',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Target');

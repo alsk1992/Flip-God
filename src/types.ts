@@ -6,12 +6,21 @@
 // PLATFORMS
 // =============================================================================
 
-export type Platform = 'amazon' | 'ebay' | 'walmart' | 'aliexpress';
+export type Platform =
+  | 'amazon' | 'ebay' | 'walmart' | 'aliexpress'
+  | 'bestbuy' | 'target' | 'costco' | 'homedepot'
+  | 'poshmark' | 'mercari' | 'facebook' | 'faire'
+  | 'bstock' | 'bulq' | 'liquidation';
 
 /** Platform + auxiliary services that can store credentials */
 export type CredentialPlatform = Platform | 'keepa' | 'easypost';
 
-export const ALL_PLATFORMS: Platform[] = ['amazon', 'ebay', 'walmart', 'aliexpress'];
+export const ALL_PLATFORMS: Platform[] = [
+  'amazon', 'ebay', 'walmart', 'aliexpress',
+  'bestbuy', 'target', 'costco', 'homedepot',
+  'poshmark', 'mercari', 'facebook', 'faire',
+  'bstock', 'bulq', 'liquidation',
+];
 
 // =============================================================================
 // PRODUCTS

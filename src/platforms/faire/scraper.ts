@@ -51,7 +51,7 @@ function parseProduct(item: FaireProduct): ProductSearchResult {
 
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'faire',
     title: item.name,
     price: wholesaleCents / 100,
     shipping: 0,
@@ -77,7 +77,7 @@ export function createFaireAdapter(accessToken?: string): PlatformAdapter {
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'faire',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Faire');

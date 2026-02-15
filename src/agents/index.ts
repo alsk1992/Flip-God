@@ -85,7 +85,6 @@ import { createPoshmarkAdapter } from '../platforms/poshmark/scraper';
 import { createMercariAdapter } from '../platforms/mercari/scraper';
 import { createFacebookAdapter } from '../platforms/facebook/scraper';
 import { createFaireAdapter } from '../platforms/faire/scraper';
-import { createFaireExtendedApi } from '../platforms/faire/extended';
 import { createBStockAdapter } from '../platforms/bstock/scraper';
 import { createBulqAdapter } from '../platforms/bulq/scraper';
 import { createLiquidationAdapter } from '../platforms/liquidation/scraper';
@@ -93,7 +92,6 @@ import { createWalmartAffiliateExtendedApi } from '../platforms/walmart/affiliat
 import { createWalmartMarketplaceExtendedApi } from '../platforms/walmart/marketplace-extended';
 import { createAmazonSpApiExtended } from '../platforms/amazon/sp-api-extended';
 import { createAmazonSpApiComplete } from '../platforms/amazon/sp-api-complete';
-import { createAmazonPaApiExtended } from '../platforms/amazon/pa-api-extended';
 import { createAliExpressDiscoveryApi } from '../platforms/aliexpress/discovery';
 import {
   generateAffiliateLink,
@@ -2429,6 +2427,17 @@ function getAdapter(platform: Platform, creds: ReturnType<typeof getUserCreds>):
     case 'ebay': return createEbayAdapter(creds.ebay);
     case 'walmart': return createWalmartAdapter(creds.walmart);
     case 'aliexpress': return createAliExpressAdapter(creds.aliexpress);
+    case 'bestbuy': return createBestBuyAdapter();
+    case 'target': return createTargetAdapter();
+    case 'costco': return createCostcoAdapter();
+    case 'homedepot': return createHomeDepotAdapter();
+    case 'poshmark': return createPoshmarkAdapter();
+    case 'mercari': return createMercariAdapter();
+    case 'facebook': return createFacebookAdapter();
+    case 'faire': return createFaireAdapter();
+    case 'bstock': return createBStockAdapter();
+    case 'bulq': return createBulqAdapter();
+    case 'liquidation': return createLiquidationAdapter();
   }
 }
 

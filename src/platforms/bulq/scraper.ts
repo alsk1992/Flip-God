@@ -42,7 +42,7 @@ interface BulqLot {
 function parseLot(item: BulqLot): ProductSearchResult {
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'bulq',
     title: item.title,
     price: item.price,
     shipping: 0, // BULQ shipping varies but often included
@@ -125,7 +125,7 @@ function extractLotsFromHtml(html: string): BulqLot[] {
 
 export function createBulqAdapter(): PlatformAdapter {
   return {
-    platform: 'amazon' as any,
+    platform: 'bulq',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching BULQ');

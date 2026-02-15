@@ -130,7 +130,7 @@ interface MercariItemDetail {
 function parseSearchItem(item: MercariSearchItem): ProductSearchResult {
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'mercari',
     title: item.name,
     price: item.price, // JPY — no division
     shipping: 0, // Most Mercari JP items include shipping
@@ -147,7 +147,7 @@ function parseSearchItem(item: MercariSearchItem): ProductSearchResult {
 function parseItemDetail(item: MercariItemDetail): ProductSearchResult {
   return {
     platformId: item.id,
-    platform: 'amazon' as any,
+    platform: 'mercari',
     title: item.name,
     price: item.price,
     shipping: 0,
@@ -184,7 +184,7 @@ export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(use
   };
 
   return {
-    platform: 'amazon' as any,
+    platform: 'mercari',
 
     async search(options: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: options.query }, 'Searching Mercari JP');

@@ -57,7 +57,7 @@ function parseListing(node: FBMarketplaceListing): ProductSearchResult {
 
   return {
     platformId: node.id,
-    platform: 'amazon' as any,
+    platform: 'facebook',
     title: node.marketplace_listing_title ?? node.custom_title ?? '',
     price,
     shipping: 0, // FB Marketplace is mostly local pickup
@@ -137,7 +137,7 @@ export function createFacebookAdapter(options?: {
   const defaultLng = options?.longitude ?? DEFAULT_LNG;
 
   return {
-    platform: 'amazon' as any,
+    platform: 'facebook',
 
     async search(opts: SearchOptions): Promise<ProductSearchResult[]> {
       logger.info({ query: opts.query }, 'Searching Facebook Marketplace');
