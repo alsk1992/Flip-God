@@ -3075,8 +3075,8 @@ async function executeTool(
           return {
             status: 'ok',
             message: 'AliExpress OAuth tokens obtained and saved. Access token and refresh token are now stored.',
-            expiresAt: new Date(token.expiresAt).toISOString(),
-            refreshExpiresAt: new Date(token.refreshExpiresAt).toISOString(),
+            expiresAt: token.expiresAt ? new Date(token.expiresAt).toISOString() : 'unknown',
+            refreshExpiresAt: token.refreshExpiresAt ? new Date(token.refreshExpiresAt).toISOString() : 'unknown',
           };
         } catch (err) {
           return {
@@ -6888,7 +6888,7 @@ async function executeTool(
             type: w.type,
             address: w.address,
             isDefault: Boolean(w.is_default),
-            createdAt: new Date(w.created_at).toISOString(),
+            createdAt: w.created_at ? new Date(w.created_at).toISOString() : new Date().toISOString(),
           })),
           count: whList.length,
         };
@@ -6981,7 +6981,7 @@ async function executeTool(
             quantity: i.quantity,
             reserved: i.reserved,
             available: i.quantity - i.reserved,
-            updatedAt: new Date(i.updated_at).toISOString(),
+            updatedAt: i.updated_at ? new Date(i.updated_at).toISOString() : new Date().toISOString(),
           })),
           count: whInventory.length,
         };

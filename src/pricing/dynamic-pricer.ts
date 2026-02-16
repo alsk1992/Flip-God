@@ -68,7 +68,8 @@ function parsePriceLogRow(row: Record<string, unknown>): DynamicPriceChange {
     if (row.params) {
       params = JSON.parse(row.params as string);
     }
-  } catch {
+  } catch (parseErr) {
+    logger.warn({ id: row.id, err: parseErr }, 'Corrupted price log params, using null');
     params = null;
   }
 
@@ -301,6 +302,9 @@ export function calculateDynamicPrice(
   // Apply min/max bounds from override params or config
   const effectiveMin = params.min_price ?? minPrice;
   const effectiveMax = params.max_price ?? maxPrice;
+  if (effectiveMin !== null && effectiveMax !== null && effectiveMin > effectiveMax) {
+    logger.warn({ listingId, effectiveMin, effectiveMax }, 'Min price > max price — max will take precedence');
+  }
   const clampedPrice = clampPrice(result.newPrice, effectiveMin, effectiveMax);
 
   if (clampedPrice !== result.newPrice) {
