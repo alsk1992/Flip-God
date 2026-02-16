@@ -137,6 +137,14 @@ import { advancedReturnTools, handleAdvancedReturnTool } from '../fulfillment/ad
 import { wholesaleTools, handleWholesaleTool } from '../wholesale/integration';
 import { socialTools, handleSocialTool } from '../social/index';
 import { advancedShippingTools, handleAdvancedShippingTool } from '../shipping/advanced';
+import { currencyTools, handleCurrencyTool } from '../currency/index';
+import { cogsTools, handleCogsTool } from '../inventory/cogs';
+import { conditionTools, handleConditionTool } from '../inventory/condition';
+import { bundleTools, handleBundleTool } from '../listing/bundles';
+import { rmaTools, handleRmaTool } from '../fulfillment/rma';
+import { scoringTools, handleScoringTool } from '../research/scoring';
+import { saturationTools, handleSaturationTool } from '../research/saturation';
+import { complianceTools, handleComplianceTool } from '../compliance/policy';
 
 const logger = createLogger('agent');
 
@@ -2779,6 +2787,16 @@ function defineTools(): ToolDefinition[] {
     ...(wholesaleTools as unknown as ToolDefinition[]),
     ...(socialTools as unknown as ToolDefinition[]),
     ...(advancedShippingTools as unknown as ToolDefinition[]),
+
+    // ── Phase 3: Currency, COGS, Condition, Bundles, RMA, Research, Compliance ─
+    ...(currencyTools as unknown as ToolDefinition[]),
+    ...(cogsTools as unknown as ToolDefinition[]),
+    ...(conditionTools as unknown as ToolDefinition[]),
+    ...(bundleTools as unknown as ToolDefinition[]),
+    ...(rmaTools as unknown as ToolDefinition[]),
+    ...(scoringTools as unknown as ToolDefinition[]),
+    ...(saturationTools as unknown as ToolDefinition[]),
+    ...(complianceTools as unknown as ToolDefinition[]),
   ];
 
   // Apply metadata to all tools
@@ -7475,6 +7493,91 @@ async function executeTool(
     case 'manage_shipping_rules':
     case 'international_shipping_calculator': {
       return handleAdvancedShippingTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Currency
+    // -----------------------------------------------------------------------
+    case 'convert_currency':
+    case 'set_currency_preference':
+    case 'get_exchange_rates':
+    case 'calculate_landed_cost':
+    case 'multi_currency_pricing': {
+      return handleCurrencyTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // COGS
+    // -----------------------------------------------------------------------
+    case 'record_cogs':
+    case 'get_cogs':
+    case 'update_cogs':
+    case 'cogs_report':
+    case 'margin_with_cogs': {
+      return handleCogsTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Product Condition Grading
+    // -----------------------------------------------------------------------
+    case 'grade_condition':
+    case 'condition_pricing':
+    case 'condition_report':
+    case 'refurbishment_estimate': {
+      return handleConditionTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Bundles
+    // -----------------------------------------------------------------------
+    case 'create_bundle':
+    case 'calculate_bundle_price':
+    case 'bundle_inventory':
+    case 'list_bundles':
+    case 'update_bundle':
+    case 'dissolve_bundle': {
+      return handleBundleTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // RMA
+    // -----------------------------------------------------------------------
+    case 'create_rma':
+    case 'lookup_rma':
+    case 'approve_rma':
+    case 'receive_rma':
+    case 'rma_report': {
+      return handleRmaTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Research Scoring
+    // -----------------------------------------------------------------------
+    case 'score_product':
+    case 'rank_opportunities':
+    case 'niche_analysis':
+    case 'compare_scored_products': {
+      return handleScoringTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Market Saturation
+    // -----------------------------------------------------------------------
+    case 'saturation_index':
+    case 'seller_density':
+    case 'price_race_detector':
+    case 'opportunity_gaps': {
+      return handleSaturationTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Compliance
+    // -----------------------------------------------------------------------
+    case 'check_listing_compliance':
+    case 'check_product_restrictions':
+    case 'validate_images':
+    case 'banned_keywords_check': {
+      return handleComplianceTool(context.db, toolName, input);
     }
 
     // -----------------------------------------------------------------------

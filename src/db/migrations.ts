@@ -27,6 +27,8 @@ import { MIGRATION_019_UP, MIGRATION_019_DOWN } from './migration-019-pricing';
 import { MIGRATION_020_UP, MIGRATION_020_DOWN } from './migration-020-workflows';
 import { MIGRATION_021_UP, MIGRATION_021_DOWN } from './migration-021-teams';
 import { MIGRATION_022_UP, MIGRATION_022_DOWN } from './migration-022-plugins';
+import { MIGRATION_023_UP, MIGRATION_023_DOWN } from './migration-023-currency-cogs-bundles';
+import { MIGRATION_024_UP, MIGRATION_024_DOWN } from './migration-024-rma-scoring';
 
 const logger = createLogger('migrations');
 
@@ -586,6 +588,22 @@ const MIGRATIONS: Migration[] = [
     name: 'plugin_registry',
     up: MIGRATION_022_UP,
     down: MIGRATION_022_DOWN,
+  },
+
+  // ── Migration 23: Currency preferences, COGS, bundles, conditions ─
+  {
+    version: 23,
+    name: 'currency_cogs_bundles',
+    up: MIGRATION_023_UP,
+    down: MIGRATION_023_DOWN,
+  },
+
+  // ── Migration 24: RMA requests, product scores, niche analyses ────
+  {
+    version: 24,
+    name: 'rma_scoring',
+    up: MIGRATION_024_UP,
+    down: MIGRATION_024_DOWN,
   },
 ];
 

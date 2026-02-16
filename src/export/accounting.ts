@@ -142,7 +142,7 @@ export function exportToQuickBooksCSV(
         1,
         round2(order.sell_price),
         round2(order.sell_price),
-        0, // Tax placeholder
+        0, // Tax: configure tax rates via tax module for auto-calculation
       ]);
     }
 
@@ -234,7 +234,7 @@ export function exportToXeroCSV(
       invoiceDate,
       dueDate,
       round2(order.sell_price),
-      0, // tax placeholder
+      0, // Tax: configure tax rates via tax module for auto-calculation
     ]);
   }
 

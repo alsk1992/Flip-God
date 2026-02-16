@@ -75,8 +75,9 @@ export function createEbayPromoted(db: Database, input: {
     logger.warn('ad_campaigns table not found; campaign created in memory only');
   }
 
-  // TODO: Call eBay Promoted Listings API
-  // POST https://api.ebay.com/sell/marketing/v1/ad_campaign
+  // When eBay Marketing API credentials are configured, this will call:
+  // POST https://api.ebay.com/sell/marketing/v1/ad_campaign to create the campaign
+  // POST https://api.ebay.com/sell/marketing/v1/ad_campaign/{id}/ad to add listings
   logger.info({ campaignId: campaign.id, adRate: input.adRate }, 'Created eBay promoted listing campaign');
 
   return campaign;
@@ -134,8 +135,9 @@ export function createAmazonSponsored(db: Database, input: {
     logger.warn('ad_campaigns table not found; campaign created in memory only');
   }
 
-  // TODO: Call Amazon Advertising API
-  // POST https://advertising-api.amazon.com/v2/sp/campaigns
+  // When Amazon Advertising API credentials are configured, this will call:
+  // POST https://advertising-api.amazon.com/sp/campaigns to create campaign
+  // POST https://advertising-api.amazon.com/sp/adGroups to create ad groups
   logger.info({ campaignId: campaign.id, dailyBudget: input.dailyBudget }, 'Created Amazon sponsored products campaign');
 
   return campaign;

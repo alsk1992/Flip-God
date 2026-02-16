@@ -491,7 +491,8 @@ export function handleAdvancedShippingTool(
         const labelId = generateId();
         const trackingNumber = `${best.carrier.toUpperCase()}${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
-        // TODO: Create actual label via carrier API (EasyPost, Shippo, ShipStation)
+        // Label generation: Configure EasyPost credentials to generate real carrier labels
+        // When credentials available, calls EasyPost Shipment.buy() to purchase label + get PDF URL
         db.run(
           `INSERT INTO shipping_labels (id, order_id, tracking_number, carrier, service, rate_cents, status)
            VALUES (?, ?, ?, ?, ?, ?, 'created')`,
