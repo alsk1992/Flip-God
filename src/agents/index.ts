@@ -73,7 +73,7 @@ import { createEbayNegotiationApi } from '../platforms/ebay/negotiation';
 import { createEbayMetadataApi } from '../platforms/ebay/metadata';
 import { createKeepaApi } from '../platforms/keepa';
 import { createEasyPostApi } from '../platforms/easypost';
-import { createWalmartSellerApi } from '../platforms/walmart/seller';
+import { createWalmartSellerApi, type WalmartSellerApi } from '../platforms/walmart/seller';
 import { createBestBuyAdapter } from '../platforms/bestbuy/scraper';
 import { createBestBuyExtendedApi } from '../platforms/bestbuy/extended';
 import { createTargetAdapter } from '../platforms/target/scraper';
@@ -1637,6 +1637,191 @@ function defineTools(): ToolDefinition[] {
           sku: { type: 'string', description: 'Walmart seller SKU' },
         },
         required: ['sku'],
+      },
+    },
+    {
+      name: 'walmart_create_item',
+      description: 'Create a new item listing on Walmart Marketplace. Submits via feed API.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string', description: 'Your unique SKU for this item' },
+          productName: { type: 'string', description: 'Product title' },
+          price: { type: 'number', description: 'Price in USD' },
+          description: { type: 'string', description: 'Product description' },
+          shortDescription: { type: 'string', description: 'Short description' },
+          upc: { type: 'string', description: 'UPC barcode' },
+          brand: { type: 'string', description: 'Brand name' },
+          category: { type: 'string', description: 'Product category' },
+          images: { type: 'array', items: { type: 'string' }, description: 'Image URLs (first = main)' },
+        },
+        required: ['sku', 'productName', 'price'],
+      },
+    },
+    {
+      name: 'walmart_update_item',
+      description: 'Update an existing Walmart Marketplace item. Only include fields you want to change.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string', description: 'SKU of item to update' },
+          productName: { type: 'string', description: 'New product title' },
+          description: { type: 'string', description: 'New description' },
+          price: { type: 'number', description: 'New price' },
+          brand: { type: 'string', description: 'New brand' },
+          category: { type: 'string', description: 'New category' },
+          upc: { type: 'string', description: 'New UPC' },
+          images: { type: 'array', items: { type: 'string' }, description: 'New image URLs' },
+        },
+        required: ['sku'],
+      },
+    },
+    {
+      name: 'walmart_acknowledge_order',
+      description: 'Acknowledge a Walmart Marketplace order. Required before shipping.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          purchaseOrderId: { type: 'string', description: 'Walmart purchase order ID' },
+        },
+        required: ['purchaseOrderId'],
+      },
+    },
+    {
+      name: 'walmart_cancel_order',
+      description: 'Cancel line items on a Walmart Marketplace order.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          purchaseOrderId: { type: 'string', description: 'Walmart purchase order ID' },
+          lineItems: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                lineNumber: { type: 'string', description: 'Order line number' },
+                quantity: { type: 'number', description: 'Quantity to cancel' },
+                reason: { type: 'string', description: 'Cancellation reason' },
+              },
+              required: ['lineNumber', 'quantity', 'reason'],
+            },
+            description: 'Line items to cancel',
+          },
+        },
+        required: ['purchaseOrderId', 'lineItems'],
+      },
+    },
+    {
+      name: 'walmart_refund_order',
+      description: 'Refund line items on a Walmart Marketplace order.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          purchaseOrderId: { type: 'string', description: 'Walmart purchase order ID' },
+          lineItems: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                lineNumber: { type: 'string', description: 'Order line number' },
+                amount: { type: 'number', description: 'Refund amount in USD' },
+                reason: { type: 'string', description: 'Refund reason' },
+                isFullRefund: { type: 'boolean', description: 'Whether this is a full refund', default: false },
+              },
+              required: ['lineNumber', 'amount', 'reason'],
+            },
+            description: 'Line items to refund',
+          },
+        },
+        required: ['purchaseOrderId', 'lineItems'],
+      },
+    },
+    {
+      name: 'walmart_feed_status',
+      description: 'Check the status of a Walmart Marketplace feed submission (item creation, price update, etc.).',
+      input_schema: {
+        type: 'object',
+        properties: {
+          feedId: { type: 'string', description: 'Feed ID returned from a previous submission' },
+        },
+        required: ['feedId'],
+      },
+    },
+    {
+      name: 'walmart_get_returns',
+      description: 'Get Walmart Marketplace return orders.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string', description: 'Return creation start date (ISO format)' },
+          limit: { type: 'number', description: 'Max returns to fetch (default: 50)', default: 50 },
+        },
+      },
+    },
+    {
+      name: 'walmart_get_return',
+      description: 'Get details of a specific Walmart Marketplace return order.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          returnOrderId: { type: 'string', description: 'Return order ID' },
+        },
+        required: ['returnOrderId'],
+      },
+    },
+    {
+      name: 'walmart_listing_quality',
+      description: 'Get listing quality scores and improvement suggestions for your Walmart items.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max items to return (default: 50)', default: 50 },
+        },
+      },
+    },
+    {
+      name: 'walmart_bulk_update_prices',
+      description: 'Bulk update prices for multiple Walmart Marketplace items via feed.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                sku: { type: 'string', description: 'SKU' },
+                price: { type: 'number', description: 'New price' },
+                currency: { type: 'string', description: 'Currency (default: USD)' },
+              },
+              required: ['sku', 'price'],
+            },
+            description: 'Items to update',
+          },
+        },
+        required: ['items'],
+      },
+    },
+    {
+      name: 'walmart_bulk_update_inventory',
+      description: 'Bulk update inventory quantities for multiple Walmart Marketplace items via feed.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                sku: { type: 'string', description: 'SKU' },
+                quantity: { type: 'number', description: 'New quantity' },
+              },
+              required: ['sku', 'quantity'],
+            },
+            description: 'Items to update',
+          },
+        },
+        required: ['items'],
       },
     },
 
@@ -5348,15 +5533,22 @@ async function executeTool(
     // -----------------------------------------------------------------------
     // Walmart Marketplace seller operations
     // -----------------------------------------------------------------------
+
+    // Helper: get Walmart seller API or return error
+    function getWalmartSeller(): WalmartSellerApi | { status: string; message: string } {
+      const wc = creds.walmart as Record<string, unknown> | undefined;
+      const sid = wc?.sellerClientId as string | undefined;
+      const ss = wc?.sellerClientSecret as string | undefined;
+      if (!sid || !ss) {
+        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured. Use setup_walmart_seller_credentials first.' };
+      }
+      return createWalmartSellerApi({ clientId: sid, clientSecret: ss });
+    }
+
     case 'walmart_get_seller_items': {
       try {
-        const wCreds = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId = (wCreds?.sellerClientId as string | undefined);
-        const sellerSecret = (wCreds?.sellerClientSecret as string | undefined);
-        if (!sellerId || !sellerSecret) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured. Use setup_walmart_seller_credentials first.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId, clientSecret: sellerSecret });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const result = await sellerApi.getAllItems({
           limit: typeof input.limit === 'number' ? input.limit : 20,
           offset: typeof input.offset === 'number' ? input.offset : 0,
@@ -5370,13 +5562,8 @@ async function executeTool(
 
     case 'walmart_update_price': {
       try {
-        const wCreds2 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId2 = (wCreds2?.sellerClientId as string | undefined);
-        const sellerSecret2 = (wCreds2?.sellerClientSecret as string | undefined);
-        if (!sellerId2 || !sellerSecret2) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId2, clientSecret: sellerSecret2 });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const result = await sellerApi.updatePrice(input.sku as string, input.price as number);
         return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
       } catch (err) {
@@ -5387,13 +5574,8 @@ async function executeTool(
 
     case 'walmart_update_inventory': {
       try {
-        const wCreds3 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId3 = (wCreds3?.sellerClientId as string | undefined);
-        const sellerSecret3 = (wCreds3?.sellerClientSecret as string | undefined);
-        if (!sellerId3 || !sellerSecret3) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId3, clientSecret: sellerSecret3 });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const result = await sellerApi.updateInventory(input.sku as string, input.quantity as number);
         return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
       } catch (err) {
@@ -5404,13 +5586,8 @@ async function executeTool(
 
     case 'walmart_get_inventory': {
       try {
-        const wCreds4 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId4 = (wCreds4?.sellerClientId as string | undefined);
-        const sellerSecret4 = (wCreds4?.sellerClientSecret as string | undefined);
-        if (!sellerId4 || !sellerSecret4) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId4, clientSecret: sellerSecret4 });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const inv = await sellerApi.getInventory(input.sku as string);
         if (!inv) {
           return { status: 'error', message: `Inventory not found for SKU ${input.sku}` };
@@ -5424,13 +5601,8 @@ async function executeTool(
 
     case 'walmart_get_orders': {
       try {
-        const wCreds5 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId5 = (wCreds5?.sellerClientId as string | undefined);
-        const sellerSecret5 = (wCreds5?.sellerClientSecret as string | undefined);
-        if (!sellerId5 || !sellerSecret5) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId5, clientSecret: sellerSecret5 });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const orders = await sellerApi.getOrders({
           status: input.status as string | undefined,
           createdStartDate: input.createdStartDate as string | undefined,
@@ -5457,14 +5629,8 @@ async function executeTool(
 
     case 'walmart_ship_order': {
       try {
-        const wCreds6 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId6 = (wCreds6?.sellerClientId as string | undefined);
-        const sellerSecret6 = (wCreds6?.sellerClientSecret as string | undefined);
-        if (!sellerId6 || !sellerSecret6) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId6, clientSecret: sellerSecret6 });
-        // Get order to find line items
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const order = await sellerApi.getOrder(input.purchaseOrderId as string);
         if (!order) {
           return { status: 'error', message: `Order ${input.purchaseOrderId} not found.` };
@@ -5493,18 +5659,197 @@ async function executeTool(
 
     case 'walmart_retire_item': {
       try {
-        const wCreds7 = creds.walmart as Record<string, unknown> | undefined;
-        const sellerId7 = (wCreds7?.sellerClientId as string | undefined);
-        const sellerSecret7 = (wCreds7?.sellerClientSecret as string | undefined);
-        if (!sellerId7 || !sellerSecret7) {
-          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
-        }
-        const sellerApi = createWalmartSellerApi({ clientId: sellerId7, clientSecret: sellerSecret7 });
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
         const success = await sellerApi.retireItem(input.sku as string);
         return {
           status: success ? 'ok' : 'error',
           message: success ? `Item ${input.sku} retired from Walmart.` : `Failed to retire item ${input.sku}.`,
         };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_create_item': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const result = await sellerApi.createItem({
+          sku: input.sku as string,
+          productName: input.productName as string,
+          price: input.price as number,
+          currency: (input.currency as string) ?? 'USD',
+          description: input.description as string | undefined,
+          upc: input.upc as string | undefined,
+          brand: input.brand as string | undefined,
+          category: input.category as string | undefined,
+          images: input.images as string[] | undefined,
+          shortDescription: input.shortDescription as string | undefined,
+        });
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus, message: `Item ${input.sku} creation submitted via feed ${result.feedId}` };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_update_item': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const updates: Record<string, unknown> = {};
+        if (input.productName) updates.productName = input.productName;
+        if (input.description) updates.description = input.description;
+        if (input.price != null) updates.price = input.price;
+        if (input.brand) updates.brand = input.brand;
+        if (input.category) updates.category = input.category;
+        if (input.images) updates.images = input.images;
+        if (input.upc) updates.upc = input.upc;
+        const result = await sellerApi.updateItem(input.sku as string, updates);
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus, message: `Item ${input.sku} update submitted via feed ${result.feedId}` };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_acknowledge_order': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const success = await sellerApi.acknowledgeOrder(input.purchaseOrderId as string);
+        return {
+          status: success ? 'ok' : 'error',
+          message: success ? `Order ${input.purchaseOrderId} acknowledged.` : `Failed to acknowledge order ${input.purchaseOrderId}.`,
+        };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_cancel_order': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const cancelLines = (input.lineItems as Array<{ lineNumber: string; quantity: number; reason: string }>);
+        if (!cancelLines?.length) {
+          return { status: 'error', message: 'lineItems array is required with lineNumber, quantity, and reason for each line.' };
+        }
+        const success = await sellerApi.cancelOrder(input.purchaseOrderId as string, cancelLines);
+        return {
+          status: success ? 'ok' : 'error',
+          message: success ? `Order ${input.purchaseOrderId} cancelled (${cancelLines.length} lines).` : `Failed to cancel order ${input.purchaseOrderId}.`,
+        };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_refund_order': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const refundLines = (input.lineItems as Array<{ lineNumber: string; amount: number; reason: string; isFullRefund?: boolean }>);
+        if (!refundLines?.length) {
+          return { status: 'error', message: 'lineItems array is required with lineNumber, amount, and reason for each line.' };
+        }
+        const success = await sellerApi.refundOrder(input.purchaseOrderId as string, refundLines);
+        return {
+          status: success ? 'ok' : 'error',
+          message: success ? `Order ${input.purchaseOrderId} refunded (${refundLines.length} lines).` : `Failed to refund order ${input.purchaseOrderId}.`,
+        };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_feed_status': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const feed = await sellerApi.getFeedStatus(input.feedId as string);
+        return { status: 'ok', ...feed };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_get_returns': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const returns = await sellerApi.getReturns({
+          returnCreationStartDate: input.startDate as string | undefined,
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        });
+        return { status: 'ok', returns, count: returns.length };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_get_return': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const ret = await sellerApi.getReturnOrder(input.returnOrderId as string);
+        if (!ret) {
+          return { status: 'error', message: `Return order ${input.returnOrderId} not found.` };
+        }
+        return { status: 'ok', ...ret };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_listing_quality': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const result = await sellerApi.getListingQuality({
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        });
+        return { status: 'ok', items: result.items, nextCursor: result.nextCursor, count: result.items.length };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_bulk_update_prices': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const items = input.items as Array<{ sku: string; price: number; currency?: string }>;
+        if (!items?.length) {
+          return { status: 'error', message: 'items array is required with sku and price for each item.' };
+        }
+        const result = await sellerApi.bulkUpdatePrices(items);
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus, itemCount: items.length };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'walmart_bulk_update_inventory': {
+      try {
+        const sellerApi = getWalmartSeller();
+        if ('status' in sellerApi) return sellerApi;
+        const items = input.items as Array<{ sku: string; quantity: number }>;
+        if (!items?.length) {
+          return { status: 'error', message: 'items array is required with sku and quantity for each item.' };
+        }
+        const result = await sellerApi.bulkUpdateInventory(items);
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus, itemCount: items.length };
       } catch (err) {
         logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
