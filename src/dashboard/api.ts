@@ -174,7 +174,7 @@ export function createDashboardRouter(): Router {
       });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch overview');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -195,7 +195,7 @@ export function createDashboardRouter(): Router {
       res.json({ orders });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch recent orders');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -221,7 +221,7 @@ export function createDashboardRouter(): Router {
       res.json({ listings });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch active listings');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -273,7 +273,7 @@ export function createDashboardRouter(): Router {
       });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch arbitrage pipeline');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -323,7 +323,7 @@ export function createDashboardRouter(): Router {
       res.json({ lowStock, unbackedListings: unbacked });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch low stock');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -358,7 +358,7 @@ export function createDashboardRouter(): Router {
       res.json({ data });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch revenue chart');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -392,7 +392,7 @@ export function createDashboardRouter(): Router {
       res.json({ data });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch profit chart');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -420,7 +420,7 @@ export function createDashboardRouter(): Router {
       res.json({ alerts });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch recent alerts');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -454,7 +454,7 @@ export function createDashboardRouter(): Router {
       });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch fulfillment pipeline');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -483,7 +483,7 @@ export function createDashboardRouter(): Router {
       res.json({ suppliers });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch top suppliers');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -513,7 +513,7 @@ export function createDashboardRouter(): Router {
       res.json({ items: demandItems });
     } catch (err) {
       logger.error({ err }, 'Failed to fetch top demand');
-      res.status(500).json({ error: (err as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 

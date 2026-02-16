@@ -20,6 +20,8 @@ import {
 } from './restriction-checker.js';
 import type { RestrictionType, ProductInfo } from './restriction-checker.js';
 
+let _seeded = false;
+
 // =============================================================================
 // Tool Definitions
 // =============================================================================
@@ -304,7 +306,10 @@ export function handleRestrictionCheckerTool(
         }
 
         // Ensure seed data is present
-        seedDefaultRestrictions(db);
+        if (!_seeded) {
+          seedDefaultRestrictions(db);
+          _seeded = true;
+        }
 
         const productInfo: ProductInfo = {};
         if (typeof input.name === 'string' && input.name.trim()) {
@@ -360,7 +365,10 @@ export function handleRestrictionCheckerTool(
         }
 
         // Ensure seed data is present
-        seedDefaultRestrictions(db);
+        if (!_seeded) {
+          seedDefaultRestrictions(db);
+          _seeded = true;
+        }
 
         const products = productsRaw.map((p: Record<string, unknown>) => ({
           productId: String(p.product_id ?? ''),
@@ -396,7 +404,10 @@ export function handleRestrictionCheckerTool(
       // ── restricted_brands_list ─────────────────────────────────────────
       case 'restricted_brands_list': {
         // Ensure seed data is present
-        seedDefaultRestrictions(db);
+        if (!_seeded) {
+          seedDefaultRestrictions(db);
+          _seeded = true;
+        }
 
         const platform =
           typeof input.platform === 'string' && input.platform.trim()
@@ -495,7 +506,10 @@ export function handleRestrictionCheckerTool(
       // ── restricted_categories_list ─────────────────────────────────────
       case 'restricted_categories_list': {
         // Ensure seed data is present
-        seedDefaultRestrictions(db);
+        if (!_seeded) {
+          seedDefaultRestrictions(db);
+          _seeded = true;
+        }
 
         const platform =
           typeof input.platform === 'string' && input.platform.trim()

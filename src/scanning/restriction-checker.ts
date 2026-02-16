@@ -356,7 +356,7 @@ export function checkProductRestrictions(
   if (productInfo?.brand) {
     const brandRows = db.query<RestrictedBrandRow>(
       `SELECT * FROM known_restricted_brands
-       WHERE brand_name = ? AND (platform = ? OR platform = '*')`,
+       WHERE LOWER(brand_name) = LOWER(?) AND (platform = ? OR platform = '*')`,
       [productInfo.brand, platform],
     );
 
@@ -376,7 +376,7 @@ export function checkProductRestrictions(
   if (productInfo?.category) {
     const catRows = db.query<RestrictedCategoryRow>(
       `SELECT * FROM known_restricted_categories
-       WHERE category_name = ? AND (platform = ? OR platform = '*')`,
+       WHERE LOWER(category_name) = LOWER(?) AND (platform = ? OR platform = '*')`,
       [productInfo.category, platform],
     );
 
@@ -394,7 +394,7 @@ export function checkProductRestrictions(
     // Also do fuzzy category matching (partial match)
     const fuzzyRows = db.query<RestrictedCategoryRow>(
       `SELECT * FROM known_restricted_categories
-       WHERE ? LIKE '%' || category_name || '%' AND (platform = ? OR platform = '*')`,
+       WHERE INSTR(LOWER(?), LOWER(category_name)) > 0 AND (platform = ? OR platform = '*')`,
       [productInfo.category, platform],
     );
 

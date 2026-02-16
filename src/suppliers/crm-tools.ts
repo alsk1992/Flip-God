@@ -838,15 +838,30 @@ export function handleSupplierCrmTool(
           return { error: 'items array is required and must not be empty' };
         }
 
+        // Validate items before creating order
+        const validatedItems: Array<{ productId?: string; sku?: string; quantity: number; unitCost: number }> = [];
+        for (let idx = 0; idx < items.length; idx++) {
+          const item = items[idx];
+          const qty = Number(item.quantity);
+          if (!Number.isFinite(qty) || qty < 1) {
+            return { error: `Item ${idx + 1}: quantity must be >= 1` };
+          }
+          const cost = Number(item.unit_cost);
+          if (!Number.isFinite(cost) || cost < 0) {
+            return { error: `Item ${idx + 1}: unit_cost must be a non-negative number` };
+          }
+          validatedItems.push({
+            productId: item.product_id,
+            sku: item.sku,
+            quantity: qty,
+            unitCost: cost,
+          });
+        }
+
         const order = createSupplierOrder(db, {
           supplierId: supplierId.trim(),
           orderNumber: (input.order_number as string) ?? undefined,
-          items: items.map((item) => ({
-            productId: item.product_id,
-            sku: item.sku,
-            quantity: Number(item.quantity) || 1,
-            unitCost: Number(item.unit_cost) || 0,
-          })),
+          items: validatedItems,
           shippingCost: input.shipping_cost != null ? Number(input.shipping_cost) : undefined,
           expectedDelivery: input.expected_delivery != null ? Number(input.expected_delivery) : undefined,
           notes: (input.notes as string) ?? undefined,

@@ -455,7 +455,7 @@ export function handleFulfillmentChainTool(
             log: result.log.map((l) => ({
               id: l.id,
               action: l.action,
-              details: l.details ? JSON.parse(l.details) : null,
+              details: (() => { try { return l.details ? JSON.parse(l.details as string) : null; } catch { return l.details; } })(),
               createdAt: new Date(l.createdAt).toISOString(),
             })),
           },

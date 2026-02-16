@@ -185,13 +185,21 @@ function parseDateRange(
   let endMs = now;
 
   if (startDate != null) {
-    const parsed = typeof startDate === 'number' ? startDate : new Date(startDate).getTime();
-    if (Number.isFinite(parsed)) startMs = parsed;
+    const parsedStart = typeof startDate === 'number' ? startDate : new Date(startDate).getTime();
+    if (Number.isFinite(parsedStart)) {
+      startMs = parsedStart;
+    } else if (startDate) {
+      logger.warn({ startDate }, 'Invalid start date, using default (30 days ago)');
+    }
   }
 
   if (endDate != null) {
-    const parsed = typeof endDate === 'number' ? endDate : new Date(endDate).getTime();
-    if (Number.isFinite(parsed)) endMs = parsed;
+    const parsedEnd = typeof endDate === 'number' ? endDate : new Date(endDate).getTime();
+    if (Number.isFinite(parsedEnd)) {
+      endMs = parsedEnd;
+    } else if (endDate) {
+      logger.warn({ endDate }, 'Invalid end date, using default (now)');
+    }
   }
 
   return { startMs, endMs };
@@ -297,7 +305,7 @@ export function generatePLReport(
   for (const order of orders) {
     const price = order.sell_price ?? 0;
     totalRevenue += price;
-    const plat = order.sell_platform || 'unknown';
+    const plat = (order.sell_platform as string | null) ?? 'unknown';
     if (!revenueByPlatform[plat]) revenueByPlatform[plat] = { amount: 0, count: 0 };
     revenueByPlatform[plat].amount += price;
     revenueByPlatform[plat].count += 1;
@@ -412,15 +420,17 @@ export function generatePLReport(
   // Returns / refunds
   let totalRefunds = 0;
   let refundCount = 0;
+  const refundedOrderIds = new Set<string>();
   for (const ret of returns) {
-    totalRefunds += ret.refund_amount ?? 0;
+    totalRefunds += Number(ret.refund_amount) || 0;
     refundCount += 1;
+    if (ret.order_id) refundedOrderIds.add(String(ret.order_id));
   }
 
-  // Also count orders with refunded status in the period
-  const refundedOrders = orders.filter((o) => o.status === 'refunded');
+  // Also count orders with refunded status in the period (skip already-counted ones)
+  const refundedOrders = orders.filter((o) => String(o.status) === 'refunded' && !refundedOrderIds.has(String(o.id)));
   for (const order of refundedOrders) {
-    totalRefunds += order.sell_price;
+    totalRefunds += Number(order.sell_price) || 0;
     refundCount += 1;
   }
 
@@ -490,7 +500,7 @@ export function generatePLReport(
   // By platform
   const platformMap: Record<string, { revenue: number; profit: number; orders: number }> = {};
   for (const order of orders) {
-    const plat = order.sell_platform || 'unknown';
+    const plat = (order.sell_platform as string | null) ?? 'unknown';
     if (!platformMap[plat]) platformMap[plat] = { revenue: 0, profit: 0, orders: 0 };
     platformMap[plat].revenue += order.sell_price;
     platformMap[plat].orders += 1;
@@ -622,8 +632,8 @@ export function generateSKUProfitability(
     if (cogsRecord) {
       entry.cogs += cogsRecord.unit_cost;
       entry.otherCosts += (cogsRecord.import_duty ?? 0) + (cogsRecord.other_costs ?? 0);
-      // COGS shipping is sourcing cost, separate from fulfillment shipping
-      entry.shippingCost += cogsRecord.shipping_cost ?? 0;
+      // COGS shipping is sourcing cost — include in COGS, not fulfillment shipping
+      entry.cogs += cogsRecord.shipping_cost ?? 0;
     } else if (order.buy_price != null && order.buy_price > 0) {
       entry.cogs += order.buy_price;
     } else if (listing) {
@@ -633,7 +643,7 @@ export function generateSKUProfitability(
     // Fees & fulfillment shipping from order
     entry.platformFees +=
       order.platform_fees ?? estimatePlatformFee(order.sell_price, order.sell_platform);
-    entry.shippingCost += order.shipping_cost ?? 0;
+    entry.shippingCost += Number(order.shipping_cost) || 0;
   }
 
   const results: SKUProfitability[] = Object.values(skuMap).map((entry) => {
@@ -813,14 +823,16 @@ export function generateCashFlowSummary(
     shippingCosts += order.shipping_cost ?? 0;
   }
 
+  const cfRefundedOrderIds = new Set<string>();
   for (const ret of returns) {
-    refunds += ret.refund_amount ?? 0;
+    refunds += Number(ret.refund_amount) || 0;
+    if (ret.order_id) cfRefundedOrderIds.add(String(ret.order_id));
   }
 
-  // Refunded orders
-  const refundedOrders = orders.filter((o) => o.status === 'refunded');
+  // Refunded orders (skip already-counted ones from returns)
+  const refundedOrders = orders.filter((o) => String(o.status) === 'refunded' && !cfRefundedOrderIds.has(String(o.id)));
   for (const order of refundedOrders) {
-    refunds += order.sell_price;
+    refunds += Number(order.sell_price) || 0;
   }
 
   inventoryPurchases = round2(inventoryPurchases);
@@ -987,7 +999,7 @@ export function exportToQuickBooksCSV(
     const productId = listing?.product_id ?? order.listing_id;
     const product = listing ? getProduct(db, productId) : null;
     const name = product?.title ?? listing?.title ?? 'Product';
-    const platform = order.sell_platform || 'unknown';
+    const platform = (order.sell_platform as string | null) ?? 'unknown';
     const memo = `${platform} sale - ${name}`;
 
     const sellPrice = round2(order.sell_price);

@@ -568,14 +568,21 @@ export async function runFulfillmentCycle(
   const newOrders = getChainEntries(db, { status: 'new_order' });
   for (const entry of newOrders) {
     try {
+      const productIdentifier = entry.sourceProductId ?? entry.itemSku ?? entry.sellListingId;
+      if (!productIdentifier) {
+        updateChainStatus(db, entry.id, 'manual_needed', { errorMessage: 'No product identifier for source lookup' });
+        continue;
+      }
+
       const source = await deps.findSource(
-        entry.sourceProductId ?? entry.itemSku ?? entry.sellListingId ?? '',
+        productIdentifier,
         entry.itemSku,
       );
 
       if (source) {
+        const feeRate = 0.15;
         const profit = entry.sellPrice != null && Number.isFinite(entry.sellPrice)
-          ? entry.sellPrice - source.price
+          ? Math.round((entry.sellPrice * (1 - feeRate) - source.price) * 100) / 100
           : null;
 
         updateChainStatus(db, entry.id, 'source_identified', {
@@ -613,16 +620,27 @@ export async function runFulfillmentCycle(
         continue;
       }
 
+      if (!entry.sourcePlatform || !entry.sourceProductId || !Number.isFinite(entry.sourcePrice)) {
+        updateChainStatus(db, entry.id, 'manual_needed', { errorMessage: 'Missing source details for auto-purchase' });
+        summary.errors.push('Missing source details for auto-purchase on chain ' + entry.id);
+        continue;
+      }
+      if (!entry.buyerAddress) {
+        updateChainStatus(db, entry.id, 'manual_needed', { errorMessage: 'Missing buyer address for auto-purchase' });
+        summary.errors.push('Missing buyer address for auto-purchase on chain ' + entry.id);
+        continue;
+      }
+
       try {
         updateChainStatus(db, entry.id, 'purchasing');
 
         const result = await deps.purchaseFromSource(
           {
-            platform: entry.sourcePlatform!,
-            productId: entry.sourceProductId!,
+            platform: entry.sourcePlatform,
+            productId: entry.sourceProductId,
             price: entry.sourcePrice!,
           },
-          entry.buyerAddress ?? '',
+          entry.buyerAddress,
         );
 
         updateChainStatus(db, entry.id, 'purchased', {

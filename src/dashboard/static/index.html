@@ -498,6 +498,12 @@
     // =====================================================================
     function $(id) { return document.getElementById(id); }
 
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = String(s ?? '');
+      return d.innerHTML;
+    }
+
     function fmtUSD(n) {
       if (n == null || isNaN(n)) return '$0.00';
       return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -521,13 +527,14 @@
     }
 
     function statusBadge(status) {
-      const s = (status || 'unknown').toLowerCase();
+      const s = esc((status || 'unknown').toLowerCase());
       return `<span class="badge badge-${s}">${s}</span>`;
     }
 
     function truncate(str, len) {
       if (!str) return '--';
-      return str.length > len ? str.slice(0, len) + '...' : str;
+      const raw = str.length > len ? str.slice(0, len) + '...' : str;
+      return esc(raw);
     }
 
     function relTime(epochMs) {
@@ -690,8 +697,8 @@
       if (!d) return;
       setupSortableTable('orders-table', d.orders || [], (o) => `
         <tr>
-          <td title="${o.id}">${truncate(o.id, 10)}</td>
-          <td>${o.sell_platform || '--'}</td>
+          <td title="${esc(o.id)}">${truncate(o.id, 10)}</td>
+          <td>${esc(o.sell_platform || '--')}</td>
           <td>${fmtUSD(o.sell_price)}</td>
           <td style="color: ${(Number(o.profit)||0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${o.profit != null ? fmtUSD(o.profit) : '--'}</td>
           <td>${statusBadge(o.status)}</td>
@@ -704,10 +711,10 @@
       if (!d) return;
       setupSortableTable('listings-table', d.listings || [], (l) => `
         <tr>
-          <td title="${l.title || l.product_title || ''}">${truncate(l.title || l.product_title, 30)}</td>
-          <td>${l.platform || '--'}</td>
+          <td title="${esc(l.title || l.product_title || '')}">${truncate(l.title || l.product_title, 30)}</td>
+          <td>${esc(l.platform || '--')}</td>
           <td>${fmtUSD(l.price)}</td>
-          <td>${l.source_platform || '--'}</td>
+          <td>${esc(l.source_platform || '--')}</td>
           <td>${fmtUSD(l.source_price)}</td>
         </tr>`);
     }
@@ -729,7 +736,7 @@
       } else {
         scoutEl.innerHTML = scoutCounts.map(s => `
           <div class="pipeline-count">
-            <div class="count-label">${s.status}</div>
+            <div class="count-label">${esc(s.status)}</div>
             <div class="count-value">${fmtNum(s.cnt)}</div>
           </div>`).join('');
       }
@@ -742,7 +749,7 @@
       } else {
         fulEl.innerHTML = fulCounts.map(s => `
           <div class="pipeline-count">
-            <div class="count-label">${s.status}</div>
+            <div class="count-label">${esc(s.status)}</div>
             <div class="count-value">${fmtNum(s.count)}</div>
           </div>`).join('');
       }
@@ -761,8 +768,8 @@
       }
       list.innerHTML = alerts.map(a => `
         <li class="alert-item">
-          <span class="alert-type">${a.type || 'info'}</span>
-          <span class="alert-message">${a.message || '--'}</span>
+          <span class="alert-type">${esc(a.type || 'info')}</span>
+          <span class="alert-message">${esc(a.message || '--')}</span>
           <span class="alert-time">${relTime(a.created_at)}</span>
         </li>`).join('');
     }

@@ -436,10 +436,12 @@ export function getAllChannelMappings(
   sql += ' ORDER BY created_at DESC';
 
   if (Number.isFinite(opts?.limit)) {
-    sql += ` LIMIT ${Math.max(1, opts!.limit!)}`;
+    sql += ' LIMIT ?';
+    params.push(Math.max(1, opts!.limit!));
   }
   if (Number.isFinite(opts?.offset)) {
-    sql += ` OFFSET ${Math.max(0, opts!.offset!)}`;
+    sql += ' OFFSET ?';
+    params.push(Math.max(0, opts!.offset!));
   }
 
   const rows = db.query<{
@@ -886,7 +888,8 @@ export function getSyncEvents(
   sql += ' ORDER BY created_at DESC';
 
   const limit = Number.isFinite(opts?.limit) ? Math.max(1, opts!.limit!) : 200;
-  sql += ` LIMIT ${limit}`;
+  sql += ' LIMIT ?';
+  params.push(limit);
 
   const rows = db.query<{
     id: string;

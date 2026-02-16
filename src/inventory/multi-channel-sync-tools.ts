@@ -475,6 +475,11 @@ export function handleMultiChannelSyncTool(
 
       // ── Sync Events ─────────────────────────────────────────────────
       case 'sync_events': {
+        const VALID_EVENT_TYPES = new Set(['sale', 'restock', 'adjustment', 'sync_push', 'sync_pull', 'error']);
+        if (input.event_type && !VALID_EVENT_TYPES.has(input.event_type as string)) {
+          return { status: 'error' as const, message: `Invalid event_type. Valid: ${[...VALID_EVENT_TYPES].join(', ')}` };
+        }
+
         const events = getSyncEvents(db, {
           sku: input.sku,
           eventType: input.event_type as SyncEventType | undefined,

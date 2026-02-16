@@ -255,10 +255,11 @@ export function updateRepriceDaemonConfig(
 
   const existing = parseRow(rows[0]);
 
-  // Merge config updates
+  // Merge config updates — strip non-config fields before spreading
+  const { name: _n, enabled: _e, ...configUpdates } = updates;
   const newConfig: RepriceDaemonConfig = {
     ...existing.config,
-    ...updates,
+    ...configUpdates,
   };
 
   const newName = updates.name ?? existing.name;
@@ -555,6 +556,13 @@ export function startRepriceDaemon(
     }, intervalMs);
 
     timers.set(record.id, timer);
+
+    // Run first cycle immediately
+    try {
+      runRepriceCycle(db, record, repriceFn);
+    } catch (err) {
+      logger.error({ err, configId: record.id }, 'Initial reprice cycle failed');
+    }
 
     logger.info(
       { configId: record.id, name: record.name, intervalMs },

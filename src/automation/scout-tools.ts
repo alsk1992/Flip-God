@@ -464,10 +464,9 @@ export function handleScoutTool(
 
         // runScoutScan is async — return a promise-wrapped result
         // The tool handler framework should await this.
-        return runScoutScan(db, config, context.scanFn).then((summary) => ({
-          status: 'ok',
-          data: summary,
-        }));
+        return runScoutScan(db, config, context.scanFn)
+          .then((summary) => ({ status: 'ok', data: summary }))
+          .catch((err) => ({ status: 'error', message: err instanceof Error ? err.message : String(err) }));
       }
 
       // ── scout_queue ──────────────────────────────────────────────────

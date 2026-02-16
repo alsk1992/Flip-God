@@ -468,8 +468,9 @@ export function getSuppliers(db: Database, filters?: SupplierFilters): Supplier[
     params.push(filters.platform);
   }
   if (filters?.search) {
-    conditions.push('(name LIKE ? OR contact_name LIKE ? OR email LIKE ?)');
-    const like = `%${filters.search}%`;
+    const escaped = filters.search.replace(/[%_]/g, '\\$&');
+    const like = `%${escaped}%`;
+    conditions.push("(name LIKE ? ESCAPE '\\' OR contact_name LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\')");
     params.push(like, like, like);
   }
   if (filters?.minRating !== undefined && Number.isFinite(filters.minRating)) {
@@ -842,6 +843,11 @@ export function receiveSupplierOrder(
   const existing = getSupplierOrder(db, orderId);
   if (!existing) return null;
 
+  if (existing.status === 'received') {
+    logger.warn({ orderId }, 'Order already received, skipping');
+    return existing;
+  }
+
   const now = Date.now();
   const delivery = actualDelivery ?? now;
 
@@ -1035,8 +1041,10 @@ export function checkReorderAlerts(db: Database, opts?: ReorderAlertOptions): Re
       let weeklyAvgSales = 0;
       try {
         const salesRows = db.query<{ cnt: number }>(
-          "SELECT COUNT(*) as cnt FROM orders WHERE status != 'cancelled' AND ordered_at > ?",
-          [thirtyDaysAgo],
+          `SELECT COUNT(*) as cnt FROM orders o
+           WHERE o.listing_id IN (SELECT id FROM listings WHERE product_id = ?)
+           AND o.status != 'cancelled' AND o.ordered_at > ?`,
+          [product.id, thirtyDaysAgo],
         );
         const monthlySales = salesRows[0]?.cnt ?? 0;
         weeklyAvgSales = monthlySales / 4.3; // ~4.3 weeks per month
