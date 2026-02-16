@@ -197,7 +197,7 @@ export interface ReactionMessage {
 
 export interface UserCredentials {
   userId: string;
-  platform: Platform;
+  platform: CredentialPlatform;
   mode: string;
   encryptedData: string;
   enabled: boolean;
@@ -256,13 +256,23 @@ export interface EasyPostCredentials {
   apiKey: string;
 }
 
+export interface BestBuyCredentials {
+  apiKey: string;
+}
+
+export interface FaireCredentials {
+  accessToken: string;
+}
+
 export type PlatformCredentials =
   | AmazonCredentials
   | EbayCredentials
   | WalmartCredentials
   | AliExpressCredentials
   | KeepaCredentials
-  | EasyPostCredentials;
+  | EasyPostCredentials
+  | BestBuyCredentials
+  | FaireCredentials;
 
 // =============================================================================
 // CONFIG

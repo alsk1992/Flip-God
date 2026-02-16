@@ -31,7 +31,9 @@ export const API_BASE = {
   sandbox: 'https://api.sandbox.ebay.com',
 };
 
-// Token cache: key = clientId, value = { accessToken, expiresAt }
+// Token cache: key = clientId:env, value = { accessToken, expiresAt }
+// Capped to prevent unbounded growth if many credential sets are rotated.
+const MAX_TOKEN_CACHE_SIZE = 50;
 const tokenCache = new Map<string, CachedToken>();
 
 /**
@@ -86,6 +88,11 @@ export async function getAccessToken(config: EbayAuthConfig): Promise<string> {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
+  // Evict oldest entry if cache is full
+  if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+    const firstKey = tokenCache.keys().next().value;
+    if (firstKey) tokenCache.delete(firstKey);
+  }
   tokenCache.set(cacheKey, token);
   logger.info({ env, expiresIn: data.expires_in }, 'eBay access token obtained');
 

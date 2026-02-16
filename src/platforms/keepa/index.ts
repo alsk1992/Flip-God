@@ -296,7 +296,8 @@ export function createKeepaApi(config: KeepaConfig): KeepaApi {
         });
         logger.info({ asin }, 'Keepa tracking removed');
         return true;
-      } catch {
+      } catch (err) {
+        logger.warn({ asin, error: err instanceof Error ? err.message : String(err) }, 'Failed to remove Keepa tracking');
         return false;
       }
     },

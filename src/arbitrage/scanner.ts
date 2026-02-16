@@ -2,7 +2,6 @@
  * Arbitrage Scanner - Finds cross-platform price differences
  */
 
-import { randomUUID } from 'crypto';
 import { createLogger } from '../utils/logger';
 import type { Platform } from '../types';
 import type { ArbitrageOpportunity } from './types';

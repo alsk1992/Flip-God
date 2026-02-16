@@ -5,10 +5,6 @@
  * research from Jungle Scout / Helium10 published datasets.
  */
 
-import { createLogger } from '../utils/logger';
-
-const logger = createLogger('sales-rank');
-
 // Category-specific BSR-to-monthly-sales curves
 // Format: [maxBSR, estimatedMonthlySales]
 // Derived from published seller research (approximate)

@@ -20,14 +20,14 @@ function parseProduct(item: AliExpressApiProduct): ProductSearchResult {
     ?? item.sale_price
     ?? item.original_price
     ?? '0'
-  );
+  ) || 0;
 
   return {
     platformId: String(item.product_id),
     platform: 'aliexpress',
     title: item.product_title,
     price,
-    shipping: 0, // AliExpress typically offers free shipping
+    shipping: 0, // AliExpress typically offers free shipping; actual rates vary by seller and destination
     currency: item.target_app_sale_price_currency
       ?? item.app_sale_price_currency
       ?? item.sale_price_currency
@@ -38,7 +38,7 @@ function parseProduct(item: AliExpressApiProduct): ProductSearchResult {
     imageUrl: item.product_main_image_url,
     category: item.second_level_category_name ?? item.first_level_category_name,
     rating: item.evaluate_rate
-      ? parseFloat(item.evaluate_rate.replace('%', '')) / 20 // Convert 0-100% to 0-5 scale
+      ? (parseFloat(item.evaluate_rate.replace('%', '')) || 0) / 20 // Convert 0-100% to 0-5 scale
       : undefined,
     reviewCount: item.latest_volume,
   };

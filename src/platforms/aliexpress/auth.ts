@@ -137,8 +137,8 @@ export async function obtainAliExpressToken(
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
-    expiresAt: parseInt(data.expire_time, 10),
-    refreshExpiresAt: parseInt(data.refresh_token_valid_time, 10),
+    expiresAt: parseInt(data.expire_time, 10) || 0,
+    refreshExpiresAt: parseInt(data.refresh_token_valid_time, 10) || 0,
   };
 }
 
@@ -179,8 +179,8 @@ export async function refreshAliExpressToken(
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
-    expiresAt: parseInt(data.expire_time, 10),
-    refreshExpiresAt: parseInt(data.refresh_token_valid_time, 10),
+    expiresAt: parseInt(data.expire_time, 10) || 0,
+    refreshExpiresAt: parseInt(data.refresh_token_valid_time, 10) || 0,
   };
 }
 
@@ -188,6 +188,8 @@ export async function refreshAliExpressToken(
  * Get a valid access token, refreshing if needed.
  * Caches tokens per appKey.
  */
+// Capped to prevent unbounded growth if many credential sets are rotated.
+const MAX_TOKEN_CACHE_SIZE = 50;
 const oauthTokenCache = new Map<string, AliExpressOAuthToken>();
 
 export async function getValidAliExpressToken(
@@ -213,6 +215,11 @@ export async function getValidAliExpressToken(
 
   try {
     const newToken = await refreshAliExpressToken(rtToUse, config);
+    // Evict oldest entry if cache is full
+    if (oauthTokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+      const firstKey = oauthTokenCache.keys().next().value;
+      if (firstKey) oauthTokenCache.delete(firstKey);
+    }
     oauthTokenCache.set(config.appKey, newToken);
     return newToken.accessToken;
   } catch (err) {

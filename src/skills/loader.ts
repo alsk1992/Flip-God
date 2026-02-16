@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { Skill, SkillManagerConfig, SkillGates } from '../types';
 import { createLogger } from '../utils/logger';
-import { parseFrontmatter, mergeGates } from './frontmatter';
+import { parseFrontmatter } from './frontmatter';
 
 const log = createLogger('skills');
 
@@ -18,6 +18,9 @@ const SKILL_KEYWORDS: Record<string, string[]> = {
   scanner: [
     'scan', 'search', 'find', 'compare', 'match', 'lookup', 'price',
     'amazon', 'ebay', 'walmart', 'aliexpress', 'product', 'upc', 'asin',
+    'bestbuy', 'best buy', 'target', 'costco', 'homedepot', 'home depot',
+    'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'b-stock',
+    'bulq', 'liquidation',
   ],
   lister: [
     'list', 'listing', 'create listing', 'optimize', 'bulk list',

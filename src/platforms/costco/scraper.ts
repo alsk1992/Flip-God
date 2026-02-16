@@ -193,8 +193,8 @@ export function createCostcoAdapter(options?: {
             }
           }
         }
-      } catch {
-        // Price endpoint failed, fall back to search
+      } catch (err) {
+        logger.debug({ productId, error: err instanceof Error ? err.message : String(err) }, 'Costco price endpoint failed, falling back to search');
       }
 
       // Fallback: search by product ID

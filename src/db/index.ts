@@ -26,9 +26,9 @@ import type {
   Listing,
   Order,
   Session,
-  User,
   UserCredentials,
   Platform,
+  CredentialPlatform,
 } from '../types';
 
 const logger = createLogger('db');
@@ -67,10 +67,10 @@ export interface Database {
   listSessions(): Session[];
 
   // Trading credentials
-  getTradingCredentials(userId: string, platform: Platform): UserCredentials | null;
+  getTradingCredentials(userId: string, platform: CredentialPlatform): UserCredentials | null;
   createTradingCredentials(creds: UserCredentials): void;
   updateTradingCredentials(creds: UserCredentials): void;
-  deleteTradingCredentials(userId: string, platform: Platform): void;
+  deleteTradingCredentials(userId: string, platform: CredentialPlatform): void;
 
   // Products
   getProduct(id: string): Product | undefined;
@@ -496,7 +496,7 @@ export async function createDatabase(): Promise<Database> {
       if (!row) return null;
       return {
         userId: row.user_id as string,
-        platform: row.platform as Platform,
+        platform: row.platform as CredentialPlatform,
         mode: (row.mode as string) ?? 'api_key',
         encryptedData: row.encrypted_data as string,
         enabled: Boolean(row.enabled),
@@ -641,7 +641,7 @@ export async function createDatabase(): Promise<Database> {
 
       // -- Trading Credentials --
 
-      getTradingCredentials(userId: string, platform: Platform): UserCredentials | null {
+      getTradingCredentials(userId: string, platform: CredentialPlatform): UserCredentials | null {
         return parseTradingCredentials(
           getOne(
             'SELECT user_id, platform, mode, encrypted_data, enabled, failed_attempts, cooldown_until, created_at, updated_at FROM trading_credentials WHERE user_id = ? AND platform = ?',
@@ -683,7 +683,7 @@ export async function createDatabase(): Promise<Database> {
         );
       },
 
-      deleteTradingCredentials(userId: string, platform: Platform): void {
+      deleteTradingCredentials(userId: string, platform: CredentialPlatform): void {
         instance.run(
           'DELETE FROM trading_credentials WHERE user_id = ? AND platform = ?',
           [userId, platform],

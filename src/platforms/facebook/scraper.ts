@@ -117,7 +117,8 @@ async function lookupLocation(query: string): Promise<LocationResult | null> {
       latitude: loc?.location?.latitude ?? DEFAULT_LAT,
       longitude: loc?.location?.longitude ?? DEFAULT_LNG,
     };
-  } catch {
+  } catch (err) {
+    logger.debug({ query, error: err instanceof Error ? err.message : String(err) }, 'Facebook location lookup failed');
     return null;
   }
 }

@@ -276,7 +276,8 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
           images: data.images?.[0]?.images,
           productTypes: data.productTypes,
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ asin, error: err instanceof Error ? err.message : String(err) }, 'getCatalogItem failed');
         return null;
       }
     },
@@ -368,7 +369,8 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
             offerCount: o.OfferCount,
           })),
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ asin, error: err instanceof Error ? err.message : String(err) }, 'getItemOffers failed');
         return null;
       }
     },
@@ -580,7 +582,8 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
             countryCode: o.ShippingAddress.CountryCode,
           } : undefined,
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ orderId, error: err instanceof Error ? err.message : String(err) }, 'getOrder failed');
         return null;
       }
     },

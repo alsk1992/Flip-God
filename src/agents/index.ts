@@ -18,7 +18,6 @@ import type {
   Config,
   Platform,
   CredentialPlatform,
-  ConversationMessage,
   AmazonCredentials,
   EbayCredentials,
   WalmartCredentials,
@@ -33,7 +32,6 @@ import {
   CORE_TOOL_NAMES,
   detectToolHints,
   type ToolMetadata,
-  type RegistryTool,
 } from './tool-registry';
 import type { SessionManager } from '../sessions';
 import type { Database } from '../db';
@@ -46,7 +44,6 @@ import {
   type ProductSearchResult,
 } from '../platforms';
 import { createListing, optimizeListing } from '../listing/creator';
-import { recommendPrice } from '../listing/pricer';
 import { calculateProfit, calculateFees } from '../arbitrage/calculator';
 import { autoPurchase } from '../fulfillment/purchaser';
 import { getTracking, updateTrackingOnPlatform } from '../fulfillment/tracker';
@@ -176,7 +173,7 @@ export interface AgentManager {
 const SYSTEM_PROMPT = `You are FlipAgent, an AI assistant for e-commerce arbitrage.
 
 You help users:
-- Find price arbitrage opportunities across Amazon, eBay, Walmart, and AliExpress
+- Find price arbitrage opportunities across 15 platforms (Amazon, eBay, Walmart, AliExpress, Best Buy, Target, Costco, Home Depot, Poshmark, Mercari, Facebook Marketplace, Faire, B-Stock, BULQ, Liquidation.com)
 - Auto-create optimized listings on selling platforms
 - Monitor and fulfill orders via dropshipping
 - Track profit, margins, and ROI across all operations
@@ -2588,56 +2585,76 @@ async function executeTool(
       if (!creds.amazon) {
         return { status: 'error', message: 'Amazon credentials not configured. Use setup_amazon_credentials first.' };
       }
-      const adapter = createAmazonAdapter(creds.amazon);
-      const results = await adapter.search({
-        query: input.query as string,
-        category: input.category as string | undefined,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results, count: results.length };
+      try {
+        const adapter = createAmazonAdapter(creds.amazon);
+        const results = await adapter.search({
+          query: input.query as string,
+          category: input.category as string | undefined,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results, count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: 'scan_amazon' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_ebay': {
       if (!creds.ebay) {
         return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
       }
-      const adapter = createEbayAdapter(creds.ebay);
-      const results = await adapter.search({
-        query: input.query as string,
-        category: input.category as string | undefined,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results, count: results.length };
+      try {
+        const adapter = createEbayAdapter(creds.ebay);
+        const results = await adapter.search({
+          query: input.query as string,
+          category: input.category as string | undefined,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results, count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: 'scan_ebay' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_walmart': {
       if (!creds.walmart) {
         return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
       }
-      const adapter = createWalmartAdapter(creds.walmart);
-      const results = await adapter.search({
-        query: input.query as string,
-        category: input.category as string | undefined,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results, count: results.length };
+      try {
+        const adapter = createWalmartAdapter(creds.walmart);
+        const results = await adapter.search({
+          query: input.query as string,
+          category: input.category as string | undefined,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results, count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: 'scan_walmart' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_aliexpress': {
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured. Use setup_aliexpress_credentials first.' };
       }
-      const adapter = createAliExpressAdapter(creds.aliexpress);
-      const results = await adapter.search({
-        query: input.query as string,
-        category: input.category as string | undefined,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results, count: results.length };
+      try {
+        const adapter = createAliExpressAdapter(creds.aliexpress);
+        const results = await adapter.search({
+          query: input.query as string,
+          category: input.category as string | undefined,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results, count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: 'scan_aliexpress' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'compare_prices': {
@@ -2821,61 +2838,71 @@ async function executeTool(
     // Listings — Real eBay Inventory API
     // -----------------------------------------------------------------------
     case 'create_ebay_listing': {
-      const productId = input.productId as string;
-      const title = input.title as string;
-      const price = input.price as number;
-      const description = input.description as string | undefined;
-      const category = input.category as string | undefined;
+      try {
+        const productId = input.productId as string;
+        const title = input.title as string;
+        const price = input.price as number;
+        const description = input.description as string | undefined;
+        const category = input.category as string | undefined;
 
-      const result = await createListing('ebay', {
-        title,
-        description: description ?? '',
-        price,
-        category: category ?? '0',
-        imageUrls: [],
-        condition: 'new',
-        quantity: 1,
-      }, { ebay: creds.ebay });
-
-      if (result.success && result.listingId) {
-        // Derive source platform and price from product data
-        const [sourcePlatformRaw] = productId.split(':');
-        const sourcePlatform = (sourcePlatformRaw !== 'ebay' ? sourcePlatformRaw : 'aliexpress') as Platform;
-        const latestPrices = context.db.getLatestPrices(productId);
-        const sourceEntry = latestPrices.find(p => p.platform === sourcePlatform);
-        const sourcePrice = sourceEntry?.price ?? 0;
-
-        // Store listing in DB
-        const now = new Date();
-        context.db.addListing({
-          id: randomUUID().slice(0, 12),
-          productId,
-          platform: 'ebay',
-          platformListingId: result.listingId,
+        const result = await createListing('ebay', {
           title,
+          description: description ?? '',
           price,
-          sourcePlatform,
-          sourcePrice,
-          status: 'active',
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
+          category: category ?? '0',
+          imageUrls: [],
+          condition: 'new',
+          quantity: 1,
+        }, { ebay: creds.ebay });
 
-      return { status: result.success ? 'ok' : 'error', ...result };
+        if (result.success && result.listingId) {
+          // Derive source platform and price from product data
+          const [sourcePlatformRaw] = productId.split(':');
+          const sourcePlatform = (sourcePlatformRaw !== 'ebay' ? sourcePlatformRaw : 'aliexpress') as Platform;
+          const latestPrices = context.db.getLatestPrices(productId);
+          const sourceEntry = latestPrices.find(p => p.platform === sourcePlatform);
+          const sourcePrice = sourceEntry?.price ?? 0;
+
+          // Store listing in DB
+          const now = new Date();
+          context.db.addListing({
+            id: randomUUID().slice(0, 12),
+            productId,
+            platform: 'ebay',
+            platformListingId: result.listingId,
+            title,
+            price,
+            sourcePlatform,
+            sourcePrice,
+            status: 'active',
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        return { status: result.success ? 'ok' : 'error', ...result };
+      } catch (err) {
+        logger.error({ err, tool: 'create_ebay_listing' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'create_amazon_listing': {
-      const result = await createListing('amazon', {
-        title: input.title as string,
-        description: (input.description as string) ?? '',
-        price: input.price as number,
-        category: (input.productType as string) ?? '0',
-        imageUrls: input.imageUrl ? [input.imageUrl as string] : [],
-        condition: ((input.condition as string) ?? 'new') as 'new' | 'used' | 'refurbished',
-        quantity: typeof input.quantity === 'number' ? input.quantity : 1,
-      }, { amazon: creds.amazon });
-      return { status: result.success ? 'ok' : 'error', ...result };
+      try {
+        const result = await createListing('amazon', {
+          title: input.title as string,
+          description: (input.description as string) ?? '',
+          price: input.price as number,
+          category: (input.productType as string) ?? '0',
+          imageUrls: input.imageUrl ? [input.imageUrl as string] : [],
+          condition: ((input.condition as string) ?? 'new') as 'new' | 'used' | 'refurbished',
+          quantity: typeof input.quantity === 'number' ? input.quantity : 1,
+        }, { amazon: creds.amazon });
+        return { status: result.success ? 'ok' : 'error', ...result };
+      } catch (err) {
+        logger.error({ err, tool: 'create_amazon_listing' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'update_listing_price': {
@@ -2923,32 +2950,37 @@ async function executeTool(
     }
 
     case 'optimize_listing': {
-      const listingId = input.listingId as string;
+      try {
+        const listingId = input.listingId as string;
 
-      // Get listing from DB
-      const listings = context.db.query<{ title: string; price: number }>(
-        'SELECT title, price FROM listings WHERE id = ?',
-        [listingId],
-      );
+        // Get listing from DB
+        const listings = context.db.query<{ title: string; price: number }>(
+          'SELECT title, price FROM listings WHERE id = ?',
+          [listingId],
+        );
 
-      if (listings.length === 0) {
-        return { status: 'error', message: `Listing ${listingId} not found.` };
+        if (listings.length === 0) {
+          return { status: 'error', message: `Listing ${listingId} not found.` };
+        }
+
+        const { title: optimizedTitle, description: optimizedDescription } = await optimizeListing(
+          listings[0].title ?? '',
+          '',
+        );
+
+        return {
+          status: 'ok',
+          listingId,
+          optimized: {
+            title: optimizedTitle,
+            description: optimizedDescription,
+          },
+          message: 'Listing optimized. Apply changes with update_listing_price or create a new listing.',
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'optimize_listing' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-
-      const { title: optimizedTitle, description: optimizedDescription } = await optimizeListing(
-        listings[0].title ?? '',
-        '',
-      );
-
-      return {
-        status: 'ok',
-        listingId,
-        optimized: {
-          title: optimizedTitle,
-          description: optimizedDescription,
-        },
-        message: 'Listing optimized. Apply changes with update_listing_price or create a new listing.',
-      };
     }
 
     case 'bulk_list': {
@@ -3138,69 +3170,84 @@ async function executeTool(
     }
 
     case 'auto_purchase': {
-      const result = await autoPurchase(
-        input.orderId as string,
-        context.db,
-        { aliexpress: creds.aliexpress },
-      );
-      return { status: result.success ? 'ok' : 'error', ...result };
+      try {
+        const result = await autoPurchase(
+          input.orderId as string,
+          context.db,
+          { aliexpress: creds.aliexpress },
+        );
+        return { status: result.success ? 'ok' : 'error', ...result };
+      } catch (err) {
+        logger.error({ err, tool: 'auto_purchase' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'track_shipment': {
-      const order = context.db.getOrder(input.orderId as string);
-      if (!order) {
-        return { status: 'error', message: `Order ${input.orderId} not found.` };
-      }
+      try {
+        const order = context.db.getOrder(input.orderId as string);
+        if (!order) {
+          return { status: 'error', message: `Order ${input.orderId} not found.` };
+        }
 
-      if (order.trackingNumber) {
-        const tracking = await getTracking(
-          order.trackingNumber,
-          undefined,
-          { aliexpress: creds.aliexpress },
-        );
+        if (order.trackingNumber) {
+          const tracking = await getTracking(
+            order.trackingNumber,
+            undefined,
+            { aliexpress: creds.aliexpress },
+          );
+          return {
+            status: 'ok',
+            orderId: order.id,
+            trackingNumber: order.trackingNumber,
+            orderStatus: order.status,
+            tracking,
+          };
+        }
+
         return {
           status: 'ok',
+          message: `No tracking info available for order ${input.orderId}.`,
           orderId: order.id,
-          trackingNumber: order.trackingNumber,
           orderStatus: order.status,
-          tracking,
         };
+      } catch (err) {
+        logger.error({ err, tool: 'track_shipment' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-
-      return {
-        status: 'ok',
-        message: `No tracking info available for order ${input.orderId}.`,
-        orderId: order.id,
-        orderStatus: order.status,
-      };
     }
 
     case 'update_tracking': {
-      const orderId = input.orderId as string;
-      const trackingNumber = input.trackingNumber as string;
-      const carrier = input.carrier as string | undefined;
+      try {
+        const orderId = input.orderId as string;
+        const trackingNumber = input.trackingNumber as string;
+        const carrier = input.carrier as string | undefined;
 
-      context.db.updateOrderStatus(orderId, 'shipped', {
-        trackingNumber,
-        shippedAt: new Date(),
-      });
-
-      // Try to push tracking to selling platform
-      const order = context.db.getOrder(orderId);
-      if (order?.sellPlatform === 'ebay' && order.sellOrderId) {
-        await updateTrackingOnPlatform(
-          'ebay',
-          order.sellOrderId,
+        context.db.updateOrderStatus(orderId, 'shipped', {
           trackingNumber,
-          carrier ?? 'OTHER',
-          { ebay: creds.ebay },
-        );
-      }
+          shippedAt: new Date(),
+        });
 
-      return {
-        status: 'ok',
-        message: `Tracking updated for order ${orderId}: ${trackingNumber}`,
-      };
+        // Try to push tracking to selling platform
+        const order = context.db.getOrder(orderId);
+        if (order?.sellPlatform === 'ebay' && order.sellOrderId) {
+          await updateTrackingOnPlatform(
+            'ebay',
+            order.sellOrderId,
+            trackingNumber,
+            carrier ?? 'OTHER',
+            { ebay: creds.ebay },
+          );
+        }
+
+        return {
+          status: 'ok',
+          message: `Tracking updated for order ${orderId}: ${trackingNumber}`,
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'update_tracking' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'handle_return': {
@@ -3485,102 +3532,132 @@ async function executeTool(
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured.' };
       }
-      const shippingApi = createAliExpressShippingApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const methods = await shippingApi.queryShippingCost({
-        productId: input.productId as string,
-        country: (input.country as string) ?? 'US',
-        productNum: typeof input.quantity === 'number' ? input.quantity : 1,
-      });
-      return { status: 'ok', shippingMethods: methods, count: methods.length };
+      try {
+        const shippingApi = createAliExpressShippingApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const methods = await shippingApi.queryShippingCost({
+          productId: input.productId as string,
+          country: (input.country as string) ?? 'US',
+          productNum: typeof input.quantity === 'number' ? input.quantity : 1,
+        });
+        return { status: 'ok', shippingMethods: methods, count: methods.length };
+      } catch (err) {
+        logger.error({ err, tool: 'get_shipping_cost' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'get_hot_products': {
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured.' };
       }
-      const extApi = createAliExpressExtendedApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-      });
-      const products = await extApi.queryHotProducts({
-        keywords: input.keywords as string | undefined,
-        categoryId: input.categoryId as string | undefined,
-        minSalePrice: input.minPrice as number | undefined,
-        maxSalePrice: input.maxPrice as number | undefined,
-        sort: input.sort as 'SALE_PRICE_ASC' | 'SALE_PRICE_DESC' | 'LAST_VOLUME_ASC' | 'LAST_VOLUME_DESC' | undefined,
-        pageSize: typeof input.maxResults === 'number' ? input.maxResults : 20,
-      });
-      return { status: 'ok', products, count: products.length };
+      try {
+        const extApi = createAliExpressExtendedApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+        });
+        const products = await extApi.queryHotProducts({
+          keywords: input.keywords as string | undefined,
+          categoryId: input.categoryId as string | undefined,
+          minSalePrice: input.minPrice as number | undefined,
+          maxSalePrice: input.maxPrice as number | undefined,
+          sort: input.sort as 'SALE_PRICE_ASC' | 'SALE_PRICE_DESC' | 'LAST_VOLUME_ASC' | 'LAST_VOLUME_DESC' | undefined,
+          pageSize: typeof input.maxResults === 'number' ? input.maxResults : 20,
+        });
+        return { status: 'ok', products, count: products.length };
+      } catch (err) {
+        logger.error({ err, tool: 'get_hot_products' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'get_aliexpress_categories': {
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured.' };
       }
-      const extApi = createAliExpressExtendedApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-      });
-      const categories = await extApi.getCategories();
-      return { status: 'ok', categories, count: categories.length };
+      try {
+        const extApi = createAliExpressExtendedApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+        });
+        const categories = await extApi.getCategories();
+        return { status: 'ok', categories, count: categories.length };
+      } catch (err) {
+        logger.error({ err, tool: 'get_aliexpress_categories' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'get_product_variations': {
       if (!creds.amazon) {
         return { status: 'error', message: 'Amazon credentials not configured.' };
       }
-      const amazonExt = createAmazonExtendedApi({
-        accessKeyId: creds.amazon.accessKeyId,
-        secretAccessKey: creds.amazon.secretAccessKey,
-        partnerTag: creds.amazon.partnerTag,
-      });
-      const variations = await amazonExt.getVariations(
-        input.asin as string,
-        input.marketplace as string | undefined,
-      );
-      return { status: 'ok', ...variations };
+      try {
+        const amazonExt = createAmazonExtendedApi({
+          accessKeyId: creds.amazon.accessKeyId,
+          secretAccessKey: creds.amazon.secretAccessKey,
+          partnerTag: creds.amazon.partnerTag,
+        });
+        const variations = await amazonExt.getVariations(
+          input.asin as string,
+          input.marketplace as string | undefined,
+        );
+        return { status: 'ok', ...variations };
+      } catch (err) {
+        logger.error({ err, tool: 'get_product_variations' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'browse_amazon_categories': {
       if (!creds.amazon) {
         return { status: 'error', message: 'Amazon credentials not configured.' };
       }
-      const amazonExt = createAmazonExtendedApi({
-        accessKeyId: creds.amazon.accessKeyId,
-        secretAccessKey: creds.amazon.secretAccessKey,
-        partnerTag: creds.amazon.partnerTag,
-      });
-      const nodes = await amazonExt.getBrowseNodes(
-        input.nodeIds as string[],
-        input.marketplace as string | undefined,
-      );
-      return { status: 'ok', nodes, count: nodes.length };
+      try {
+        const amazonExt = createAmazonExtendedApi({
+          accessKeyId: creds.amazon.accessKeyId,
+          secretAccessKey: creds.amazon.secretAccessKey,
+          partnerTag: creds.amazon.partnerTag,
+        });
+        const nodes = await amazonExt.getBrowseNodes(
+          input.nodeIds as string[],
+          input.marketplace as string | undefined,
+        );
+        return { status: 'ok', nodes, count: nodes.length };
+      } catch (err) {
+        logger.error({ err, tool: 'browse_amazon_categories' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_get_policies': {
       if (!creds.ebay?.refreshToken) {
         return { status: 'error', message: 'eBay credentials with refresh token required.' };
       }
-      const accountApi = createEbayAccountApi(creds.ebay);
-      const policyType = (input.policyType as string) ?? 'all';
-      const marketplaceId = (input.marketplaceId as string) ?? 'EBAY_US';
+      try {
+        const accountApi = createEbayAccountApi(creds.ebay);
+        const policyType = (input.policyType as string) ?? 'all';
+        const marketplaceId = (input.marketplaceId as string) ?? 'EBAY_US';
 
-      if (policyType === 'all') {
-        const all = await accountApi.getAllPolicies(marketplaceId);
-        return { status: 'ok', ...all };
-      } else if (policyType === 'fulfillment') {
-        const policies = await accountApi.getFulfillmentPolicies(marketplaceId);
-        return { status: 'ok', fulfillment: policies };
-      } else if (policyType === 'payment') {
-        const policies = await accountApi.getPaymentPolicies(marketplaceId);
-        return { status: 'ok', payment: policies };
-      } else {
-        const policies = await accountApi.getReturnPolicies(marketplaceId);
-        return { status: 'ok', return: policies };
+        if (policyType === 'all') {
+          const all = await accountApi.getAllPolicies(marketplaceId);
+          return { status: 'ok', ...all };
+        } else if (policyType === 'fulfillment') {
+          const policies = await accountApi.getFulfillmentPolicies(marketplaceId);
+          return { status: 'ok', fulfillment: policies };
+        } else if (policyType === 'payment') {
+          const policies = await accountApi.getPaymentPolicies(marketplaceId);
+          return { status: 'ok', payment: policies };
+        } else {
+          const policies = await accountApi.getReturnPolicies(marketplaceId);
+          return { status: 'ok', return: policies };
+        }
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_get_policies' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
@@ -3588,31 +3665,36 @@ async function executeTool(
       if (!creds.ebay?.refreshToken) {
         return { status: 'error', message: 'eBay credentials with refresh token required.' };
       }
-      const accountApi = createEbayAccountApi(creds.ebay);
-      const policyType = input.policyType as string;
-      const name = input.name as string;
+      try {
+        const accountApi = createEbayAccountApi(creds.ebay);
+        const policyType = input.policyType as string;
+        const name = input.name as string;
 
-      if (policyType === 'fulfillment') {
-        const policyId = await accountApi.createFulfillmentPolicy({
-          name,
-          marketplaceId: 'EBAY_US',
-          handlingTimeDays: typeof input.handlingTimeDays === 'number' ? input.handlingTimeDays : 1,
-          shippingServiceCode: (input.shippingServiceCode as string) ?? 'ShippingMethodStandard',
-          freeShipping: input.freeShipping as boolean | undefined,
-        });
-        return { status: 'ok', policyType, policyId, name };
-      } else if (policyType === 'payment') {
-        const policyId = await accountApi.createPaymentPolicy({ name, marketplaceId: 'EBAY_US' });
-        return { status: 'ok', policyType, policyId, name };
-      } else {
-        const policyId = await accountApi.createReturnPolicy({
-          name,
-          marketplaceId: 'EBAY_US',
-          returnsAccepted: input.returnsAccepted !== false,
-          returnDays: typeof input.returnDays === 'number' ? input.returnDays : 30,
-          returnShippingCostPayer: 'BUYER',
-        });
-        return { status: 'ok', policyType, policyId, name };
+        if (policyType === 'fulfillment') {
+          const policyId = await accountApi.createFulfillmentPolicy({
+            name,
+            marketplaceId: 'EBAY_US',
+            handlingTimeDays: typeof input.handlingTimeDays === 'number' ? input.handlingTimeDays : 1,
+            shippingServiceCode: (input.shippingServiceCode as string) ?? 'ShippingMethodStandard',
+            freeShipping: input.freeShipping as boolean | undefined,
+          });
+          return { status: 'ok', policyType, policyId, name };
+        } else if (policyType === 'payment') {
+          const policyId = await accountApi.createPaymentPolicy({ name, marketplaceId: 'EBAY_US' });
+          return { status: 'ok', policyType, policyId, name };
+        } else {
+          const policyId = await accountApi.createReturnPolicy({
+            name,
+            marketplaceId: 'EBAY_US',
+            returnsAccepted: input.returnsAccepted !== false,
+            returnDays: typeof input.returnDays === 'number' ? input.returnDays : 30,
+            returnShippingCostPayer: 'BUYER',
+          });
+          return { status: 'ok', policyType, policyId, name };
+        }
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_create_policy' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
@@ -3620,112 +3702,157 @@ async function executeTool(
       if (!creds.ebay) {
         return { status: 'error', message: 'eBay credentials not configured.' };
       }
-      const taxonomyApi = createEbayTaxonomyApi(creds.ebay);
-      const suggestions = await taxonomyApi.getCategorySuggestions(input.query as string);
-      return { status: 'ok', suggestions, count: suggestions.length };
+      try {
+        const taxonomyApi = createEbayTaxonomyApi(creds.ebay);
+        const suggestions = await taxonomyApi.getCategorySuggestions(input.query as string);
+        return { status: 'ok', suggestions, count: suggestions.length };
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_category_suggest' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_item_aspects': {
       if (!creds.ebay) {
         return { status: 'error', message: 'eBay credentials not configured.' };
       }
-      const taxonomyApi = createEbayTaxonomyApi(creds.ebay);
-      const aspects = await taxonomyApi.getItemAspectsForCategory(input.categoryId as string);
-      return {
-        status: 'ok',
-        categoryId: input.categoryId,
-        aspects: aspects.map(a => ({
-          name: a.localizedAspectName,
-          required: a.aspectConstraint.aspectRequired ?? false,
-          mode: a.aspectConstraint.aspectMode ?? 'FREE_TEXT',
-          values: a.aspectValues?.slice(0, 20).map(v => v.localizedValue),
-        })),
-        count: aspects.length,
-      };
+      try {
+        const taxonomyApi = createEbayTaxonomyApi(creds.ebay);
+        const aspects = await taxonomyApi.getItemAspectsForCategory(input.categoryId as string);
+        return {
+          status: 'ok',
+          categoryId: input.categoryId,
+          aspects: aspects.map(a => ({
+            name: a.localizedAspectName,
+            required: a.aspectConstraint.aspectRequired ?? false,
+            mode: a.aspectConstraint.aspectMode ?? 'FREE_TEXT',
+            values: a.aspectValues?.slice(0, 20).map(v => v.localizedValue),
+          })),
+          count: aspects.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_item_aspects' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_get_inventory': {
       if (!creds.ebay?.refreshToken) {
         return { status: 'error', message: 'eBay credentials with refresh token required.' };
       }
-      const seller = createEbaySellerApi(creds.ebay);
-      const result = await seller.getInventoryItems({
-        limit: typeof input.limit === 'number' ? input.limit : 25,
-        offset: typeof input.offset === 'number' ? input.offset : 0,
-      });
-      return { status: 'ok', ...result };
+      try {
+        const seller = createEbaySellerApi(creds.ebay);
+        const result = await seller.getInventoryItems({
+          limit: typeof input.limit === 'number' ? input.limit : 25,
+          offset: typeof input.offset === 'number' ? input.offset : 0,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_get_inventory' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_bulk_update': {
       if (!creds.ebay?.refreshToken) {
         return { status: 'error', message: 'eBay credentials with refresh token required.' };
       }
-      const seller = createEbaySellerApi(creds.ebay);
-      const updates = input.updates as Array<{ sku: string; offerId: string; price?: number; quantity?: number }>;
-      const result = await seller.bulkUpdatePriceQuantity(updates);
-      return { status: 'ok', ...result };
+      try {
+        const seller = createEbaySellerApi(creds.ebay);
+        const updates = input.updates as Array<{ sku: string; offerId: string; price?: number; quantity?: number }>;
+        const result = await seller.bulkUpdatePriceQuantity(updates);
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_bulk_update' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_issue_refund': {
       if (!creds.ebay?.refreshToken) {
         return { status: 'error', message: 'eBay credentials with refresh token required.' };
       }
-      const ordersApi = createEbayOrdersApi(creds.ebay);
-      const refundReq: Record<string, unknown> = {
-        reasonForRefund: input.reason as string,
-        comment: input.comment as string | undefined,
-      };
-      if (typeof input.amount === 'number') {
-        refundReq.orderLevelRefundAmount = { value: (input.amount as number).toFixed(2), currency: 'USD' };
+      try {
+        const ordersApi = createEbayOrdersApi(creds.ebay);
+        const refundReq: Record<string, unknown> = {
+          reasonForRefund: input.reason as string,
+          comment: input.comment as string | undefined,
+        };
+        if (typeof input.amount === 'number') {
+          refundReq.orderLevelRefundAmount = { value: (input.amount as number).toFixed(2), currency: 'USD' };
+        }
+        const refund = await ordersApi.issueRefund(input.orderId as string, refundReq as any);
+        return { status: 'ok', ...refund };
+      } catch (err) {
+        logger.error({ err, tool: 'ebay_issue_refund' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const refund = await ordersApi.issueRefund(input.orderId as string, refundReq as any);
-      return { status: 'ok', ...refund };
     }
 
     case 'walmart_upc_lookup': {
       if (!creds.walmart) {
         return { status: 'error', message: 'Walmart credentials not configured.' };
       }
-      const walmartExt = createWalmartExtendedApi(creds.walmart);
-      const item = await walmartExt.lookupByUpc(input.upc as string);
-      if (!item) {
-        return { status: 'error', message: `No Walmart product found for UPC ${input.upc}` };
+      try {
+        const walmartExt = createWalmartExtendedApi(creds.walmart);
+        const item = await walmartExt.lookupByUpc(input.upc as string);
+        if (!item) {
+          return { status: 'error', message: `No Walmart product found for UPC ${input.upc}` };
+        }
+        return { status: 'ok', product: item };
+      } catch (err) {
+        logger.error({ err, tool: 'walmart_upc_lookup' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      return { status: 'ok', product: item };
     }
 
     case 'walmart_trending': {
       if (!creds.walmart) {
         return { status: 'error', message: 'Walmart credentials not configured.' };
       }
-      const walmartExt = createWalmartExtendedApi(creds.walmart);
-      const items = await walmartExt.getTrending();
-      return { status: 'ok', products: items, count: items.length };
+      try {
+        const walmartExt = createWalmartExtendedApi(creds.walmart);
+        const items = await walmartExt.getTrending();
+        return { status: 'ok', products: items, count: items.length };
+      } catch (err) {
+        logger.error({ err, tool: 'walmart_trending' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'walmart_taxonomy': {
       if (!creds.walmart) {
         return { status: 'error', message: 'Walmart credentials not configured.' };
       }
-      const walmartExt = createWalmartExtendedApi(creds.walmart);
-      const categories = await walmartExt.getTaxonomy();
-      return { status: 'ok', categories, count: categories.length };
+      try {
+        const walmartExt = createWalmartExtendedApi(creds.walmart);
+        const categories = await walmartExt.getTaxonomy();
+        return { status: 'ok', categories, count: categories.length };
+      } catch (err) {
+        logger.error({ err, tool: 'walmart_taxonomy' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'get_ds_order_status': {
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured.' };
       }
-      const dsOrders = createAliExpressOrdersApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const status = await dsOrders.getDsOrderStatus(input.orderId as string);
-      if (!status) {
-        return { status: 'error', message: `Order ${input.orderId} not found or access denied.` };
+      try {
+        const dsOrders = createAliExpressOrdersApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const status = await dsOrders.getDsOrderStatus(input.orderId as string);
+        if (!status) {
+          return { status: 'error', message: `Order ${input.orderId} not found or access denied.` };
+        }
+        return { status: 'ok', ...status };
+      } catch (err) {
+        logger.error({ err, tool: 'get_ds_order_status' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      return { status: 'ok', ...status };
     }
 
     // -----------------------------------------------------------------------
@@ -3735,107 +3862,137 @@ async function executeTool(
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured. Use setup_amazon_sp_credentials first.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const keywords = input.keywords ? (input.keywords as string).split(',').map(s => s.trim()) : undefined;
-      const identifiers = input.identifiers ? (input.identifiers as string).split(',').map(s => s.trim()) : undefined;
-      const result = await spApi.searchCatalog({
-        keywords,
-        identifiers,
-        identifiersType: input.identifiersType as 'ASIN' | 'UPC' | 'EAN' | 'ISBN' | undefined,
-        pageSize: typeof input.maxResults === 'number' ? input.maxResults : 20,
-      });
-      return { status: 'ok', items: result.items, count: result.items.length, nextPageToken: result.nextPageToken };
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const keywords = input.keywords ? (input.keywords as string).split(',').map(s => s.trim()) : undefined;
+        const identifiers = input.identifiers ? (input.identifiers as string).split(',').map(s => s.trim()) : undefined;
+        const result = await spApi.searchCatalog({
+          keywords,
+          identifiers,
+          identifiersType: input.identifiersType as 'ASIN' | 'UPC' | 'EAN' | 'ISBN' | undefined,
+          pageSize: typeof input.maxResults === 'number' ? input.maxResults : 20,
+        });
+        return { status: 'ok', items: result.items, count: result.items.length, nextPageToken: result.nextPageToken };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_search_catalog' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_get_pricing': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const asins = (input.asins as string).split(',').map(s => s.trim());
-      const pricing = await spApi.getCompetitivePricing(asins);
-      return { status: 'ok', pricing, count: pricing.length };
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const asins = (input.asins as string).split(',').map(s => s.trim());
+        const pricing = await spApi.getCompetitivePricing(asins);
+        return { status: 'ok', pricing, count: pricing.length };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_get_pricing' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_estimate_fees': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const fees = await spApi.getMyFeesEstimate([{
-        asin: input.asin as string,
-        price: input.price as number,
-        shipping: typeof input.shipping === 'number' ? input.shipping : 0,
-        isAmazonFulfilled: input.fba as boolean | undefined,
-      }]);
-      return { status: 'ok', fees: fees[0] ?? null };
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const fees = await spApi.getMyFeesEstimate([{
+          asin: input.asin as string,
+          price: input.price as number,
+          shipping: typeof input.shipping === 'number' ? input.shipping : 0,
+          isAmazonFulfilled: input.fba as boolean | undefined,
+        }]);
+        return { status: 'ok', fees: fees[0] ?? null };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_estimate_fees' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_create_listing': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const attributes: Record<string, unknown> = {};
-      if (input.title) attributes.item_name = [{ value: input.title, language_tag: 'en_US' }];
-      if (input.price) attributes.purchasable_offer = [{ our_price: [{ schedule: [{ value_with_tax: input.price }] }], currency: 'USD' }];
-      if (input.condition) attributes.condition_type = [{ value: input.condition }];
-      if (input.quantity) attributes.fulfillment_availability = [{ fulfillment_channel_code: 'DEFAULT', quantity: input.quantity }];
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const attributes: Record<string, unknown> = {};
+        if (input.title) attributes.item_name = [{ value: input.title, language_tag: 'en_US' }];
+        if (input.price) attributes.purchasable_offer = [{ our_price: [{ schedule: [{ value_with_tax: input.price }] }], currency: 'USD' }];
+        if (input.condition) attributes.condition_type = [{ value: input.condition }];
+        if (input.quantity) attributes.fulfillment_availability = [{ fulfillment_channel_code: 'DEFAULT', quantity: input.quantity }];
 
-      const result = await spApi.putListingsItem({
-        sku: input.sku as string,
-        productType: input.productType as string,
-        attributes,
-      });
-      return { status: 'ok', spStatus: result.status, submissionId: result.submissionId, issues: result.issues };
+        const result = await spApi.putListingsItem({
+          sku: input.sku as string,
+          productType: input.productType as string,
+          attributes,
+        });
+        return { status: 'ok', spStatus: result.status, submissionId: result.submissionId, issues: result.issues };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_create_listing' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_get_orders': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const orderStatuses = input.orderStatuses ? (input.orderStatuses as string).split(',').map(s => s.trim()) : undefined;
-      const result = await spApi.getOrders({
-        createdAfter: input.createdAfter as string | undefined,
-        orderStatuses,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 50,
-      });
-      return { status: 'ok', orders: result.orders, count: result.orders.length, nextToken: result.nextToken };
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const orderStatuses = input.orderStatuses ? (input.orderStatuses as string).split(',').map(s => s.trim()) : undefined;
+        const result = await spApi.getOrders({
+          createdAfter: input.createdAfter as string | undefined,
+          orderStatuses,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 50,
+        });
+        return { status: 'ok', orders: result.orders, count: result.orders.length, nextToken: result.nextToken };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_get_orders' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_get_fba_inventory': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spApi = createAmazonSpApi({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const sellerSkus = input.sellerSkus ? (input.sellerSkus as string).split(',').map(s => s.trim()) : undefined;
-      const result = await spApi.getInventorySummaries({ sellerSkus });
-      return { status: 'ok', summaries: result.summaries, count: result.summaries.length };
+      try {
+        const spApi = createAmazonSpApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const sellerSkus = input.sellerSkus ? (input.sellerSkus as string).split(',').map(s => s.trim()) : undefined;
+        const result = await spApi.getInventorySummaries({ sellerSkus });
+        return { status: 'ok', summaries: result.summaries, count: result.summaries.length };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_get_fba_inventory' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -3845,1113 +4002,1276 @@ async function executeTool(
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtRestr = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const restrictions = await spExtRestr.getListingsRestrictions(
-        input.asin as string,
-        input.conditionType as string | undefined,
-      );
-      return { status: 'ok', ...restrictions };
+      try {
+        const spExtRestr = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const restrictions = await spExtRestr.getListingsRestrictions(input.asin as string, input.conditionType as string | undefined);
+        return { status: 'ok', ...restrictions };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_listing_restrictions' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_financial_events': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtFin = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const finEvents = await spExtFin.listFinancialEvents({
-        orderId: input.orderId as string | undefined,
-        postedAfter: input.postedAfter as string | undefined,
-        postedBefore: input.postedBefore as string | undefined,
-      });
-      return { status: 'ok', ...finEvents };
+      try {
+        const spExtFin = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const finEvents = await spExtFin.listFinancialEvents({ orderId: input.orderId as string | undefined, postedAfter: input.postedAfter as string | undefined, postedBefore: input.postedBefore as string | undefined });
+        return { status: 'ok', ...finEvents };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_financial_events' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_confirm_shipment': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtShip = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      await spExtShip.confirmShipment(input.orderId as string, {
-        packageReferenceId: input.packageReferenceId as string,
-        carrierCode: input.carrierCode as string,
-        trackingNumber: input.trackingNumber as string,
-        shipDate: input.shipDate as string,
-        orderItems: input.orderItems as Array<{ orderItemId: string; quantity: number }>,
-      });
-      return { status: 'ok', message: 'Shipment confirmed successfully.' };
+      try {
+        const spExtShip = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        await spExtShip.confirmShipment(input.orderId as string, { packageReferenceId: input.packageReferenceId as string, carrierCode: input.carrierCode as string, trackingNumber: input.trackingNumber as string, shipDate: input.shipDate as string, orderItems: input.orderItems as Array<{ orderItemId: string; quantity: number }> });
+        return { status: 'ok', message: 'Shipment confirmed successfully.' };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_confirm_shipment' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_fulfillment_preview': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtPrev = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const preview = await spExtPrev.getFulfillmentPreview(
-        {
-          name: input.name as string,
-          addressLine1: input.addressLine1 as string,
-          city: input.city as string,
-          stateOrRegion: input.stateOrRegion as string,
-          postalCode: input.postalCode as string,
-          countryCode: (input.countryCode as string) ?? 'US',
-        },
-        input.items as Array<{ sellerSku: string; quantity: number }>,
-      );
-      return { status: 'ok', ...preview };
+      try {
+        const spExtPrev = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const preview = await spExtPrev.getFulfillmentPreview({ name: input.name as string, addressLine1: input.addressLine1 as string, city: input.city as string, stateOrRegion: input.stateOrRegion as string, postalCode: input.postalCode as string, countryCode: (input.countryCode as string) ?? 'US' }, input.items as Array<{ sellerSku: string; quantity: number }>);
+        return { status: 'ok', ...preview };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_fulfillment_preview' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_create_mcf_order': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtMcf = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      await spExtMcf.createFulfillmentOrder({
-        sellerFulfillmentOrderId: input.sellerFulfillmentOrderId as string,
-        displayableOrderId: input.displayableOrderId as string,
-        displayableOrderDate: new Date().toISOString(),
-        displayableOrderComment: input.displayableOrderComment as string,
-        shippingSpeedCategory: input.shippingSpeedCategory as 'Standard' | 'Expedited' | 'Priority',
-        destinationAddress: {
-          name: input.name as string,
-          addressLine1: input.addressLine1 as string,
-          city: input.city as string,
-          stateOrRegion: input.stateOrRegion as string,
-          postalCode: input.postalCode as string,
-          countryCode: (input.countryCode as string) ?? 'US',
-        },
-        items: input.items as Array<{ sellerSku: string; sellerFulfillmentOrderItemId: string; quantity: number }>,
-      });
-      return { status: 'ok', message: 'MCF fulfillment order created successfully.' };
+      try {
+        const spExtMcf = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        await spExtMcf.createFulfillmentOrder({
+          sellerFulfillmentOrderId: input.sellerFulfillmentOrderId as string, displayableOrderId: input.displayableOrderId as string, displayableOrderDate: new Date().toISOString(), displayableOrderComment: input.displayableOrderComment as string,
+          shippingSpeedCategory: input.shippingSpeedCategory as 'Standard' | 'Expedited' | 'Priority',
+          destinationAddress: { name: input.name as string, addressLine1: input.addressLine1 as string, city: input.city as string, stateOrRegion: input.stateOrRegion as string, postalCode: input.postalCode as string, countryCode: (input.countryCode as string) ?? 'US' },
+          items: input.items as Array<{ sellerSku: string; sellerFulfillmentOrderItemId: string; quantity: number }>,
+        });
+        return { status: 'ok', message: 'MCF fulfillment order created successfully.' };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_create_mcf_order' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_buy_shipping': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtBuy = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const shipResult = await spExtBuy.purchaseShipment({
-        clientReferenceId: input.clientReferenceId as string,
-        shipFrom: input.shipFrom as any,
-        shipTo: input.shipTo as any,
-        packages: input.packages as any[],
-        selectedService: { serviceId: input.serviceId as string },
-      });
-      return { status: 'ok', ...shipResult };
+      try {
+        const spExtBuy = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const shipResult = await spExtBuy.purchaseShipment({ clientReferenceId: input.clientReferenceId as string, shipFrom: input.shipFrom as any, shipTo: input.shipTo as any, packages: input.packages as any[], selectedService: { serviceId: input.serviceId as string } });
+        return { status: 'ok', ...shipResult };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_buy_shipping' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_get_shipping_tracking': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtTrack = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const tracking = await spExtTrack.getTracking(
-        input.trackingId as string,
-        input.carrierId as string,
-      );
-      if (!tracking) {
-        return { status: 'error', message: 'Tracking not found.' };
+      try {
+        const spExtTrack = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const tracking = await spExtTrack.getTracking(input.trackingId as string, input.carrierId as string);
+        if (!tracking) { return { status: 'error', message: 'Tracking not found.' }; }
+        return { status: 'ok', ...tracking };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_get_shipping_tracking' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      return { status: 'ok', ...tracking };
     }
 
     case 'amazon_sp_create_report': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtRpt = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const reportResult = await spExtRpt.createReport(
-        input.reportType as string,
-        input.startDate as string | undefined,
-        input.endDate as string | undefined,
-      );
-      return { status: 'ok', ...reportResult };
+      try {
+        const spExtRpt = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const reportResult = await spExtRpt.createReport(input.reportType as string, input.startDate as string | undefined, input.endDate as string | undefined);
+        return { status: 'ok', ...reportResult };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_create_report' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'amazon_sp_get_report': {
       if (!creds.amazon?.spRefreshToken) {
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
-      const spExtRptGet = createAmazonSpApiExtended({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const report = await spExtRptGet.getReport(input.reportId as string);
-      let downloadUrl: string | undefined;
-      if (report.reportDocumentId) {
-        const doc = await spExtRptGet.getReportDocument(report.reportDocumentId);
-        downloadUrl = doc.url;
+      try {
+        const spExtRptGet = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const report = await spExtRptGet.getReport(input.reportId as string);
+        let downloadUrl: string | undefined;
+        if (report.reportDocumentId) { const doc = await spExtRptGet.getReportDocument(report.reportDocumentId); downloadUrl = doc.url; }
+        return { status: 'ok', ...report, downloadUrl };
+      } catch (err) {
+        logger.error({ err, tool: 'amazon_sp_get_report' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      return { status: 'ok', ...report, downloadUrl };
     }
 
     // -----------------------------------------------------------------------
     // Amazon SP-API Complete tools
     // -----------------------------------------------------------------------
     case 'amazon_sp_get_catalog_item': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompCat = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const catalogItem = await spCompCat.getCatalogItem(input.asin as string);
-      if (!catalogItem) {
-        return { status: 'error', message: `ASIN ${input.asin} not found.` };
-      }
-      return { status: 'ok', ...catalogItem };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompCat = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const catalogItem = await spCompCat.getCatalogItem(input.asin as string);
+        if (!catalogItem) { return { status: 'error', message: `ASIN ${input.asin} not found.` }; }
+        return { status: 'ok', ...catalogItem };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_get_catalog_item' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_item_offers': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompOffers = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const offers = await spCompOffers.getItemOffers(input.asin as string);
-      if (!offers) {
-        return { status: 'error', message: `No offers found for ASIN ${input.asin}.` };
-      }
-      return { status: 'ok', data: offers };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompOffers = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const offers = await spCompOffers.getItemOffers(input.asin as string);
+        if (!offers) { return { status: 'error', message: `No offers found for ASIN ${input.asin}.` }; }
+        return { status: 'ok', data: offers };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_item_offers' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_batch_fees': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompFees = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const feeResults = await spCompFees.getMyFeesEstimates(
-        input.items as Array<{ asin: string; price: number; currencyCode?: string }>,
-      );
-      return { status: 'ok', fees: feeResults, count: feeResults.length };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompFees = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const feeResults = await spCompFees.getMyFeesEstimates(input.items as Array<{ asin: string; price: number; currencyCode?: string }>);
+        return { status: 'ok', fees: feeResults, count: feeResults.length };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_batch_fees' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_get_order_details': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompOrd = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const order = await spCompOrd.getOrder(input.orderId as string);
-      if (!order) {
-        return { status: 'error', message: `Order ${input.orderId} not found.` };
-      }
-      return { status: 'ok', ...order };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompOrd = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const order = await spCompOrd.getOrder(input.orderId as string);
+        if (!order) { return { status: 'error', message: `Order ${input.orderId} not found.` }; }
+        return { status: 'ok', ...order };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_get_order_details' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_get_order_items': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompOrdItems = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const orderItems = await spCompOrdItems.getOrderItems(input.orderId as string);
-      if (!orderItems) {
-        return { status: 'error', message: `Order items for ${input.orderId} not found.` };
-      }
-      return { status: 'ok', ...orderItems };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompOrdItems = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const orderItems = await spCompOrdItems.getOrderItems(input.orderId as string);
+        if (!orderItems) { return { status: 'error', message: `Order items for ${input.orderId} not found.` }; }
+        return { status: 'ok', ...orderItems };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_get_order_items' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_delete_listing': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompDel = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      await spCompDel.deleteListingsItem(input.sellerId as string, input.sku as string);
-      return { status: 'ok', message: `Listing ${input.sku} deleted.` };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompDel = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        await spCompDel.deleteListingsItem(input.sellerId as string, input.sku as string);
+        return { status: 'ok', message: `Listing ${input.sku} deleted.` };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_delete_listing' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_order_metrics': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompMetrics = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const metrics = await spCompMetrics.getOrderMetrics({
-        interval: input.interval as string,
-        granularity: input.granularity as 'Day' | 'Week' | 'Month',
-      });
-      return { status: 'ok', ...metrics };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompMetrics = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const metrics = await spCompMetrics.getOrderMetrics({ interval: input.interval as string, granularity: input.granularity as 'Day' | 'Week' | 'Month' });
+        return { status: 'ok', ...metrics };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_order_metrics' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     case 'amazon_sp_data_kiosk_query': {
-      if (!creds.amazon?.spRefreshToken) {
-        return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
-      }
-      const spCompKiosk = createAmazonSpApiComplete({
-        clientId: creds.amazon.spClientId!,
-        clientSecret: creds.amazon.spClientSecret!,
-        refreshToken: creds.amazon.spRefreshToken,
-      });
-      const queryResult = await spCompKiosk.createQuery(input.query as string);
-      return { status: 'ok', ...queryResult };
+      if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
+      try {
+        const spCompKiosk = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const queryResult = await spCompKiosk.createQuery(input.query as string);
+        return { status: 'ok', ...queryResult };
+      } catch (err) { logger.error({ err, tool: 'amazon_sp_data_kiosk_query' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
     }
 
     // -----------------------------------------------------------------------
     // AliExpress Discovery tools
     // -----------------------------------------------------------------------
     case 'aliexpress_image_search': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const aeDiscImg = createAliExpressDiscoveryApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const imageResults = await aeDiscImg.imageSearch(input.imageUrl as string);
+        return { status: 'ok', products: imageResults, count: imageResults.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const aeDiscImg = createAliExpressDiscoveryApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const imageResults = await aeDiscImg.imageSearch(input.imageUrl as string);
-      return { status: 'ok', products: imageResults, count: imageResults.length };
     }
 
     case 'aliexpress_affiliate_orders': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const aeDiscAff = createAliExpressDiscoveryApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const affOrders = await aeDiscAff.getAffiliateOrders({
+          start_time: input.startTime as string | undefined,
+          end_time: input.endTime as string | undefined,
+          status: input.status as string | undefined,
+          page_no: input.pageNo as number | undefined,
+          page_size: input.pageSize as number | undefined,
+        });
+        return { status: 'ok', orders: affOrders, count: affOrders.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const aeDiscAff = createAliExpressDiscoveryApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const affOrders = await aeDiscAff.getAffiliateOrders({
-        start_time: input.startTime as string | undefined,
-        end_time: input.endTime as string | undefined,
-        status: input.status as string | undefined,
-        page_no: input.pageNo as number | undefined,
-        page_size: input.pageSize as number | undefined,
-      });
-      return { status: 'ok', orders: affOrders, count: affOrders.length };
     }
 
     case 'aliexpress_ds_feed': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const aeDiscFeed = createAliExpressDiscoveryApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const feedProducts = await aeDiscFeed.getDsRecommendFeed({
+          category_id: input.categoryId as string | undefined,
+          page_no: input.pageNo as number | undefined,
+          page_size: input.pageSize as number | undefined,
+          country: input.country as string | undefined,
+          sort: input.sort as string | undefined,
+        });
+        return { status: 'ok', products: feedProducts, count: feedProducts.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const aeDiscFeed = createAliExpressDiscoveryApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const feedProducts = await aeDiscFeed.getDsRecommendFeed({
-        category_id: input.categoryId as string | undefined,
-        page_no: input.pageNo as number | undefined,
-        page_size: input.pageSize as number | undefined,
-        country: input.country as string | undefined,
-        sort: input.sort as string | undefined,
-      });
-      return { status: 'ok', products: feedProducts, count: feedProducts.length };
     }
 
     case 'aliexpress_create_dispute': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const aeDiscDisp = createAliExpressDiscoveryApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const disputeResult = await aeDiscDisp.createDispute({
+          order_id: input.orderId as number,
+          reason: input.reason as string,
+          description: input.description as string,
+          image_urls: input.imageUrls as string[] | undefined,
+        });
+        return { status: 'ok', ...disputeResult };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const aeDiscDisp = createAliExpressDiscoveryApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const disputeResult = await aeDiscDisp.createDispute({
-        order_id: input.orderId as number,
-        reason: input.reason as string,
-        description: input.description as string,
-        image_urls: input.imageUrls as string[] | undefined,
-      });
-      return { status: 'ok', ...disputeResult };
     }
 
     case 'aliexpress_dispute_detail': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const aeDiscDispDet = createAliExpressDiscoveryApi({
+          appKey: creds.aliexpress.appKey,
+          appSecret: creds.aliexpress.appSecret,
+          accessToken: creds.aliexpress.accessToken,
+        });
+        const dispute = await aeDiscDispDet.getDisputeDetail(input.disputeId as number);
+        if (!dispute) {
+          return { status: 'error', message: `Dispute ${input.disputeId} not found.` };
+        }
+        return { status: 'ok', ...dispute };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const aeDiscDispDet = createAliExpressDiscoveryApi({
-        appKey: creds.aliexpress.appKey,
-        appSecret: creds.aliexpress.appSecret,
-        accessToken: creds.aliexpress.accessToken,
-      });
-      const dispute = await aeDiscDispDet.getDisputeDetail(input.disputeId as number);
-      if (!dispute) {
-        return { status: 'error', message: `Dispute ${input.disputeId} not found.` };
-      }
-      return { status: 'ok', ...dispute };
     }
 
     // -----------------------------------------------------------------------
     // AliExpress Complete tools
     // -----------------------------------------------------------------------
     case 'aliexpress_generate_affiliate_link': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const affLinks = await generateAffiliateLink(
+          {
+            appKey: creds.aliexpress.appKey,
+            appSecret: creds.aliexpress.appSecret,
+            accessToken: creds.aliexpress.accessToken,
+          },
+          {
+            sourceValues: input.sourceValues as string,
+            promotionLinkType: input.promotionLinkType as number | undefined,
+            trackingId: input.trackingId as string | undefined,
+          },
+        );
+        return { status: 'ok', links: affLinks, count: affLinks.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const affLinks = await generateAffiliateLink(
-        {
-          appKey: creds.aliexpress.appKey,
-          appSecret: creds.aliexpress.appSecret,
-          accessToken: creds.aliexpress.accessToken,
-        },
-        {
-          sourceValues: input.sourceValues as string,
-          promotionLinkType: input.promotionLinkType as number | undefined,
-          trackingId: input.trackingId as string | undefined,
-        },
-      );
-      return { status: 'ok', links: affLinks, count: affLinks.length };
     }
 
     case 'aliexpress_ds_product_detail': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const dsProduct = await getDsProductDetails(
+          {
+            appKey: creds.aliexpress.appKey,
+            appSecret: creds.aliexpress.appSecret,
+            accessToken: creds.aliexpress.accessToken,
+          },
+          input.productId as string,
+        );
+        if (!dsProduct) {
+          return { status: 'error', message: `Product ${input.productId} not found.` };
+        }
+        return { status: 'ok', ...dsProduct };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const dsProduct = await getDsProductDetails(
-        {
-          appKey: creds.aliexpress.appKey,
-          appSecret: creds.aliexpress.appSecret,
-          accessToken: creds.aliexpress.accessToken,
-        },
-        input.productId as string,
-      );
-      if (!dsProduct) {
-        return { status: 'error', message: `Product ${input.productId} not found.` };
-      }
-      return { status: 'ok', ...dsProduct };
     }
 
     case 'aliexpress_ds_tracking': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const dsTracking = await getDsOrderTracking(
+          {
+            appKey: creds.aliexpress.appKey,
+            appSecret: creds.aliexpress.appSecret,
+            accessToken: creds.aliexpress.accessToken,
+          },
+          input.orderId as string,
+        );
+        if (!dsTracking) {
+          return { status: 'error', message: `Tracking for order ${input.orderId} not found.` };
+        }
+        return { status: 'ok', ...dsTracking };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const dsTracking = await getDsOrderTracking(
-        {
-          appKey: creds.aliexpress.appKey,
-          appSecret: creds.aliexpress.appSecret,
-          accessToken: creds.aliexpress.accessToken,
-        },
-        input.orderId as string,
-      );
-      if (!dsTracking) {
-        return { status: 'error', message: `Tracking for order ${input.orderId} not found.` };
-      }
-      return { status: 'ok', ...dsTracking };
     }
 
     case 'aliexpress_query_freight': {
-      if (!creds.aliexpress) {
-        return { status: 'error', message: 'AliExpress credentials not configured.' };
+      try {
+        if (!creds.aliexpress) {
+          return { status: 'error', message: 'AliExpress credentials not configured.' };
+        }
+        const freightOptions = await queryDsFreight(
+          {
+            appKey: creds.aliexpress.appKey,
+            appSecret: creds.aliexpress.appSecret,
+            accessToken: creds.aliexpress.accessToken,
+          },
+          {
+            productId: input.productId as string,
+            quantity: input.quantity as number,
+            shipToCountry: input.shipToCountry as string | undefined,
+          },
+        );
+        return { status: 'ok', options: freightOptions, count: freightOptions.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const freightOptions = await queryDsFreight(
-        {
-          appKey: creds.aliexpress.appKey,
-          appSecret: creds.aliexpress.appSecret,
-          accessToken: creds.aliexpress.accessToken,
-        },
-        {
-          productId: input.productId as string,
-          quantity: input.quantity as number,
-          shipToCountry: input.shipToCountry as string | undefined,
-        },
-      );
-      return { status: 'ok', options: freightOptions, count: freightOptions.length };
     }
 
     // -----------------------------------------------------------------------
     // eBay Finances / Analytics / Marketing
     // -----------------------------------------------------------------------
     case 'ebay_get_transactions': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const finApi = createEbayFinancesApi(creds.ebay);
+        const result = await finApi.getTransactions({
+          filter: input.filter as string | undefined,
+          sort: input.sort as string | undefined,
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const finApi = createEbayFinancesApi(creds.ebay);
-      const result = await finApi.getTransactions({
-        filter: input.filter as string | undefined,
-        sort: input.sort as string | undefined,
-        limit: typeof input.limit === 'number' ? input.limit : 50,
-      });
-      return { status: 'ok', ...result };
     }
 
     case 'ebay_get_payouts': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const finApi = createEbayFinancesApi(creds.ebay);
+        const result = await finApi.getPayouts({
+          filter: input.filter as string | undefined,
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const finApi = createEbayFinancesApi(creds.ebay);
-      const result = await finApi.getPayouts({
-        filter: input.filter as string | undefined,
-        limit: typeof input.limit === 'number' ? input.limit : 50,
-      });
-      return { status: 'ok', ...result };
     }
 
     case 'ebay_funds_summary': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const finApi = createEbayFinancesApi(creds.ebay);
+        const summary = await finApi.getFundsSummary();
+        if (!summary) {
+          return { status: 'error', message: 'Could not retrieve funds summary.' };
+        }
+        return { status: 'ok', ...summary };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const finApi = createEbayFinancesApi(creds.ebay);
-      const summary = await finApi.getFundsSummary();
-      if (!summary) {
-        return { status: 'error', message: 'Could not retrieve funds summary.' };
-      }
-      return { status: 'ok', ...summary };
     }
 
     case 'ebay_traffic_report': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const analyticsApi = createEbayAnalyticsApi(creds.ebay);
+        const metricsStr = (input.metrics as string) ?? 'CLICK_THROUGH_RATE,LISTING_VIEWS_TOTAL,SALES_CONVERSION_RATE,TRANSACTION';
+        const metrics = metricsStr.split(',').map(s => s.trim());
+        const report = await analyticsApi.getTrafficReport({
+          dimension: (input.dimension as 'DAY' | 'LISTING') ?? 'DAY',
+          filter: (input.dateRange as string) ?? '',
+          metrics,
+        });
+        return { status: 'ok', report };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const analyticsApi = createEbayAnalyticsApi(creds.ebay);
-      const metricsStr = (input.metrics as string) ?? 'CLICK_THROUGH_RATE,LISTING_VIEWS_TOTAL,SALES_CONVERSION_RATE,TRANSACTION';
-      const metrics = metricsStr.split(',').map(s => s.trim());
-      const report = await analyticsApi.getTrafficReport({
-        dimension: (input.dimension as 'DAY' | 'LISTING') ?? 'DAY',
-        filter: (input.dateRange as string) ?? '',
-        metrics,
-      });
-      return { status: 'ok', report };
     }
 
     case 'ebay_seller_metrics': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const analyticsApi = createEbayAnalyticsApi(creds.ebay);
+        const metric = await analyticsApi.getCustomerServiceMetric({
+          metricType: input.metricType as 'ITEM_NOT_AS_DESCRIBED' | 'ITEM_NOT_RECEIVED',
+          evaluationType: (input.evaluationType as 'CURRENT' | 'PROJECTED') ?? 'CURRENT',
+        });
+        return { status: 'ok', metric };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const analyticsApi = createEbayAnalyticsApi(creds.ebay);
-      const metric = await analyticsApi.getCustomerServiceMetric({
-        metricType: input.metricType as 'ITEM_NOT_AS_DESCRIBED' | 'ITEM_NOT_RECEIVED',
-        evaluationType: (input.evaluationType as 'CURRENT' | 'PROJECTED') ?? 'CURRENT',
-      });
-      return { status: 'ok', metric };
     }
 
     case 'ebay_create_campaign': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const marketingApi = createEbayMarketingApi(creds.ebay);
+        const campaignId = await marketingApi.createCampaign({
+          campaignName: input.campaignName as string,
+          bidPercentage: (input.bidPercentage as string) ?? '5.0',
+          fundingModel: (input.fundingModel as 'COST_PER_SALE' | 'COST_PER_CLICK') ?? 'COST_PER_SALE',
+        });
+        return { status: 'ok', campaignId, campaignName: input.campaignName };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const marketingApi = createEbayMarketingApi(creds.ebay);
-      const campaignId = await marketingApi.createCampaign({
-        campaignName: input.campaignName as string,
-        bidPercentage: (input.bidPercentage as string) ?? '5.0',
-        fundingModel: (input.fundingModel as 'COST_PER_SALE' | 'COST_PER_CLICK') ?? 'COST_PER_SALE',
-      });
-      return { status: 'ok', campaignId, campaignName: input.campaignName };
     }
 
     case 'ebay_get_campaigns': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const marketingApi = createEbayMarketingApi(creds.ebay);
+        const result = await marketingApi.getCampaigns({
+          campaignStatus: input.campaignStatus as string | undefined,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const marketingApi = createEbayMarketingApi(creds.ebay);
-      const result = await marketingApi.getCampaigns({
-        campaignStatus: input.campaignStatus as string | undefined,
-      });
-      return { status: 'ok', ...result };
     }
 
     case 'ebay_promote_listings': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const marketingApi = createEbayMarketingApi(creds.ebay);
+        const listingIds = (input.listingIds as string).split(',').map(s => s.trim());
+        const result = await marketingApi.bulkCreateAds(
+          input.campaignId as string,
+          listingIds,
+          (input.bidPercentage as string) ?? '5.0',
+        );
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const marketingApi = createEbayMarketingApi(creds.ebay);
-      const listingIds = (input.listingIds as string).split(',').map(s => s.trim());
-      const result = await marketingApi.bulkCreateAds(
-        input.campaignId as string,
-        listingIds,
-        (input.bidPercentage as string) ?? '5.0',
-      );
-      return { status: 'ok', ...result };
     }
 
     // -----------------------------------------------------------------------
     // eBay Extended APIs — Browse, Catalog, Insights, Compliance, Seller Extended, Feed, Notification, Logistics, Negotiation, Metadata
     // -----------------------------------------------------------------------
     case 'ebay_batch_get_items': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const browseExtApi = createEbayBrowseExtendedApi(creds.ebay);
+        const itemIds = (input.itemIds as string).split(',').map(s => s.trim());
+        const items = await browseExtApi.getItems(itemIds);
+        return { status: 'ok', items, count: items.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const browseExtApi = createEbayBrowseExtendedApi(creds.ebay);
-      const itemIds = (input.itemIds as string).split(',').map(s => s.trim());
-      const items = await browseExtApi.getItems(itemIds);
-      return { status: 'ok', items, count: items.length };
     }
 
     case 'ebay_legacy_item': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const browseExtApi2 = createEbayBrowseExtendedApi(creds.ebay);
+        const item = await browseExtApi2.getItemByLegacyId(input.legacyId as string);
+        if (!item) {
+          return { status: 'error', message: 'Item not found for legacy ID.' };
+        }
+        return { status: 'ok', item };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const browseExtApi2 = createEbayBrowseExtendedApi(creds.ebay);
-      const item = await browseExtApi2.getItemByLegacyId(input.legacyId as string);
-      if (!item) {
-        return { status: 'error', message: 'Item not found for legacy ID.' };
-      }
-      return { status: 'ok', item };
     }
 
     case 'ebay_search_by_image': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const browseExtApi3 = createEbayBrowseExtendedApi(creds.ebay);
+        const imageResults = await browseExtApi3.searchByImage(
+          input.imageUrl as string,
+          {
+            query: input.query as string | undefined,
+            limit: typeof input.limit === 'number' ? input.limit : undefined,
+          },
+        );
+        return { status: 'ok', items: imageResults, count: imageResults.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const browseExtApi3 = createEbayBrowseExtendedApi(creds.ebay);
-      const imageResults = await browseExtApi3.searchByImage(
-        input.imageUrl as string,
-        {
-          query: input.query as string | undefined,
-          limit: typeof input.limit === 'number' ? input.limit : undefined,
-        },
-      );
-      return { status: 'ok', items: imageResults, count: imageResults.length };
     }
 
     case 'ebay_search_catalog': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const catalogApi = createEbayCatalogApi(creds.ebay);
+        const catalogResults = await catalogApi.searchCatalog(
+          input.query as string,
+          {
+            limit: typeof input.limit === 'number' ? input.limit : undefined,
+            categoryId: input.categoryId as string | undefined,
+          },
+        );
+        return { status: 'ok', products: catalogResults, count: catalogResults.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const catalogApi = createEbayCatalogApi(creds.ebay);
-      const catalogResults = await catalogApi.searchCatalog(
-        input.query as string,
-        {
-          limit: typeof input.limit === 'number' ? input.limit : undefined,
-          categoryId: input.categoryId as string | undefined,
-        },
-      );
-      return { status: 'ok', products: catalogResults, count: catalogResults.length };
     }
 
     case 'ebay_get_catalog_product': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const catalogApi2 = createEbayCatalogApi(creds.ebay);
+        const catalogProduct = await catalogApi2.getCatalogProduct(input.epid as string);
+        if (!catalogProduct) {
+          return { status: 'error', message: 'Catalog product not found.' };
+        }
+        return { status: 'ok', product: catalogProduct };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const catalogApi2 = createEbayCatalogApi(creds.ebay);
-      const catalogProduct = await catalogApi2.getCatalogProduct(input.epid as string);
-      if (!catalogProduct) {
-        return { status: 'error', message: 'Catalog product not found.' };
-      }
-      return { status: 'ok', product: catalogProduct };
     }
 
     case 'ebay_sold_items': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const insightsApi = createEbayInsightsApi(creds.ebay);
+        const soldResult = await insightsApi.searchSoldItems(
+          input.query as string,
+          {
+            limit: typeof input.limit === 'number' ? input.limit : undefined,
+            filter: input.filter as string | undefined,
+            sort: input.sort as string | undefined,
+            categoryIds: input.categoryIds as string | undefined,
+          },
+        );
+        return { status: 'ok', items: soldResult.items, total: soldResult.total, count: soldResult.items.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const insightsApi = createEbayInsightsApi(creds.ebay);
-      const soldResult = await insightsApi.searchSoldItems(
-        input.query as string,
-        {
-          limit: typeof input.limit === 'number' ? input.limit : undefined,
-          filter: input.filter as string | undefined,
-          sort: input.sort as string | undefined,
-          categoryIds: input.categoryIds as string | undefined,
-        },
-      );
-      return { status: 'ok', items: soldResult.items, total: soldResult.total, count: soldResult.items.length };
     }
 
     case 'ebay_listing_violations': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const complianceApi = createEbayComplianceApi(creds.ebay);
+        const violations = await complianceApi.getListingViolations({
+          complianceType: input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
+          limit: typeof input.limit === 'number' ? input.limit : undefined,
+          offset: typeof input.offset === 'number' ? input.offset : undefined,
+        });
+        return { status: 'ok', ...violations };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const complianceApi = createEbayComplianceApi(creds.ebay);
-      const violations = await complianceApi.getListingViolations({
-        complianceType: input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
-        limit: typeof input.limit === 'number' ? input.limit : undefined,
-        offset: typeof input.offset === 'number' ? input.offset : undefined,
-      });
-      return { status: 'ok', ...violations };
     }
 
     case 'ebay_violations_summary': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const complianceApi2 = createEbayComplianceApi(creds.ebay);
+        const summary = await complianceApi2.getListingViolationsSummary();
+        return { status: 'ok', ...summary };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const complianceApi2 = createEbayComplianceApi(creds.ebay);
-      const summary = await complianceApi2.getListingViolationsSummary();
-      return { status: 'ok', ...summary };
     }
 
     case 'ebay_suppress_violation': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const complianceApi3 = createEbayComplianceApi(creds.ebay);
+        await complianceApi3.suppressViolation(
+          input.listingId as string,
+          input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
+        );
+        return { status: 'ok', message: 'Violation suppressed.' };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const complianceApi3 = createEbayComplianceApi(creds.ebay);
-      await complianceApi3.suppressViolation(
-        input.listingId as string,
-        input.complianceType as 'PRODUCT_ADOPTION' | 'OUTSIDE_EBAY_BUYING_AND_SELLING' | 'HTTPS' | 'PRODUCT_IDENTITY',
-      );
-      return { status: 'ok', message: 'Violation suppressed.' };
     }
 
     case 'ebay_get_inventory_item': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const sellerExtApi = createEbaySellerExtendedApi(creds.ebay);
+        const inventoryItem = await sellerExtApi.getInventoryItem(input.sku as string);
+        return { status: 'ok', item: inventoryItem };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerExtApi = createEbaySellerExtendedApi(creds.ebay);
-      const inventoryItem = await sellerExtApi.getInventoryItem(input.sku as string);
-      return { status: 'ok', item: inventoryItem };
     }
 
     case 'ebay_bulk_create_inventory': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const sellerExtApi2 = createEbaySellerExtendedApi(creds.ebay);
+        const bulkItems = input.items as Array<{ sku: string; product: object; condition: string; availability: object }>;
+        const bulkResult = await sellerExtApi2.bulkCreateOrReplaceInventoryItem(bulkItems);
+        return { status: 'ok', ...bulkResult };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerExtApi2 = createEbaySellerExtendedApi(creds.ebay);
-      const bulkItems = input.items as Array<{ sku: string; product: object; condition: string; availability: object }>;
-      const bulkResult = await sellerExtApi2.bulkCreateOrReplaceInventoryItem(bulkItems);
-      return { status: 'ok', ...bulkResult };
     }
 
     case 'ebay_get_offers_for_sku': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const sellerExtApi3 = createEbaySellerExtendedApi(creds.ebay);
+        const offersResult = await sellerExtApi3.getOffers(input.sku as string);
+        return { status: 'ok', ...offersResult };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerExtApi3 = createEbaySellerExtendedApi(creds.ebay);
-      const offersResult = await sellerExtApi3.getOffers(input.sku as string);
-      return { status: 'ok', ...offersResult };
     }
 
     case 'ebay_create_inventory_location': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
-      }
-      const sellerExtApi4 = createEbaySellerExtendedApi(creds.ebay);
-      await sellerExtApi4.createInventoryLocation(
-        input.merchantLocationKey as string,
-        {
-          name: input.name as string,
-          location: {
-            address: {
-              city: input.city as string,
-              stateOrProvince: input.stateOrProvince as string,
-              postalCode: input.postalCode as string,
-              country: (input.country as string) ?? 'US',
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const sellerExtApi4 = createEbaySellerExtendedApi(creds.ebay);
+        await sellerExtApi4.createInventoryLocation(
+          input.merchantLocationKey as string,
+          {
+            name: input.name as string,
+            location: {
+              address: {
+                city: input.city as string,
+                stateOrProvince: input.stateOrProvince as string,
+                postalCode: input.postalCode as string,
+                country: (input.country as string) ?? 'US',
+              },
             },
+            merchantLocationStatus: 'ENABLED',
+            locationTypes: ['WAREHOUSE'],
           },
-          merchantLocationStatus: 'ENABLED',
-          locationTypes: ['WAREHOUSE'],
-        },
-      );
-      return { status: 'ok', message: 'Inventory location created.', merchantLocationKey: input.merchantLocationKey };
+        );
+        return { status: 'ok', message: 'Inventory location created.', merchantLocationKey: input.merchantLocationKey };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'ebay_get_inventory_locations': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const sellerExtApi5 = createEbaySellerExtendedApi(creds.ebay);
+        const locations = await sellerExtApi5.getInventoryLocations();
+        return { status: 'ok', ...locations };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerExtApi5 = createEbaySellerExtendedApi(creds.ebay);
-      const locations = await sellerExtApi5.getInventoryLocations();
-      return { status: 'ok', ...locations };
     }
 
     case 'ebay_create_feed_task': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const feedApi = createEbayFeedApi(creds.ebay);
+        const taskId = await feedApi.createInventoryTask({
+          feedType: input.feedType as string,
+          schemaVersion: input.schemaVersion as string,
+        });
+        if (!taskId) {
+          return { status: 'error', message: 'Failed to create feed task.' };
+        }
+        return { status: 'ok', taskId };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const feedApi = createEbayFeedApi(creds.ebay);
-      const taskId = await feedApi.createInventoryTask({
-        feedType: input.feedType as string,
-        schemaVersion: input.schemaVersion as string,
-      });
-      if (!taskId) {
-        return { status: 'error', message: 'Failed to create feed task.' };
-      }
-      return { status: 'ok', taskId };
     }
 
     case 'ebay_get_feed_task': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const feedApi2 = createEbayFeedApi(creds.ebay);
+        const task = await feedApi2.getInventoryTask(input.taskId as string);
+        if (!task) {
+          return { status: 'error', message: 'Feed task not found.' };
+        }
+        return { status: 'ok', task };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const feedApi2 = createEbayFeedApi(creds.ebay);
-      const task = await feedApi2.getInventoryTask(input.taskId as string);
-      if (!task) {
-        return { status: 'error', message: 'Feed task not found.' };
-      }
-      return { status: 'ok', task };
     }
 
     case 'ebay_create_notification': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const notifApi = createEbayNotificationApi(creds.ebay);
+        const destinationId = await notifApi.createDestination({
+          name: input.name as string,
+          deliveryConfig: {
+            endpoint: input.endpoint as string,
+            verificationToken: input.verificationToken as string,
+          },
+        });
+        if (!destinationId) {
+          return { status: 'error', message: 'Failed to create notification destination.' };
+        }
+        return { status: 'ok', destinationId };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const notifApi = createEbayNotificationApi(creds.ebay);
-      const destinationId = await notifApi.createDestination({
-        name: input.name as string,
-        deliveryConfig: {
-          endpoint: input.endpoint as string,
-          verificationToken: input.verificationToken as string,
-        },
-      });
-      if (!destinationId) {
-        return { status: 'error', message: 'Failed to create notification destination.' };
-      }
-      return { status: 'ok', destinationId };
     }
 
     case 'ebay_subscribe_notification': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const notifApi2 = createEbayNotificationApi(creds.ebay);
+        const subscriptionId = await notifApi2.createSubscription({
+          topicId: input.topicId as string,
+          destinationId: input.destinationId as string,
+          status: 'ENABLED',
+        });
+        if (!subscriptionId) {
+          return { status: 'error', message: 'Failed to create notification subscription.' };
+        }
+        return { status: 'ok', subscriptionId };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const notifApi2 = createEbayNotificationApi(creds.ebay);
-      const subscriptionId = await notifApi2.createSubscription({
-        topicId: input.topicId as string,
-        destinationId: input.destinationId as string,
-        status: 'ENABLED',
-      });
-      if (!subscriptionId) {
-        return { status: 'error', message: 'Failed to create notification subscription.' };
-      }
-      return { status: 'ok', subscriptionId };
     }
 
     case 'ebay_get_notification_topics': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const notifApi3 = createEbayNotificationApi(creds.ebay);
+        const topics = await notifApi3.getTopics();
+        return { status: 'ok', topics, count: topics.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const notifApi3 = createEbayNotificationApi(creds.ebay);
-      const topics = await notifApi3.getTopics();
-      return { status: 'ok', topics, count: topics.length };
     }
 
     case 'ebay_shipping_quote': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const logisticsApi = createEbayLogisticsApi(creds.ebay);
+        const dims = input.dimensions as { height: number; length: number; width: number; unit?: string };
+        const wt = input.weight as { value: number; unit?: string };
+        const sf = input.shipFrom as { postalCode: string; country?: string };
+        const st = input.shipTo as { postalCode: string; country?: string };
+        const quote = await logisticsApi.createShippingQuote({
+          orders: [{ orderId: input.orderId as string }],
+          packageSpecification: {
+            dimensions: { height: dims.height, length: dims.length, width: dims.width, unit: (dims.unit as 'INCH' | 'CENTIMETER') ?? 'INCH' },
+            weight: { value: wt.value, unit: (wt.unit as 'POUND' | 'KILOGRAM' | 'OUNCE' | 'GRAM') ?? 'POUND' },
+          },
+          shipFrom: { postalCode: sf.postalCode, country: sf.country ?? 'US' },
+          shipTo: { postalCode: st.postalCode, country: st.country ?? 'US' },
+        });
+        return { status: 'ok', ...quote };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const logisticsApi = createEbayLogisticsApi(creds.ebay);
-      const dims = input.dimensions as { height: number; length: number; width: number; unit?: string };
-      const wt = input.weight as { value: number; unit?: string };
-      const sf = input.shipFrom as { postalCode: string; country?: string };
-      const st = input.shipTo as { postalCode: string; country?: string };
-      const quote = await logisticsApi.createShippingQuote({
-        orders: [{ orderId: input.orderId as string }],
-        packageSpecification: {
-          dimensions: { height: dims.height, length: dims.length, width: dims.width, unit: (dims.unit as 'INCH' | 'CENTIMETER') ?? 'INCH' },
-          weight: { value: wt.value, unit: (wt.unit as 'POUND' | 'KILOGRAM' | 'OUNCE' | 'GRAM') ?? 'POUND' },
-        },
-        shipFrom: { postalCode: sf.postalCode, country: sf.country ?? 'US' },
-        shipTo: { postalCode: st.postalCode, country: st.country ?? 'US' },
-      });
-      return { status: 'ok', ...quote };
     }
 
     case 'ebay_create_shipment': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const logisticsApi2 = createEbayLogisticsApi(creds.ebay);
+        const shipment = await logisticsApi2.createFromShippingQuote({
+          shippingQuoteId: input.shippingQuoteId as string,
+          rateId: input.rateId as string,
+        });
+        return { status: 'ok', ...shipment };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const logisticsApi2 = createEbayLogisticsApi(creds.ebay);
-      const shipment = await logisticsApi2.createFromShippingQuote({
-        shippingQuoteId: input.shippingQuoteId as string,
-        rateId: input.rateId as string,
-      });
-      return { status: 'ok', ...shipment };
     }
 
     case 'ebay_download_label': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const logisticsApi3 = createEbayLogisticsApi(creds.ebay);
+        const labelBase64 = await logisticsApi3.downloadLabelFile(input.shipmentId as string);
+        return { status: 'ok', labelBase64, format: 'pdf' };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const logisticsApi3 = createEbayLogisticsApi(creds.ebay);
-      const labelBase64 = await logisticsApi3.downloadLabelFile(input.shipmentId as string);
-      return { status: 'ok', labelBase64, format: 'pdf' };
     }
 
     case 'ebay_send_offer': {
-      if (!creds.ebay?.refreshToken) {
-        return { status: 'error', message: 'eBay credentials with refresh token required.' };
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const negotiationApi = createEbayNegotiationApi(creds.ebay);
+        const offeredItems = (input.offeredItems as Array<{ listingId: string; price: number; quantity?: number }>).map(item => ({
+          listingId: item.listingId,
+          price: { value: item.price.toFixed(2), currency: 'USD' },
+          quantity: item.quantity ?? 1,
+        }));
+        const offerResult = await negotiationApi.sendOfferToInterestedBuyers({
+          offeredItems,
+          message: input.message as string | undefined,
+          allowCounterOffer: input.allowCounterOffer !== false,
+        });
+        return { status: 'ok', ...offerResult };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const negotiationApi = createEbayNegotiationApi(creds.ebay);
-      const offeredItems = (input.offeredItems as Array<{ listingId: string; price: number; quantity?: number }>).map(item => ({
-        listingId: item.listingId,
-        price: { value: item.price.toFixed(2), currency: 'USD' },
-        quantity: item.quantity ?? 1,
-      }));
-      const offerResult = await negotiationApi.sendOfferToInterestedBuyers({
-        offeredItems,
-        message: input.message as string | undefined,
-        allowCounterOffer: input.allowCounterOffer !== false,
-      });
-      return { status: 'ok', ...offerResult };
     }
 
     case 'ebay_item_conditions': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const metadataApi = createEbayMetadataApi(creds.ebay);
+        const conditionPolicies = await metadataApi.getItemConditionPolicies(input.categoryId as string | undefined);
+        return { status: 'ok', ...conditionPolicies };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const metadataApi = createEbayMetadataApi(creds.ebay);
-      const conditionPolicies = await metadataApi.getItemConditionPolicies(input.categoryId as string | undefined);
-      return { status: 'ok', ...conditionPolicies };
     }
 
     case 'ebay_marketplace_return_policies': {
-      if (!creds.ebay) {
-        return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+      try {
+        if (!creds.ebay) {
+          return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
+        }
+        const metadataApi2 = createEbayMetadataApi(creds.ebay);
+        const returnPolicies = await metadataApi2.getReturnPolicies(input.categoryId as string | undefined);
+        return { status: 'ok', ...returnPolicies };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const metadataApi2 = createEbayMetadataApi(creds.ebay);
-      const returnPolicies = await metadataApi2.getReturnPolicies(input.categoryId as string | undefined);
-      return { status: 'ok', ...returnPolicies };
     }
 
     // -----------------------------------------------------------------------
     // Keepa — Amazon price intelligence
     // -----------------------------------------------------------------------
     case 'keepa_price_history': {
-      const keepaKey = (creds.keepa as KeepaCredentials | undefined)?.apiKey
-        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
-      if (!keepaKey) {
-        return { status: 'error', message: 'Keepa API key not configured. Use setup_keepa_credentials first.' };
+      try {
+        const keepaKey = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+          ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+        if (!keepaKey) {
+          return { status: 'error', message: 'Keepa API key not configured. Use setup_keepa_credentials first.' };
+        }
+        const keepa = createKeepaApi({ apiKey: keepaKey });
+        const asins = (input.asin as string).split(',').map(s => s.trim());
+        const products = await keepa.getProduct({
+          asin: asins,
+          history: input.history !== false,
+          stats: 180,
+        });
+        return {
+          status: 'ok',
+          products: products.map(p => ({
+            asin: p.asin,
+            title: p.title,
+            brand: p.brand,
+            category: p.productGroup,
+            stats: p.stats ? {
+              currentPrice: p.stats.current ? keepa.keepaPriceToDollar(p.stats.current[0] ?? -1) : null,
+              avg30: p.stats.avg30 ? keepa.keepaPriceToDollar(p.stats.avg30[0] ?? -1) : null,
+              avg90: p.stats.avg90 ? keepa.keepaPriceToDollar(p.stats.avg90[0] ?? -1) : null,
+              avg180: p.stats.avg180 ? keepa.keepaPriceToDollar(p.stats.avg180[0] ?? -1) : null,
+              allTimeMin: p.stats.minPriceEver ? keepa.keepaPriceToDollar(p.stats.minPriceEver[0] ?? -1) : null,
+              allTimeMax: p.stats.maxPriceEver ? keepa.keepaPriceToDollar(p.stats.maxPriceEver[0] ?? -1) : null,
+              outOfStock30: p.stats.outOfStockPercentage30?.[0],
+              outOfStock90: p.stats.outOfStockPercentage90?.[0],
+            } : null,
+            salesRank: p.salesRankReference,
+            lastUpdate: p.lastUpdate ? keepa.keepaTimeToDate(p.lastUpdate).toISOString() : null,
+          })),
+          count: products.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const keepa = createKeepaApi({ apiKey: keepaKey });
-      const asins = (input.asin as string).split(',').map(s => s.trim());
-      const products = await keepa.getProduct({
-        asin: asins,
-        history: input.history !== false,
-        stats: 180,
-      });
-      return {
-        status: 'ok',
-        products: products.map(p => ({
-          asin: p.asin,
-          title: p.title,
-          brand: p.brand,
-          category: p.productGroup,
-          stats: p.stats ? {
-            currentPrice: p.stats.current ? keepa.keepaPriceToDollar(p.stats.current[0] ?? -1) : null,
-            avg30: p.stats.avg30 ? keepa.keepaPriceToDollar(p.stats.avg30[0] ?? -1) : null,
-            avg90: p.stats.avg90 ? keepa.keepaPriceToDollar(p.stats.avg90[0] ?? -1) : null,
-            avg180: p.stats.avg180 ? keepa.keepaPriceToDollar(p.stats.avg180[0] ?? -1) : null,
-            allTimeMin: p.stats.minPriceEver ? keepa.keepaPriceToDollar(p.stats.minPriceEver[0] ?? -1) : null,
-            allTimeMax: p.stats.maxPriceEver ? keepa.keepaPriceToDollar(p.stats.maxPriceEver[0] ?? -1) : null,
-            outOfStock30: p.stats.outOfStockPercentage30?.[0],
-            outOfStock90: p.stats.outOfStockPercentage90?.[0],
-          } : null,
-          salesRank: p.salesRankReference,
-          lastUpdate: p.lastUpdate ? keepa.keepaTimeToDate(p.lastUpdate).toISOString() : null,
-        })),
-        count: products.length,
-      };
     }
 
     case 'keepa_deals': {
-      const keepaKey2 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
-        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
-      if (!keepaKey2) {
-        return { status: 'error', message: 'Keepa API key not configured.' };
+      try {
+        const keepaKey2 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+          ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+        if (!keepaKey2) {
+          return { status: 'error', message: 'Keepa API key not configured.' };
+        }
+        const keepa = createKeepaApi({ apiKey: keepaKey2 });
+        const minPct = typeof input.minPercentOff === 'number' ? input.minPercentOff : 20;
+        const maxPct = typeof input.maxPercentOff === 'number' ? input.maxPercentOff : 90;
+        const categoryIds = input.categoryIds ? (input.categoryIds as string).split(',').map(Number) : undefined;
+        const deals = await keepa.getDeals({
+          deltaPercentRange: [minPct, maxPct],
+          categoryIds,
+        });
+        return { status: 'ok', deals, count: deals.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const keepa = createKeepaApi({ apiKey: keepaKey2 });
-      const minPct = typeof input.minPercentOff === 'number' ? input.minPercentOff : 20;
-      const maxPct = typeof input.maxPercentOff === 'number' ? input.maxPercentOff : 90;
-      const categoryIds = input.categoryIds ? (input.categoryIds as string).split(',').map(Number) : undefined;
-      const deals = await keepa.getDeals({
-        deltaPercentRange: [minPct, maxPct],
-        categoryIds,
-      });
-      return { status: 'ok', deals, count: deals.length };
     }
 
     case 'keepa_bestsellers': {
-      const keepaKey3 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
-        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
-      if (!keepaKey3) {
-        return { status: 'error', message: 'Keepa API key not configured.' };
+      try {
+        const keepaKey3 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+          ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+        if (!keepaKey3) {
+          return { status: 'error', message: 'Keepa API key not configured.' };
+        }
+        const keepa = createKeepaApi({ apiKey: keepaKey3 });
+        const asins = await keepa.getBestsellers({ categoryId: input.categoryId as number });
+        return { status: 'ok', asins, count: asins.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const keepa = createKeepaApi({ apiKey: keepaKey3 });
-      const asins = await keepa.getBestsellers({ categoryId: input.categoryId as number });
-      return { status: 'ok', asins, count: asins.length };
     }
 
     case 'keepa_track_product': {
-      const keepaKey4 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
-        ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
-      if (!keepaKey4) {
-        return { status: 'error', message: 'Keepa API key not configured.' };
+      try {
+        const keepaKey4 = (creds.keepa as KeepaCredentials | undefined)?.apiKey
+          ?? (creds.amazon as Record<string, unknown> | undefined)?.keepaApiKey as string | undefined;
+        if (!keepaKey4) {
+          return { status: 'error', message: 'Keepa API key not configured.' };
+        }
+        const keepa = createKeepaApi({ apiKey: keepaKey4 });
+        const priceInCents = Math.round((input.targetPrice as number) * 100);
+        const success = await keepa.addTracking({
+          asin: input.asin as string,
+          thresholdValue: priceInCents,
+        });
+        return {
+          status: success ? 'ok' : 'error',
+          message: success
+            ? `Tracking set for ${input.asin} — alert when price drops below $${(input.targetPrice as number).toFixed(2)}`
+            : 'Failed to set up tracking.',
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const keepa = createKeepaApi({ apiKey: keepaKey4 });
-      const priceInCents = Math.round((input.targetPrice as number) * 100);
-      const success = await keepa.addTracking({
-        asin: input.asin as string,
-        thresholdValue: priceInCents,
-      });
-      return {
-        status: success ? 'ok' : 'error',
-        message: success
-          ? `Tracking set for ${input.asin} — alert when price drops below $${(input.targetPrice as number).toFixed(2)}`
-          : 'Failed to set up tracking.',
-      };
     }
 
     // -----------------------------------------------------------------------
     // EasyPost — Shipping labels + tracking
     // -----------------------------------------------------------------------
     case 'get_shipping_rates': {
-      const epKey = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
-        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
-      if (!epKey) {
-        return { status: 'error', message: 'EasyPost API key not configured. Use setup_easypost_credentials first.' };
+      try {
+        const epKey = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+          ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+        if (!epKey) {
+          return { status: 'error', message: 'EasyPost API key not configured. Use setup_easypost_credentials first.' };
+        }
+        const ep = createEasyPostApi({ apiKey: epKey });
+        const shipment = await ep.createShipment({
+          fromAddress: {
+            street1: (input.fromStreet as string) ?? '',
+            city: input.fromCity as string ?? '',
+            state: input.fromState as string ?? '',
+            zip: input.fromZip as string,
+            country: (input.fromCountry as string) ?? 'US',
+          },
+          toAddress: {
+            street1: (input.toStreet as string) ?? '',
+            city: input.toCity as string ?? '',
+            state: input.toState as string ?? '',
+            zip: input.toZip as string,
+            country: (input.toCountry as string) ?? 'US',
+          },
+          parcel: {
+            weight: input.weightOz as number,
+            length: typeof input.lengthIn === 'number' ? input.lengthIn : 10,
+            width: typeof input.widthIn === 'number' ? input.widthIn : 7,
+            height: typeof input.heightIn === 'number' ? input.heightIn : 5,
+          },
+        });
+        const cheapest = ep.getCheapestRate(shipment.rates);
+        return {
+          status: 'ok',
+          shipmentId: shipment.id,
+          rates: shipment.rates.map(r => ({
+            rateId: r.id,
+            carrier: r.carrier,
+            service: r.service,
+            rate: r.rate,
+            currency: r.currency,
+            deliveryDays: r.deliveryDays ?? r.estDeliveryDays,
+          })),
+          cheapest: cheapest ? {
+            carrier: cheapest.carrier,
+            service: cheapest.service,
+            rate: cheapest.rate,
+            rateId: cheapest.id,
+          } : null,
+          rateCount: shipment.rates.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const ep = createEasyPostApi({ apiKey: epKey });
-      const shipment = await ep.createShipment({
-        fromAddress: {
-          street1: (input.fromStreet as string) ?? '',
-          city: input.fromCity as string ?? '',
-          state: input.fromState as string ?? '',
-          zip: input.fromZip as string,
-          country: (input.fromCountry as string) ?? 'US',
-        },
-        toAddress: {
-          street1: (input.toStreet as string) ?? '',
-          city: input.toCity as string ?? '',
-          state: input.toState as string ?? '',
-          zip: input.toZip as string,
-          country: (input.toCountry as string) ?? 'US',
-        },
-        parcel: {
-          weight: input.weightOz as number,
-          length: typeof input.lengthIn === 'number' ? input.lengthIn : 10,
-          width: typeof input.widthIn === 'number' ? input.widthIn : 7,
-          height: typeof input.heightIn === 'number' ? input.heightIn : 5,
-        },
-      });
-      const cheapest = ep.getCheapestRate(shipment.rates);
-      return {
-        status: 'ok',
-        shipmentId: shipment.id,
-        rates: shipment.rates.map(r => ({
-          rateId: r.id,
-          carrier: r.carrier,
-          service: r.service,
-          rate: r.rate,
-          currency: r.currency,
-          deliveryDays: r.deliveryDays ?? r.estDeliveryDays,
-        })),
-        cheapest: cheapest ? {
-          carrier: cheapest.carrier,
-          service: cheapest.service,
-          rate: cheapest.rate,
-          rateId: cheapest.id,
-        } : null,
-        rateCount: shipment.rates.length,
-      };
     }
 
     case 'buy_shipping_label': {
-      const epKey2 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
-        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
-      if (!epKey2) {
-        return { status: 'error', message: 'EasyPost API key not configured.' };
+      try {
+        const epKey2 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+          ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+        if (!epKey2) {
+          return { status: 'error', message: 'EasyPost API key not configured.' };
+        }
+        const ep = createEasyPostApi({ apiKey: epKey2 });
+        const purchased = await ep.buyShipment(input.shipmentId as string, input.rateId as string);
+        return {
+          status: 'ok',
+          trackingCode: purchased.trackingCode,
+          labelUrl: purchased.postageLabel?.labelUrl,
+          carrier: purchased.selectedRate?.carrier,
+          service: purchased.selectedRate?.service,
+          rate: purchased.selectedRate?.rate,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const ep = createEasyPostApi({ apiKey: epKey2 });
-      const purchased = await ep.buyShipment(input.shipmentId as string, input.rateId as string);
-      return {
-        status: 'ok',
-        trackingCode: purchased.trackingCode,
-        labelUrl: purchased.postageLabel?.labelUrl,
-        carrier: purchased.selectedRate?.carrier,
-        service: purchased.selectedRate?.service,
-        rate: purchased.selectedRate?.rate,
-      };
     }
 
     case 'track_package': {
-      const epKey3 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
-        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
-      if (!epKey3) {
-        return { status: 'error', message: 'EasyPost API key not configured.' };
+      try {
+        const epKey3 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+          ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+        if (!epKey3) {
+          return { status: 'error', message: 'EasyPost API key not configured.' };
+        }
+        const ep = createEasyPostApi({ apiKey: epKey3 });
+        const tracker = await ep.createTracker(input.trackingCode as string, input.carrier as string | undefined);
+        return {
+          status: 'ok',
+          trackingCode: tracker.trackingCode,
+          carrier: tracker.carrier,
+          currentStatus: tracker.status,
+          statusDetail: tracker.statusDetail,
+          estDeliveryDate: tracker.estDeliveryDate,
+          signedBy: tracker.signedBy,
+          publicUrl: tracker.publicUrl,
+          events: tracker.trackingDetails.slice(0, 10).map(d => ({
+            status: d.status,
+            message: d.message,
+            datetime: d.datetime,
+            location: d.trackingLocation ? `${d.trackingLocation.city ?? ''}, ${d.trackingLocation.state ?? ''} ${d.trackingLocation.zip ?? ''}`.trim() : null,
+          })),
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const ep = createEasyPostApi({ apiKey: epKey3 });
-      const tracker = await ep.createTracker(input.trackingCode as string, input.carrier as string | undefined);
-      return {
-        status: 'ok',
-        trackingCode: tracker.trackingCode,
-        carrier: tracker.carrier,
-        currentStatus: tracker.status,
-        statusDetail: tracker.statusDetail,
-        estDeliveryDate: tracker.estDeliveryDate,
-        signedBy: tracker.signedBy,
-        publicUrl: tracker.publicUrl,
-        events: tracker.trackingDetails.slice(0, 10).map(d => ({
-          status: d.status,
-          message: d.message,
-          datetime: d.datetime,
-          location: d.trackingLocation ? `${d.trackingLocation.city ?? ''}, ${d.trackingLocation.state ?? ''} ${d.trackingLocation.zip ?? ''}`.trim() : null,
-        })),
-      };
     }
 
     case 'verify_address': {
-      const epKey4 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
-        ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
-      if (!epKey4) {
-        return { status: 'error', message: 'EasyPost API key not configured.' };
+      try {
+        const epKey4 = (creds.easypost as EasyPostCredentials | undefined)?.apiKey
+          ?? (creds.ebay as Record<string, unknown> | undefined)?.easypostApiKey as string | undefined;
+        if (!epKey4) {
+          return { status: 'error', message: 'EasyPost API key not configured.' };
+        }
+        const ep = createEasyPostApi({ apiKey: epKey4 });
+        const verified = await ep.verifyAddress({
+          street1: input.street1 as string,
+          street2: input.street2 as string | undefined,
+          city: input.city as string,
+          state: input.state as string,
+          zip: input.zip as string,
+          country: (input.country as string) ?? 'US',
+        });
+        return {
+          status: 'ok',
+          verified: verified.verifications?.delivery?.success ?? false,
+          address: {
+            street1: verified.street1,
+            street2: verified.street2,
+            city: verified.city,
+            state: verified.state,
+            zip: verified.zip,
+            country: verified.country,
+          },
+          errors: verified.verifications?.delivery?.errors,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const ep = createEasyPostApi({ apiKey: epKey4 });
-      const verified = await ep.verifyAddress({
-        street1: input.street1 as string,
-        street2: input.street2 as string | undefined,
-        city: input.city as string,
-        state: input.state as string,
-        zip: input.zip as string,
-        country: (input.country as string) ?? 'US',
-      });
-      return {
-        status: 'ok',
-        verified: verified.verifications?.delivery?.success ?? false,
-        address: {
-          street1: verified.street1,
-          street2: verified.street2,
-          city: verified.city,
-          state: verified.state,
-          zip: verified.zip,
-          country: verified.country,
-        },
-        errors: verified.verifications?.delivery?.errors,
-      };
     }
 
     // -----------------------------------------------------------------------
@@ -5004,131 +5324,166 @@ async function executeTool(
     // Walmart Marketplace seller operations
     // -----------------------------------------------------------------------
     case 'walmart_get_seller_items': {
-      const wCreds = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId = (wCreds?.sellerClientId as string | undefined);
-      const sellerSecret = (wCreds?.sellerClientSecret as string | undefined);
-      if (!sellerId || !sellerSecret) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured. Use setup_walmart_seller_credentials first.' };
+      try {
+        const wCreds = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId = (wCreds?.sellerClientId as string | undefined);
+        const sellerSecret = (wCreds?.sellerClientSecret as string | undefined);
+        if (!sellerId || !sellerSecret) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured. Use setup_walmart_seller_credentials first.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId, clientSecret: sellerSecret });
+        const result = await sellerApi.getAllItems({
+          limit: typeof input.limit === 'number' ? input.limit : 20,
+          offset: typeof input.offset === 'number' ? input.offset : 0,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId, clientSecret: sellerSecret });
-      const result = await sellerApi.getAllItems({
-        limit: typeof input.limit === 'number' ? input.limit : 20,
-        offset: typeof input.offset === 'number' ? input.offset : 0,
-      });
-      return { status: 'ok', ...result };
     }
 
     case 'walmart_update_price': {
-      const wCreds2 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId2 = (wCreds2?.sellerClientId as string | undefined);
-      const sellerSecret2 = (wCreds2?.sellerClientSecret as string | undefined);
-      if (!sellerId2 || !sellerSecret2) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds2 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId2 = (wCreds2?.sellerClientId as string | undefined);
+        const sellerSecret2 = (wCreds2?.sellerClientSecret as string | undefined);
+        if (!sellerId2 || !sellerSecret2) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId2, clientSecret: sellerSecret2 });
+        const result = await sellerApi.updatePrice(input.sku as string, input.price as number);
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId2, clientSecret: sellerSecret2 });
-      const result = await sellerApi.updatePrice(input.sku as string, input.price as number);
-      return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
     }
 
     case 'walmart_update_inventory': {
-      const wCreds3 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId3 = (wCreds3?.sellerClientId as string | undefined);
-      const sellerSecret3 = (wCreds3?.sellerClientSecret as string | undefined);
-      if (!sellerId3 || !sellerSecret3) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds3 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId3 = (wCreds3?.sellerClientId as string | undefined);
+        const sellerSecret3 = (wCreds3?.sellerClientSecret as string | undefined);
+        if (!sellerId3 || !sellerSecret3) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId3, clientSecret: sellerSecret3 });
+        const result = await sellerApi.updateInventory(input.sku as string, input.quantity as number);
+        return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId3, clientSecret: sellerSecret3 });
-      const result = await sellerApi.updateInventory(input.sku as string, input.quantity as number);
-      return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
     }
 
     case 'walmart_get_inventory': {
-      const wCreds4 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId4 = (wCreds4?.sellerClientId as string | undefined);
-      const sellerSecret4 = (wCreds4?.sellerClientSecret as string | undefined);
-      if (!sellerId4 || !sellerSecret4) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds4 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId4 = (wCreds4?.sellerClientId as string | undefined);
+        const sellerSecret4 = (wCreds4?.sellerClientSecret as string | undefined);
+        if (!sellerId4 || !sellerSecret4) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId4, clientSecret: sellerSecret4 });
+        const inv = await sellerApi.getInventory(input.sku as string);
+        if (!inv) {
+          return { status: 'error', message: `Inventory not found for SKU ${input.sku}` };
+        }
+        return { status: 'ok', sku: inv.sku, quantity: inv.quantity.amount, unit: inv.quantity.unit, fulfillmentLagTime: inv.fulfillmentLagTime };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId4, clientSecret: sellerSecret4 });
-      const inv = await sellerApi.getInventory(input.sku as string);
-      if (!inv) {
-        return { status: 'error', message: `Inventory not found for SKU ${input.sku}` };
-      }
-      return { status: 'ok', sku: inv.sku, quantity: inv.quantity.amount, unit: inv.quantity.unit, fulfillmentLagTime: inv.fulfillmentLagTime };
     }
 
     case 'walmart_get_orders': {
-      const wCreds5 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId5 = (wCreds5?.sellerClientId as string | undefined);
-      const sellerSecret5 = (wCreds5?.sellerClientSecret as string | undefined);
-      if (!sellerId5 || !sellerSecret5) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds5 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId5 = (wCreds5?.sellerClientId as string | undefined);
+        const sellerSecret5 = (wCreds5?.sellerClientSecret as string | undefined);
+        if (!sellerId5 || !sellerSecret5) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId5, clientSecret: sellerSecret5 });
+        const orders = await sellerApi.getOrders({
+          status: input.status as string | undefined,
+          createdStartDate: input.createdStartDate as string | undefined,
+          limit: typeof input.limit === 'number' ? input.limit : 50,
+        });
+        return {
+          status: 'ok',
+          orders: orders.map(o => ({
+            purchaseOrderId: o.purchaseOrderId,
+            customerOrderId: o.customerOrderId,
+            orderDate: o.orderDate,
+            lineItems: o.orderLines?.length ?? 0,
+            shippingName: o.shippingInfo?.postalAddress?.name,
+            shippingCity: o.shippingInfo?.postalAddress?.city,
+            shippingState: o.shippingInfo?.postalAddress?.state,
+          })),
+          count: orders.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId5, clientSecret: sellerSecret5 });
-      const orders = await sellerApi.getOrders({
-        status: input.status as string | undefined,
-        createdStartDate: input.createdStartDate as string | undefined,
-        limit: typeof input.limit === 'number' ? input.limit : 50,
-      });
-      return {
-        status: 'ok',
-        orders: orders.map(o => ({
-          purchaseOrderId: o.purchaseOrderId,
-          customerOrderId: o.customerOrderId,
-          orderDate: o.orderDate,
-          lineItems: o.orderLines?.length ?? 0,
-          shippingName: o.shippingInfo?.postalAddress?.name,
-          shippingCity: o.shippingInfo?.postalAddress?.city,
-          shippingState: o.shippingInfo?.postalAddress?.state,
-        })),
-        count: orders.length,
-      };
     }
 
     case 'walmart_ship_order': {
-      const wCreds6 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId6 = (wCreds6?.sellerClientId as string | undefined);
-      const sellerSecret6 = (wCreds6?.sellerClientSecret as string | undefined);
-      if (!sellerId6 || !sellerSecret6) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds6 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId6 = (wCreds6?.sellerClientId as string | undefined);
+        const sellerSecret6 = (wCreds6?.sellerClientSecret as string | undefined);
+        if (!sellerId6 || !sellerSecret6) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId6, clientSecret: sellerSecret6 });
+        // Get order to find line items
+        const order = await sellerApi.getOrder(input.purchaseOrderId as string);
+        if (!order) {
+          return { status: 'error', message: `Order ${input.purchaseOrderId} not found.` };
+        }
+        const lineItems = order.orderLines.map(ol => ({
+          lineNumber: ol.lineNumber,
+          quantity: parseInt(ol.orderLineQuantity.amount, 10) || 1,
+        }));
+        const success = await sellerApi.shipOrder(input.purchaseOrderId as string, {
+          lineItems,
+          carrier: input.carrier as string,
+          trackingNumber: input.trackingNumber as string,
+          methodCode: (input.methodCode as string) ?? 'Standard',
+        });
+        return {
+          status: success ? 'ok' : 'error',
+          message: success
+            ? `Order ${input.purchaseOrderId} shipped with ${input.carrier} tracking ${input.trackingNumber}`
+            : 'Failed to update shipping on Walmart.',
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId6, clientSecret: sellerSecret6 });
-      // Get order to find line items
-      const order = await sellerApi.getOrder(input.purchaseOrderId as string);
-      if (!order) {
-        return { status: 'error', message: `Order ${input.purchaseOrderId} not found.` };
-      }
-      const lineItems = order.orderLines.map(ol => ({
-        lineNumber: ol.lineNumber,
-        quantity: parseInt(ol.orderLineQuantity.amount, 10) || 1,
-      }));
-      const success = await sellerApi.shipOrder(input.purchaseOrderId as string, {
-        lineItems,
-        carrier: input.carrier as string,
-        trackingNumber: input.trackingNumber as string,
-        methodCode: (input.methodCode as string) ?? 'Standard',
-      });
-      return {
-        status: success ? 'ok' : 'error',
-        message: success
-          ? `Order ${input.purchaseOrderId} shipped with ${input.carrier} tracking ${input.trackingNumber}`
-          : 'Failed to update shipping on Walmart.',
-      };
     }
 
     case 'walmart_retire_item': {
-      const wCreds7 = creds.walmart as Record<string, unknown> | undefined;
-      const sellerId7 = (wCreds7?.sellerClientId as string | undefined);
-      const sellerSecret7 = (wCreds7?.sellerClientSecret as string | undefined);
-      if (!sellerId7 || !sellerSecret7) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+      try {
+        const wCreds7 = creds.walmart as Record<string, unknown> | undefined;
+        const sellerId7 = (wCreds7?.sellerClientId as string | undefined);
+        const sellerSecret7 = (wCreds7?.sellerClientSecret as string | undefined);
+        if (!sellerId7 || !sellerSecret7) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials not configured.' };
+        }
+        const sellerApi = createWalmartSellerApi({ clientId: sellerId7, clientSecret: sellerSecret7 });
+        const success = await sellerApi.retireItem(input.sku as string);
+        return {
+          status: success ? 'ok' : 'error',
+          message: success ? `Item ${input.sku} retired from Walmart.` : `Failed to retire item ${input.sku}.`,
+        };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const sellerApi = createWalmartSellerApi({ clientId: sellerId7, clientSecret: sellerSecret7 });
-      const success = await sellerApi.retireItem(input.sku as string);
-      return {
-        status: success ? 'ok' : 'error',
-        message: success ? `Item ${input.sku} retired from Walmart.` : `Failed to retire item ${input.sku}.`,
-      };
     }
 
     // -----------------------------------------------------------------------
@@ -5278,254 +5633,369 @@ async function executeTool(
     // Additional platform scanners
     // -----------------------------------------------------------------------
     case 'scan_bestbuy': {
-      const adapter = createBestBuyAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createBestBuyAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_target': {
-      const adapter = createTargetAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createTargetAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_costco': {
-      const adapter = createCostcoAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createCostcoAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_homedepot': {
-      const adapter = createHomeDepotAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createHomeDepotAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_poshmark': {
-      const adapter = createPoshmarkAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
-        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createPoshmarkAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+          minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+          maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_mercari': {
-      const adapter = createMercariAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
-        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createMercariAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+          minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+          maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_facebook': {
-      const adapter = createFacebookAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-        minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
-        maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createFacebookAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+          minPrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+          maxPrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_faire': {
-      const adapter = createFaireAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createFaireAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_bstock': {
-      const adapter = createBStockAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createBStockAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_bulq': {
-      const adapter = createBulqAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createBulqAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'scan_liquidation': {
-      const adapter = createLiquidationAdapter();
-      const results = await adapter.search({
-        query: input.query as string,
-        maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
-      });
-      storeResults(context.db, results);
-      return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      try {
+        const adapter = createLiquidationAdapter();
+        const results = await adapter.search({
+          query: input.query as string,
+          maxResults: typeof input.maxResults === 'number' ? input.maxResults : 10,
+        });
+        storeResults(context.db, results);
+        return { status: 'ok', results: results.slice(0, 20), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     // -----------------------------------------------------------------------
     // Extended tools for new platforms
     // -----------------------------------------------------------------------
     case 'bestbuy_on_sale': {
-      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
-      const result = await api.getOnSaleItems({
-        categoryId: input.categoryId as string | undefined,
-        minSalePrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
-        maxSalePrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
-        pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
-      });
-      return { status: 'ok', ...result };
+      try {
+        const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+        const result = await api.getOnSaleItems({
+          categoryId: input.categoryId as string | undefined,
+          minSalePrice: typeof input.minPrice === 'number' ? input.minPrice : undefined,
+          maxSalePrice: typeof input.maxPrice === 'number' ? input.maxPrice : undefined,
+          pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'bestbuy_open_box': {
-      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
-      const result = await api.getOpenBoxItems({
-        categoryId: input.categoryId as string | undefined,
-        pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
-      });
-      return { status: 'ok', ...result };
+      try {
+        const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+        const result = await api.getOpenBoxItems({
+          categoryId: input.categoryId as string | undefined,
+          pageSize: typeof input.pageSize === 'number' ? input.pageSize : 25,
+        });
+        return { status: 'ok', ...result };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'bestbuy_stores': {
-      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
-      const stores = await api.getStores({
-        lat: input.lat as number,
-        lng: input.lng as number,
-        radius: typeof input.radius === 'number' ? input.radius : 25,
-      });
-      return { status: 'ok', stores, count: stores.length };
+      try {
+        const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+        const stores = await api.getStores({
+          lat: input.lat as number,
+          lng: input.lng as number,
+          radius: typeof input.radius === 'number' ? input.radius : 25,
+        });
+        return { status: 'ok', stores, count: stores.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'bestbuy_product_availability': {
-      const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
-      const storeIdsList = typeof input.storeIds === 'string' && input.storeIds
-        ? input.storeIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
-        : undefined;
-      const availability = await api.getProductAvailability(
-        input.sku as string,
-        storeIdsList,
-      );
-      return { status: 'ok', availability, count: availability.length };
+      try {
+        const api = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+        const storeIdsList = typeof input.storeIds === 'string' && input.storeIds
+          ? input.storeIds.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+          : undefined;
+        const availability = await api.getProductAvailability(
+          input.sku as string,
+          storeIdsList,
+        );
+        return { status: 'ok', availability, count: availability.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'target_store_availability': {
-      const adapter = createTargetAdapter();
-      const availability = await adapter.getStoreAvailability(
-        input.tcin as string,
-        input.zipCode as string | undefined,
-      );
-      return { status: 'ok', availability, count: availability.length };
+      try {
+        const adapter = createTargetAdapter();
+        const availability = await adapter.getStoreAvailability(
+          input.tcin as string,
+          input.zipCode as string | undefined,
+        );
+        return { status: 'ok', availability, count: availability.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'poshmark_closet': {
-      const adapter = createPoshmarkAdapter();
-      const results = await adapter.getUserCloset(
-        input.userId as string,
-        { maxResults: typeof input.maxResults === 'number' ? input.maxResults : 48 },
-      );
-      return { status: 'ok', results: results.slice(0, 48), count: results.length };
+      try {
+        const adapter = createPoshmarkAdapter();
+        const results = await adapter.getUserCloset(
+          input.userId as string,
+          { maxResults: typeof input.maxResults === 'number' ? input.maxResults : 48 },
+        );
+        return { status: 'ok', results: results.slice(0, 48), count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
     }
 
     case 'mercari_seller_profile': {
-      const adapter = createMercariAdapter();
-      const profile = await adapter.getSellerProfile(input.userId as string);
-      if (!profile) {
-        return { status: 'error', message: 'Seller profile not found or Mercari API unavailable.' };
+      try {
+        const adapter = createMercariAdapter();
+        const profile = await adapter.getSellerProfile(input.userId as string);
+        if (!profile) {
+          return { status: 'error', message: 'Seller profile not found or Mercari API unavailable.' };
+        }
+        return { status: 'ok', profile };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      return { status: 'ok', profile };
     }
 
     case 'walmart_reviews': {
-      if (!creds.walmart) {
-        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      try {
+        if (!creds.walmart) {
+          return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+        }
+        const api = createWalmartAffiliateExtendedApi(creds.walmart);
+        const reviews = await api.getReviews(input.itemId as string);
+        if (!reviews) {
+          return { status: 'error', message: 'Reviews not found or Walmart API unavailable.' };
+        }
+        return { status: 'ok', ...reviews };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const api = createWalmartAffiliateExtendedApi(creds.walmart);
-      const reviews = await api.getReviews(input.itemId as string);
-      if (!reviews) {
-        return { status: 'error', message: 'Reviews not found or Walmart API unavailable.' };
-      }
-      return { status: 'ok', ...reviews };
     }
 
     case 'walmart_nearby_stores': {
-      if (!creds.walmart) {
-        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      try {
+        if (!creds.walmart) {
+          return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+        }
+        const api = createWalmartAffiliateExtendedApi(creds.walmart);
+        const stores = await api.getStores({
+          zip: input.zip as string | undefined,
+          lat: typeof input.lat === 'number' ? input.lat : undefined,
+          lon: typeof input.lon === 'number' ? input.lon : undefined,
+        });
+        return { status: 'ok', stores, count: stores.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const api = createWalmartAffiliateExtendedApi(creds.walmart);
-      const stores = await api.getStores({
-        zip: input.zip as string | undefined,
-        lat: typeof input.lat === 'number' ? input.lat : undefined,
-        lon: typeof input.lon === 'number' ? input.lon : undefined,
-      });
-      return { status: 'ok', stores, count: stores.length };
     }
 
     case 'walmart_recommendations': {
-      if (!creds.walmart) {
-        return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+      try {
+        if (!creds.walmart) {
+          return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
+        }
+        const api = createWalmartAffiliateExtendedApi(creds.walmart);
+        const items = await api.getRecommendations(input.itemId as string);
+        return { status: 'ok', items, count: items.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const api = createWalmartAffiliateExtendedApi(creds.walmart);
-      const items = await api.getRecommendations(input.itemId as string);
-      return { status: 'ok', items, count: items.length };
     }
 
     case 'walmart_repricer': {
-      const wCredsR = creds.walmart as Record<string, unknown> | undefined;
-      const sellerIdR = (wCredsR?.sellerClientId as string | undefined);
-      const sellerSecretR = (wCredsR?.sellerClientSecret as string | undefined);
-      if (!sellerIdR || !sellerSecretR) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
+      try {
+        const wCredsR = creds.walmart as Record<string, unknown> | undefined;
+        const sellerIdR = (wCredsR?.sellerClientId as string | undefined);
+        const sellerSecretR = (wCredsR?.sellerClientSecret as string | undefined);
+        if (!sellerIdR || !sellerSecretR) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
+        }
+        const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
+        const strategy = await mpApi.createRepricerStrategy({
+          name: input.name as string,
+          type: input.type as 'BUY_BOX_ELIGIBLE' | 'COMPETITIVE_PRICING',
+          enabled: typeof input.enabled === 'boolean' ? input.enabled : true,
+          repriceOptions: {},
+        });
+        return { status: 'ok', strategy };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
-      const strategy = await mpApi.createRepricerStrategy({
-        name: input.name as string,
-        type: input.type as 'BUY_BOX_ELIGIBLE' | 'COMPETITIVE_PRICING',
-        enabled: typeof input.enabled === 'boolean' ? input.enabled : true,
-        repriceOptions: {},
-      });
-      return { status: 'ok', strategy };
     }
 
     case 'walmart_catalog_search': {
-      const wCredsC = creds.walmart as Record<string, unknown> | undefined;
-      const sellerIdC = (wCredsC?.sellerClientId as string | undefined);
-      const sellerSecretC = (wCredsC?.sellerClientSecret as string | undefined);
-      if (!sellerIdC || !sellerSecretC) {
-        return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
+      try {
+        const wCredsC = creds.walmart as Record<string, unknown> | undefined;
+        const sellerIdC = (wCredsC?.sellerClientId as string | undefined);
+        const sellerSecretC = (wCredsC?.sellerClientSecret as string | undefined);
+        if (!sellerIdC || !sellerSecretC) {
+          return { status: 'error', message: 'Walmart Marketplace seller credentials required. Use setup_walmart_seller_credentials first.' };
+        }
+        const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
+        const results = await mpApi.catalogSearch(input.query as string);
+        return { status: 'ok', results, count: results.length };
+      } catch (err) {
+        logger.error({ err, tool: name }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
-      const mpApi = createWalmartMarketplaceExtendedApi(creds.walmart!);
-      const results = await mpApi.catalogSearch(input.query as string);
-      return { status: 'ok', results, count: results.length };
     }
 
     // -----------------------------------------------------------------------

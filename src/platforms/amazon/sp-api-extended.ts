@@ -715,7 +715,8 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
           offers: data.offers,
           fulfillmentAvailability: data.fulfillmentAvailability,
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ sku, error: err instanceof Error ? err.message : String(err) }, 'getListingsItem failed');
         return null;
       }
     },
@@ -817,7 +818,8 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
             addressType: p.ShippingAddress.AddressType,
           } : undefined,
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ orderId, error: err instanceof Error ? err.message : String(err) }, 'getOrderAddress failed');
         return null;
       }
     },
@@ -956,7 +958,8 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
           fulfillmentOrderItems: p.fulfillmentOrderItems,
           fulfillmentShipments: p.fulfillmentShipments,
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ sellerFulfillmentOrderId, error: err instanceof Error ? err.message : String(err) }, 'getFulfillmentOrder failed');
         return null;
       }
     },
@@ -997,7 +1000,8 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
         });
 
         return data.payload ?? null;
-      } catch {
+      } catch (err) {
+        logger.debug({ packageNumber, error: err instanceof Error ? err.message : String(err) }, 'getPackageTrackingDetails failed');
         return null;
       }
     },
@@ -1277,7 +1281,8 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
         });
 
         return data.payload ?? null;
-      } catch {
+      } catch (err) {
+        logger.debug({ trackingId, error: err instanceof Error ? err.message : String(err) }, 'getShipmentTracking failed');
         return null;
       }
     },

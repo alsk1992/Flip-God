@@ -14,10 +14,10 @@ import { getAccessToken, API_BASE } from './auth';
 const logger = createLogger('ebay');
 
 function parseItemSummary(item: EbayItemSummary): ProductSearchResult {
-  const price = item.price ? parseFloat(item.price.value) : 0;
+  const price = item.price ? (parseFloat(item.price.value) || 0) : 0;
   const shippingOption = item.shippingOptions?.[0];
   const shippingCost = shippingOption?.shippingCost
-    ? parseFloat(shippingOption.shippingCost.value)
+    ? (parseFloat(shippingOption.shippingCost.value) || 0)
     : shippingOption?.shippingCostType === 'FREE' ? 0 : 4.99;
 
   return {
@@ -33,7 +33,7 @@ function parseItemSummary(item: EbayItemSummary): ProductSearchResult {
     imageUrl: item.image?.imageUrl ?? item.thumbnailImages?.[0]?.imageUrl,
     category: item.categories?.[0]?.categoryName,
     rating: item.seller?.feedbackPercentage
-      ? parseFloat(item.seller.feedbackPercentage) / 20 // Convert 0-100% to 0-5 scale
+      ? (parseFloat(item.seller.feedbackPercentage) || 0) / 20 // Convert 0-100% to 0-5 scale
       : undefined,
     reviewCount: item.seller?.feedbackScore,
   };
@@ -146,10 +146,10 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
       }
 
       const item = await response.json() as EbayItemDetail;
-      const price = item.price ? parseFloat(item.price.value) : 0;
+      const price = item.price ? (parseFloat(item.price.value) || 0) : 0;
       const shippingOption = item.shippingOptions?.[0];
       const shippingCost = shippingOption?.shippingCost
-        ? parseFloat(shippingOption.shippingCost.value)
+        ? (parseFloat(shippingOption.shippingCost.value) || 0)
         : 0;
 
       const availability = item.estimatedAvailabilities?.[0];
@@ -170,7 +170,7 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
         category: item.categoryPath,
         upc: item.gtin ?? item.upc?.[0],
         rating: item.seller?.feedbackPercentage
-          ? parseFloat(item.seller.feedbackPercentage) / 20
+          ? (parseFloat(item.seller.feedbackPercentage) || 0) / 20
           : undefined,
         reviewCount: item.seller?.feedbackScore,
       };

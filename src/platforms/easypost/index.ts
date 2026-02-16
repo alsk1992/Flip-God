@@ -388,8 +388,8 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
       }
       if (filtered.length === 0) return null;
       return filtered.reduce((cheapest, r) => {
-        const currentPrice = parseFloat(r.rate);
-        const cheapestPrice = parseFloat(cheapest.rate);
+        const currentPrice = parseFloat(r.rate) || Infinity;
+        const cheapestPrice = parseFloat(cheapest.rate) || Infinity;
         return currentPrice < cheapestPrice ? r : cheapest;
       });
     },
@@ -458,7 +458,8 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
           createdAt: (data.created_at as string) ?? '',
           updatedAt: (data.updated_at as string) ?? '',
         };
-      } catch {
+      } catch (err) {
+        logger.debug({ trackerId, error: err instanceof Error ? err.message : String(err) }, 'getTracker failed');
         return null;
       }
     },

@@ -8,10 +8,6 @@
  * - Variable closing fees (media items)
  */
 
-import { createLogger } from '../utils/logger';
-
-const logger = createLogger('fba-fees');
-
 // =============================================================================
 // SIZE TIERS
 // =============================================================================
@@ -32,7 +28,7 @@ export function determineSizeTier(dims: ProductDimensions): SizeTier {
   const shortest = Math.min(l, w, h);
   const girth = 2 * (median + shortest);
   const lengthPlusGirth = longest + girth;
-  const dimWeight = (l * w * h) / 139; // dimensional weight
+  const _dimWeight = (l * w * h) / 139; // dimensional weight (reserved for future oversize tier checks)
 
   // Small standard: max 15" x 12" x 0.75", up to 1 lb
   if (longest <= 15 && median <= 12 && shortest <= 0.75 && weightLbs <= 1) {

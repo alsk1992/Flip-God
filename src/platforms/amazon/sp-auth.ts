@@ -32,6 +32,8 @@ interface CachedToken {
 
 const LWA_TOKEN_URL = 'https://api.amazon.com/auth/o2/token';
 
+// Capped to prevent unbounded growth if many credential sets are rotated.
+const MAX_TOKEN_CACHE_SIZE = 50;
 const tokenCache = new Map<string, CachedToken>();
 
 export const SP_API_ENDPOINTS: Record<string, string> = {
@@ -90,6 +92,11 @@ export async function getSpApiToken(config: SpApiAuthConfig): Promise<string> {
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
+  // Evict oldest entry if cache is full
+  if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+    const firstKey = tokenCache.keys().next().value;
+    if (firstKey) tokenCache.delete(firstKey);
+  }
   tokenCache.set(cacheKey, token);
   logger.info({ expiresIn: data.expires_in }, 'SP-API access token obtained');
   return token.accessToken;

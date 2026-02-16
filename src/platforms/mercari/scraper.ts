@@ -133,7 +133,7 @@ function parseSearchItem(item: MercariSearchItem): ProductSearchResult {
     platform: 'mercari',
     title: item.name,
     price: item.price, // JPY — no division
-    shipping: 0, // Most Mercari JP items include shipping
+    shipping: 0, // Most Mercari JP items include shipping in price; seller-paid vs buyer-paid varies
     currency: 'JPY',
     inStock: item.status === 'ITEM_STATUS_ON_SALE',
     seller: item.sellerName ?? item.sellerId,

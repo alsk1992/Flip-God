@@ -33,7 +33,7 @@ function parseItem(item: WalmartApiItem): ProductSearchResult {
     upc: item.upc,
     brand: item.brandName,
     category: item.categoryPath,
-    rating: item.customerRating ? parseFloat(item.customerRating) : undefined,
+    rating: item.customerRating ? (parseFloat(item.customerRating) || undefined) : undefined,
     reviewCount: item.numReviews,
   };
 }

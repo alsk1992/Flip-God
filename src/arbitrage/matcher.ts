@@ -2,10 +2,7 @@
  * Product Matcher - Matches products across platforms using UPC/ASIN/title
  */
 
-import { createLogger } from '../utils/logger';
 import type { ProductSearchResult } from '../platforms/index';
-
-const logger = createLogger('matcher');
 
 export interface MatchResult {
   confidence: number;  // 0-1

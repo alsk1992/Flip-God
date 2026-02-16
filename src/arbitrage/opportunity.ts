@@ -2,10 +2,7 @@
  * Opportunity Scoring - Ranks arbitrage opportunities
  */
 
-import { createLogger } from '../utils/logger';
 import type { ArbitrageOpportunity } from './types';
-
-const logger = createLogger('opportunity');
 
 export interface ScoringWeights {
   margin: number;       // Weight for margin percentage

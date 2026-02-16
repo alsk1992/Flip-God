@@ -44,8 +44,8 @@ interface PoshmarkPost {
 }
 
 function parsePost(item: PoshmarkPost): ProductSearchResult {
-  const price = parseFloat(item.price_amount?.val ?? '0');
-  const originalPrice = parseFloat(item.original_price_amount?.val ?? '0');
+  const price = parseFloat(item.price_amount?.val ?? '0') || 0;
+  const originalPrice = parseFloat(item.original_price_amount?.val ?? '0') || 0;
 
   return {
     platformId: item.id,

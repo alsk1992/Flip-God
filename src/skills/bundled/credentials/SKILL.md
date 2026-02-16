@@ -7,7 +7,7 @@ category: "admin"
 
 # Credentials
 
-Set up and manage API credentials for Amazon, eBay, Walmart, and AliExpress.
+Set up and manage API credentials for all supported platforms.
 
 ## Commands
 
@@ -17,6 +17,10 @@ Set up and manage API credentials for Amazon, eBay, Walmart, and AliExpress.
 | `setup ebay` | Configure eBay API credentials |
 | `setup walmart` | Configure Walmart API credentials |
 | `setup aliexpress` | Configure AliExpress API credentials |
+| `setup bestbuy` | Configure Best Buy API credentials |
+| `setup faire` | Configure Faire API credentials |
+| `setup keepa` | Configure Keepa API credentials |
+| `setup easypost` | Configure EasyPost shipping credentials |
 | `list credentials` | Show configured platforms |
 | `delete credentials <platform>` | Remove credentials |
 
@@ -37,6 +41,22 @@ Get them at: https://developer.walmart.com/
 ### AliExpress
 Requires: App Key and App Secret.
 Get them at: https://portals.aliexpress.com/
+
+### Best Buy
+Requires: API Key.
+Get one at: https://developer.bestbuy.com/
+
+### Faire
+Requires: API Key.
+Get one at: https://www.faire.com/brand-portal
+
+### Keepa
+Requires: API Key for Amazon price history tracking.
+Get one at: https://keepa.com/#!api
+
+### EasyPost
+Requires: API Key for shipping rate comparison and label generation.
+Get one at: https://www.easypost.com/
 
 ## Security
 

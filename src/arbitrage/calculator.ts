@@ -2,11 +2,8 @@
  * Profit Calculator - Calculates fees, shipping, and net profit
  */
 
-import { createLogger } from '../utils/logger';
 import type { Platform } from '../types';
 import type { FeeStructure, ProfitCalculation } from './types';
-
-const logger = createLogger('calculator');
 
 // Category-specific fee rates (major categories)
 const AMAZON_CATEGORY_FEES: Record<string, number> = {
@@ -52,7 +49,11 @@ function getCategoryFee(platform: Platform, category?: string): number {
   }
 }
 
-// Default fee schedules (used when no category is specified)
+// Default fee schedules (used when no category is specified).
+// NOTE: shippingEstimate values are conservative defaults. Actual shipping costs vary
+// significantly by weight, dimensions, distance, and carrier. When actual shipping
+// costs are available (e.g., from EasyPost rate quotes), pass them explicitly to
+// calculateProfit() rather than relying on these estimates.
 const DEFAULT_FEE_SCHEDULES: Record<Platform, FeeStructure> = {
   amazon: {
     platform: 'amazon',
