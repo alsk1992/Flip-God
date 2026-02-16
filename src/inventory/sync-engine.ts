@@ -55,6 +55,9 @@ export function reserveInventory(
   if (quantity <= 0) {
     throw new Error('Hold quantity must be positive');
   }
+  if (!warehouseId) {
+    throw new Error('warehouseId is required');
+  }
 
   const ttlHours = Number.isFinite(expiresHours) ? expiresHours! : DEFAULT_HOLD_TTL[reason];
   const id = randomUUID().slice(0, 12);

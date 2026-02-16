@@ -174,10 +174,11 @@ export function createFaireExtendedApi(accessToken?: string): FaireExtendedApi {
     if (options?.body) {
       init.body = JSON.stringify(options.body);
     }
+    init.signal = AbortSignal.timeout(30_000);
     const response = await fetch(url, init);
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'Faire API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'Faire API request failed');
       throw new Error(`Faire API (${response.status}): ${errorText}`);
     }
     return response.json() as Promise<T>;

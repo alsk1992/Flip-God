@@ -88,11 +88,12 @@ export async function refreshSpApiToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'LWA refresh_token grant failed');
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
+    logger.error({ status: response.status }, 'LWA refresh_token grant failed');
     throw new Error(`LWA token refresh failed (${response.status}): ${errorText}`);
   }
 

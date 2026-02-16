@@ -94,6 +94,7 @@ export function createFaireAdapter(accessToken?: string): PlatformAdapter {
         const response = await fetch(`${API_BASE}/products`, {
           method: 'GET',
           headers,
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) {
           logger.error({ status: response.status }, 'Faire search failed');
@@ -132,7 +133,7 @@ export function createFaireAdapter(accessToken?: string): PlatformAdapter {
       try {
         const response = await fetch(
           `${API_BASE}/products/${encodeURIComponent(productId)}`,
-          { headers },
+          { headers, signal: AbortSignal.timeout(30_000) },
         );
         if (!response.ok) return null;
         return parseProduct(await response.json() as FaireProduct);

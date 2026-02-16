@@ -88,7 +88,7 @@ export function createTargetAdapter(): PlatformAdapter & {
       if (options.minPrice) params.set('min_price', String(options.minPrice));
 
       try {
-        const response = await fetch(`${SEARCH_BASE}?${params.toString()}`, { headers });
+        const response = await fetch(`${SEARCH_BASE}?${params.toString()}`, { headers, signal: AbortSignal.timeout(30_000) });
         if (!response.ok) {
           logger.error({ status: response.status }, 'Target search failed');
           return [];
@@ -114,7 +114,7 @@ export function createTargetAdapter(): PlatformAdapter & {
       try {
         const response = await fetch(
           `${API_BASE}/redsky_aggregations/v1/web/pdp_client_v1?${params.toString()}`,
-          { headers },
+          { headers, signal: AbortSignal.timeout(30_000) },
         );
         if (!response.ok) return null;
         const data = await response.json() as { data?: { product?: TargetProduct } };
@@ -146,7 +146,7 @@ export function createTargetAdapter(): PlatformAdapter & {
       try {
         const response = await fetch(
           `${API_BASE}/redsky_aggregations/v1/web/fiats_v1?${params.toString()}`,
-          { headers },
+          { headers, signal: AbortSignal.timeout(30_000) },
         );
         if (!response.ok) {
           logger.error({ status: response.status }, 'Target store availability lookup failed');

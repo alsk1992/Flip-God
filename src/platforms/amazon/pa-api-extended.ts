@@ -126,13 +126,13 @@ export function createAmazonPaApiExtended(credentials: AmazonCredentials): Amazo
 
       const response = await fetch(
         `https://${marketplace.host}/paapi5/getvariations`,
-        { method: 'POST', headers, body: payload },
+        { method: 'POST', headers, body: payload, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         logger.error(
-          { status: response.status, asin, error: errorText },
+          { status: response.status, asin },
           'PA-API GetVariations failed',
         );
         throw new Error(`Amazon PA-API GetVariations failed (${response.status})`);
@@ -171,13 +171,13 @@ export function createAmazonPaApiExtended(credentials: AmazonCredentials): Amazo
 
       const response = await fetch(
         `https://${marketplace.host}/paapi5/getbrowsenodes`,
-        { method: 'POST', headers, body: payload },
+        { method: 'POST', headers, body: payload, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         logger.error(
-          { status: response.status, error: errorText },
+          { status: response.status },
           'PA-API GetBrowseNodes failed',
         );
         throw new Error(`Amazon PA-API GetBrowseNodes failed (${response.status})`);

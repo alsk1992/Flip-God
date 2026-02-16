@@ -75,10 +75,11 @@ export function createEbayComplianceApi(credentials: EbayCredentials): EbayCompl
       const url = `${baseUrl}/sell/compliance/v1/listing_violation?${queryParams.toString()}`;
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get listing violations');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get listing violations');
         throw new Error(`eBay get listing violations failed (${response.status}): ${errorText}`);
       }
       return await response.json() as ListingViolationsResponse;
@@ -88,11 +89,11 @@ export function createEbayComplianceApi(credentials: EbayCredentials): EbayCompl
       const token = await getToken();
       const response = await fetch(
         `${baseUrl}/sell/compliance/v1/listing_violation_summary`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get violations summary');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get violations summary');
         throw new Error(`eBay get violations summary failed (${response.status}): ${errorText}`);
       }
       return await response.json() as ViolationsSummaryResponse;
@@ -109,11 +110,12 @@ export function createEbayComplianceApi(credentials: EbayCredentials): EbayCompl
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ listingId, complianceType }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, listingId, complianceType, error: errorText }, 'Failed to suppress violation');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, listingId, complianceType }, 'Failed to suppress violation');
         throw new Error(`eBay suppress violation failed (${response.status}): ${errorText}`);
       }
       logger.info({ listingId, complianceType }, 'Listing violation suppressed');

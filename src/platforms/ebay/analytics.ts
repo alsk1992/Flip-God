@@ -85,12 +85,12 @@ export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyt
 
       const response = await fetch(
         `${baseUrl}/sell/analytics/v1/traffic_report?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get traffic report');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get traffic report');
         return null;
       }
 
@@ -102,12 +102,12 @@ export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyt
 
       const response = await fetch(
         `${baseUrl}/sell/analytics/v1/customer_service_metric/${encodeURIComponent(params.metricType)}/${encodeURIComponent(params.evaluationType)}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get seller metrics');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get seller metrics');
         return null;
       }
 
@@ -124,12 +124,12 @@ export function createEbayAnalyticsApi(credentials: EbayCredentials): EbayAnalyt
 
         const response = await fetch(
           `${baseUrl}/developer/analytics/v1_beta/rate_limit?${qp.toString()}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to get rate limits');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to get rate limits');
           return [];
         }
 

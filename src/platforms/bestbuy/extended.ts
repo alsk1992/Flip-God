@@ -130,10 +130,10 @@ export function createBestBuyExtendedApi(apiKey?: string): BestBuyExtendedApi {
     if (!key) {
       throw new Error('Best Buy API key not configured - set BESTBUY_API_KEY env var');
     }
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, error: errorText }, 'Best Buy API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status }, 'Best Buy API request failed');
       throw new Error(`Best Buy API (${response.status}): ${errorText}`);
     }
     return response.json() as Promise<T>;

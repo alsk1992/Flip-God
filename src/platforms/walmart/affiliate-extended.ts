@@ -80,11 +80,11 @@ export function createWalmartAffiliateExtendedApi(credentials: WalmartCredential
   async function fetchAffiliate<T>(path: string): Promise<T> {
     const url = `${API_BASE}${path}`;
 
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'Walmart Affiliate API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'Walmart Affiliate API request failed');
       throw new Error(`Walmart Affiliate API (${response.status}): ${errorText}`);
     }
 

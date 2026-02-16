@@ -62,11 +62,12 @@ async function requestWalmartToken(
       'WM_QOS.CORRELATION_ID': randomUUID(),
     },
     body: 'grant_type=client_credentials',
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'Walmart Marketplace OAuth token request failed');
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
+    logger.error({ status: response.status }, 'Walmart Marketplace OAuth token request failed');
     throw new Error(`Walmart Marketplace OAuth failed (${response.status}): ${errorText}`);
   }
 

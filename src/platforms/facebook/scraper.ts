@@ -104,6 +104,7 @@ async function lookupLocation(query: string): Promise<LocationResult | null> {
       method: 'POST',
       headers: COMMON_HEADERS,
       body: body.toString(),
+      signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) return null;
 
@@ -196,6 +197,7 @@ export function createFacebookAdapter(options?: {
           method: 'POST',
           headers: COMMON_HEADERS,
           body: body.toString(),
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!response.ok) {

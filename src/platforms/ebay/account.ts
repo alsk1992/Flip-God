@@ -126,10 +126,11 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
         'Content-Type': 'application/json',
         ...(options?.headers ?? {}),
       },
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
       throw new Error(`eBay Account API (${response.status}): ${errorText}`);
     }
 
@@ -271,11 +272,12 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay create inventory location failed (${response.status}): ${errorText}`);
       }
 

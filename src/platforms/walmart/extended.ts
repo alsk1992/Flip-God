@@ -45,11 +45,11 @@ export function createWalmartExtendedApi(credentials: WalmartCredentials): Walma
   async function fetchWalmart<T>(path: string): Promise<T> {
     const url = `${API_BASE}${path}`;
 
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'Walmart API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'Walmart API request failed');
       throw new Error(`Walmart API (${response.status}): ${errorText}`);
     }
 

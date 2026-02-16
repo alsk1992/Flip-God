@@ -68,12 +68,13 @@ export function createEbayFeedApi(credentials: EbayCredentials): EbayFeedApi {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(params),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to create inventory task');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to create inventory task');
           return null;
         }
 
@@ -93,12 +94,12 @@ export function createEbayFeedApi(credentials: EbayCredentials): EbayFeedApi {
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/sell/feed/v1/inventory_task/${encodeURIComponent(taskId)}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, taskId, error: errorText }, 'Failed to get inventory task');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, taskId }, 'Failed to get inventory task');
           return null;
         }
 
@@ -135,12 +136,13 @@ export function createEbayFeedApi(credentials: EbayCredentials): EbayFeedApi {
               'Content-Length': String(body.length),
             },
             body,
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, taskId, error: errorText }, 'Failed to upload file');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, taskId }, 'Failed to upload file');
           return false;
         }
 
@@ -157,12 +159,12 @@ export function createEbayFeedApi(credentials: EbayCredentials): EbayFeedApi {
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/sell/feed/v1/task/${encodeURIComponent(taskId)}/download_result_file`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, taskId, error: errorText }, 'Failed to download result file');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, taskId }, 'Failed to download result file');
           return null;
         }
 
@@ -184,12 +186,12 @@ export function createEbayFeedApi(credentials: EbayCredentials): EbayFeedApi {
 
         const response = await fetch(
           `${baseUrl}/buy/feed/v1_beta/item_snapshot?${qp.toString()}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to get item snapshot feed');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to get item snapshot feed');
           return null;
         }
 

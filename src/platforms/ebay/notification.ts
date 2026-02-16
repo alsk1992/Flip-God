@@ -89,12 +89,13 @@ export function createEbayNotificationApi(credentials: EbayCredentials): EbayNot
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(params),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to create destination');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to create destination');
           return null;
         }
 
@@ -113,12 +114,12 @@ export function createEbayNotificationApi(credentials: EbayCredentials): EbayNot
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/commerce/notification/v1/destination`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to get destinations');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to get destinations');
           return [];
         }
 
@@ -142,12 +143,13 @@ export function createEbayNotificationApi(credentials: EbayCredentials): EbayNot
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(params),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to create subscription');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to create subscription');
           return null;
         }
 
@@ -166,12 +168,12 @@ export function createEbayNotificationApi(credentials: EbayCredentials): EbayNot
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/commerce/notification/v1/subscription`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to get subscriptions');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to get subscriptions');
           return [];
         }
 
@@ -188,12 +190,12 @@ export function createEbayNotificationApi(credentials: EbayCredentials): EbayNot
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/commerce/notification/v1/topic`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to get topics');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to get topics');
           return [];
         }
 

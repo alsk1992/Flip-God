@@ -96,7 +96,7 @@ export function createHomeDepotAdapter(): PlatformAdapter {
       });
 
       try {
-        const response = await fetch(SEARCH_URL, { method: 'POST', headers, body });
+        const response = await fetch(SEARCH_URL, { method: 'POST', headers, body, signal: AbortSignal.timeout(30_000) });
         if (!response.ok) {
           logger.error({ status: response.status }, 'Home Depot search failed');
           return [];

@@ -94,12 +94,13 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
             'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'eBay Browse API search failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'eBay Browse API search failed');
         throw new Error(`eBay Browse API search failed (${response.status})`);
       }
 
@@ -135,13 +136,14 @@ export function createEbayAdapter(credentials?: EbayCredentials): PlatformAdapte
             'Authorization': `Bearer ${accessToken}`,
             'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
           },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
         if (response.status === 404) return null;
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'eBay Browse API getItem failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'eBay Browse API getItem failed');
         return null;
       }
 

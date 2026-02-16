@@ -104,7 +104,7 @@ export function createWalmartMarketplaceExtendedApi(credentials: WalmartCredenti
       'Accept': 'application/json',
     };
 
-    const init: RequestInit = { method: options?.method ?? 'GET', headers };
+    const init: RequestInit = { method: options?.method ?? 'GET', headers, signal: AbortSignal.timeout(30_000) };
     if (options?.body) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(options.body);
@@ -113,8 +113,8 @@ export function createWalmartMarketplaceExtendedApi(credentials: WalmartCredenti
     const response = await fetch(url, init);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'Walmart Marketplace Extended API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'Walmart Marketplace Extended API request failed');
       throw new Error(`Walmart Marketplace API (${response.status}): ${errorText}`);
     }
 

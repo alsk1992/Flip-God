@@ -51,12 +51,13 @@ export function createEbayOrdersApi(credentials: EbayCredentials): EbayOrdersApi
         `${baseUrl}/sell/fulfillment/v1/order?${params.toString()}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get eBay orders');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get eBay orders');
         throw new Error(`eBay get orders failed (${response.status})`);
       }
 
@@ -75,13 +76,14 @@ export function createEbayOrdersApi(credentials: EbayCredentials): EbayOrdersApi
         `${baseUrl}/sell/fulfillment/v1/order/${encodeURIComponent(orderId)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
         if (response.status === 404) return null;
-        const errorText = await response.text();
-        logger.error({ status: response.status, orderId, error: errorText }, 'Failed to get eBay order');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, orderId }, 'Failed to get eBay order');
         return null;
       }
 
@@ -100,12 +102,13 @@ export function createEbayOrdersApi(credentials: EbayCredentials): EbayOrdersApi
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(fulfillment),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, orderId, error: errorText }, 'Failed to create shipping fulfillment');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, orderId }, 'Failed to create shipping fulfillment');
         throw new Error(`eBay create shipping fulfillment failed (${response.status}): ${errorText}`);
       }
 
@@ -129,12 +132,13 @@ export function createEbayOrdersApi(credentials: EbayCredentials): EbayOrdersApi
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(refund),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, orderId, error: errorText }, 'Failed to issue refund');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, orderId }, 'Failed to issue refund');
         throw new Error(`eBay issue refund failed (${response.status}): ${errorText}`);
       }
 

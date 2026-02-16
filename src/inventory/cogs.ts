@@ -181,10 +181,12 @@ export function handleCogsTool(
       case 'update_cogs': {
         const id = input.record_id as number;
         if (!Number.isFinite(id)) return { success: false, error: 'record_id required' };
+        const ALLOWED_COLUMNS = new Set(['product_id', 'supplier', 'unit_cost', 'quantity', 'shipping_cost', 'import_duty', 'other_costs', 'notes', 'purchased_at']);
         const updates: string[] = [];
         const params: unknown[] = [];
         for (const [k, v] of Object.entries(input)) {
           if (k === 'record_id' || v == null) continue;
+          if (!ALLOWED_COLUMNS.has(k)) continue;
           updates.push(`${k} = ?`);
           params.push(v);
         }

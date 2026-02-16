@@ -83,12 +83,13 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
         `${baseUrl}/commerce/taxonomy/v1/category_tree/${treeId}/get_category_suggestions?q=${encodeURIComponent(query)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, query, error: errorText }, 'Category suggestions failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, query }, 'Category suggestions failed');
         return [];
       }
 
@@ -117,12 +118,13 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
         `${baseUrl}/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, categoryId, error: errorText }, 'Item aspects query failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, categoryId }, 'Item aspects query failed');
         return [];
       }
 
@@ -137,6 +139,7 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
         `${baseUrl}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${marketplaceId ?? credentials.marketplace ?? 'EBAY_US'}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
@@ -157,13 +160,14 @@ export function createEbayTaxonomyApi(credentials: EbayCredentials): EbayTaxonom
         `${baseUrl}/commerce/taxonomy/v1/category_tree/${encodeURIComponent(resolvedTreeId)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         logger.error(
-          { status: response.status, treeId: resolvedTreeId, error: errorText },
+          { status: response.status, treeId: resolvedTreeId },
           'Failed to get category tree',
         );
         return null;

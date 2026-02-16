@@ -189,15 +189,15 @@ export function createAmazonSpApi(config: SpApiAuthConfig): AmazonSpApi {
       fetchOptions.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(url.toString(), fetchOptions);
+    const response = await fetch(url.toString(), { ...fetchOptions, signal: AbortSignal.timeout(30_000) });
 
+    if (response.status === 204) return {} as T;
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'SP-API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'SP-API request failed');
       throw new Error(`SP-API (${response.status}): ${errorText}`);
     }
 
-    if (response.status === 204) return {} as T;
     return response.json() as Promise<T>;
   }
 

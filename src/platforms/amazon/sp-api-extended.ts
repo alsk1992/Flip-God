@@ -627,11 +627,12 @@ export function createAmazonSpApiExtended(config: SpApiAuthConfig): AmazonSpApiE
       fetchOptions.body = JSON.stringify(options.body);
     }
 
+    fetchOptions.signal = AbortSignal.timeout(30_000);
     const response = await fetch(url.toString(), fetchOptions);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'SP-API extended request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'SP-API extended request failed');
       throw new Error(`SP-API (${response.status}): ${errorText}`);
     }
 

@@ -144,7 +144,7 @@ export function createLiquidationAdapter(): PlatformAdapter {
 
       try {
         const url = `${BASE_URL}/auction/search?flag=new&query=${encodeURIComponent(options.query)}`;
-        const response = await fetch(url, { headers: HEADERS });
+        const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(30_000) });
 
         if (!response.ok) {
           if (response.status === 403) {
@@ -190,6 +190,7 @@ export function createLiquidationAdapter(): PlatformAdapter {
       try {
         const response = await fetch(`${BASE_URL}/auction/${encodeURIComponent(productId)}`, {
           headers: HEADERS,
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return null;
 

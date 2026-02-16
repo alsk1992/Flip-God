@@ -120,11 +120,12 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(params),
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to create shipping quote');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to create shipping quote');
         throw new Error(`eBay create shipping quote failed (${response.status}): ${errorText}`);
       }
       const data = await response.json() as ShippingQuote;
@@ -136,11 +137,11 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
       const token = await getToken();
       const response = await fetch(
         `${baseUrl}/sell/logistics/v1_beta/shipping_quote/${encodeURIComponent(shippingQuoteId)}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, shippingQuoteId, error: errorText }, 'Failed to get shipping quote');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, shippingQuoteId }, 'Failed to get shipping quote');
         throw new Error(`eBay get shipping quote failed (${response.status}): ${errorText}`);
       }
       return await response.json() as ShippingQuote;
@@ -157,11 +158,12 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(params),
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to create shipment from quote');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to create shipment from quote');
         throw new Error(`eBay create shipment from quote failed (${response.status}): ${errorText}`);
       }
       const data = await response.json() as Shipment;
@@ -173,11 +175,11 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
       const token = await getToken();
       const response = await fetch(
         `${baseUrl}/sell/logistics/v1_beta/shipment/${encodeURIComponent(shipmentId)}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, shipmentId, error: errorText }, 'Failed to get shipment');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, shipmentId }, 'Failed to get shipment');
         throw new Error(`eBay get shipment failed (${response.status}): ${errorText}`);
       }
       return await response.json() as Shipment;
@@ -192,11 +194,12 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/pdf',
           },
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, shipmentId, error: errorText }, 'Failed to download label file');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, shipmentId }, 'Failed to download label file');
         throw new Error(`eBay download label file failed (${response.status}): ${errorText}`);
       }
       const arrayBuffer = await response.arrayBuffer();
@@ -212,11 +215,12 @@ export function createEbayLogisticsApi(credentials: EbayCredentials): EbayLogist
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, shipmentId, error: errorText }, 'Failed to cancel shipment');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, shipmentId }, 'Failed to cancel shipment');
         throw new Error(`eBay cancel shipment failed (${response.status}): ${errorText}`);
       }
       logger.info({ shipmentId }, 'Shipment cancelled');

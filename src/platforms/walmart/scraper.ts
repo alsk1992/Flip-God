@@ -70,12 +70,12 @@ export function createWalmartAdapter(credentials?: WalmartCredentials): Platform
 
       const response = await fetch(
         `${API_BASE}/api-proxy/service/affil/product/v2/search?${params.toString()}`,
-        { headers: getHeaders() },
+        { headers: getHeaders(), signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Walmart search failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Walmart search failed');
         throw new Error(`Walmart API search failed (${response.status})`);
       }
 
@@ -105,13 +105,13 @@ export function createWalmartAdapter(credentials?: WalmartCredentials): Platform
 
       const response = await fetch(
         `${API_BASE}/api-proxy/service/affil/product/v2/items/${encodeURIComponent(productId)}?format=json`,
-        { headers: getHeaders() },
+        { headers: getHeaders(), signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
         if (response.status === 404) return null;
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Walmart item lookup failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Walmart item lookup failed');
         return null;
       }
 

@@ -147,13 +147,14 @@ export function createEbayMetadataApi(
           buildUrl('get_item_condition_policies', categoryId),
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, categoryId, error: errorText },
+            { status: response.status, categoryId },
             'Failed to get item condition policies',
           );
           throw new Error(
@@ -184,13 +185,14 @@ export function createEbayMetadataApi(
           buildUrl('get_listing_structure_policies', categoryId),
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, categoryId, error: errorText },
+            { status: response.status, categoryId },
             'Failed to get listing structure policies',
           );
           throw new Error(
@@ -224,13 +226,14 @@ export function createEbayMetadataApi(
           buildUrl('get_negotiated_price_policies', categoryId),
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, categoryId, error: errorText },
+            { status: response.status, categoryId },
             'Failed to get negotiated price policies',
           );
           throw new Error(
@@ -267,13 +270,14 @@ export function createEbayMetadataApi(
           buildUrl('get_return_policies', categoryId),
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, categoryId, error: errorText },
+            { status: response.status, categoryId },
             'Failed to get return policies',
           );
           throw new Error(

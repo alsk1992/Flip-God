@@ -206,13 +206,14 @@ export function createEbaySellerExtendedApi(
           `${baseUrl}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`,
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, sku, error: errorText },
+            { status: response.status, sku },
             'Failed to get inventory item',
           );
           throw new Error(
@@ -258,13 +259,14 @@ export function createEbaySellerExtendedApi(
                 locale: 'en_US',
               })),
             }),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, count: items.length, error: errorText },
+            { status: response.status, count: items.length },
             'Failed to bulk create/replace inventory items',
           );
           throw new Error(
@@ -299,13 +301,14 @@ export function createEbaySellerExtendedApi(
           `${baseUrl}/sell/inventory/v1/offer?${params.toString()}`,
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, sku, error: errorText },
+            { status: response.status, sku },
             'Failed to get offers',
           );
           throw new Error(
@@ -344,13 +347,14 @@ export function createEbaySellerExtendedApi(
               'Content-Language': 'en-US',
             },
             body: JSON.stringify({ requests: offers }),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, count: offers.length, error: errorText },
+            { status: response.status, count: offers.length },
             'Failed to bulk create offers',
           );
           throw new Error(
@@ -387,13 +391,14 @@ export function createEbaySellerExtendedApi(
             body: JSON.stringify({
               requests: offerIds.map((id) => ({ offerId: id })),
             }),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, count: offerIds.length, error: errorText },
+            { status: response.status, count: offerIds.length },
             'Failed to bulk publish offers',
           );
           throw new Error(
@@ -444,13 +449,14 @@ export function createEbaySellerExtendedApi(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(location),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok && response.status !== 204) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, merchantLocationKey, error: errorText },
+            { status: response.status, merchantLocationKey },
             'Failed to create inventory location',
           );
           throw new Error(
@@ -476,13 +482,14 @@ export function createEbaySellerExtendedApi(
           `${baseUrl}/sell/inventory/v1/location?limit=100`,
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
-            { status: response.status, error: errorText },
+            { status: response.status },
             'Failed to get inventory locations',
           );
           throw new Error(
@@ -526,16 +533,16 @@ export function createEbaySellerExtendedApi(
               'Content-Language': 'en-US',
             },
             body: JSON.stringify(group),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok && response.status !== 204) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
             {
               status: response.status,
               inventoryItemGroupKey,
-              error: errorText,
             },
             'Failed to create/update inventory item group',
           );
@@ -570,16 +577,16 @@ export function createEbaySellerExtendedApi(
           `${baseUrl}/sell/inventory/v1/inventory_item_group/${encodeURIComponent(inventoryItemGroupKey)}`,
           {
             headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
           logger.error(
             {
               status: response.status,
               inventoryItemGroupKey,
-              error: errorText,
             },
             'Failed to get inventory item group',
           );

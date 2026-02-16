@@ -248,11 +248,11 @@ export function createEasyPostApi(config: EasyPostConfig): EasyPostApi {
       fetchOptions.body = JSON.stringify(options.body);
     }
 
-    const response = await fetch(url, fetchOptions);
+    const response = await fetch(url, { ...fetchOptions, signal: AbortSignal.timeout(30_000) });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'EasyPost API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'EasyPost API request failed');
       throw new Error(`EasyPost (${response.status}): ${errorText}`);
     }
 

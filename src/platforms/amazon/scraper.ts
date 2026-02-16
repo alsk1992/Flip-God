@@ -105,11 +105,12 @@ export function createAmazonAdapter(credentials?: AmazonCredentials): PlatformAd
         method: 'POST',
         headers,
         body: payload,
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'PA-API SearchItems failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'PA-API SearchItems failed');
         throw new Error(`Amazon PA-API SearchItems failed (${response.status})`);
       }
 
@@ -156,11 +157,12 @@ export function createAmazonAdapter(credentials?: AmazonCredentials): PlatformAd
         method: 'POST',
         headers,
         body: payload,
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'PA-API GetItems failed');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'PA-API GetItems failed');
         return null;
       }
 

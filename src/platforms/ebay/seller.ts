@@ -70,12 +70,13 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
             availability: item.availability,
             locale: item.locale ?? 'en_US',
           }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, sku: item.sku, error: errorText }, 'Failed to create inventory item');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, sku: item.sku }, 'Failed to create inventory item');
         throw new Error(`eBay create inventory item failed (${response.status}): ${errorText}`);
       }
 
@@ -93,11 +94,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
           'Content-Language': 'en-US',
         },
         body: JSON.stringify(offer),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, sku: offer.sku, error: errorText }, 'Failed to create offer');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, sku: offer.sku }, 'Failed to create offer');
         throw new Error(`eBay create offer failed (${response.status}): ${errorText}`);
       }
 
@@ -117,12 +119,13 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, offerId, error: errorText }, 'Failed to publish offer');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status, offerId }, 'Failed to publish offer');
         throw new Error(`eBay publish offer failed (${response.status}): ${errorText}`);
       }
 
@@ -185,6 +188,7 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
         `${baseUrl}/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
@@ -206,11 +210,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(currentOffer),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay update offer price failed (${response.status}): ${errorText}`);
       }
 
@@ -225,11 +230,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay withdraw offer failed (${response.status}): ${errorText}`);
       }
 
@@ -244,11 +250,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay delete inventory item failed (${response.status}): ${errorText}`);
       }
 
@@ -266,11 +273,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
         `${baseUrl}/sell/inventory/v1/inventory_item?${queryParams.toString()}`,
         {
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay get inventory items failed (${response.status}): ${errorText}`);
       }
 
@@ -302,11 +310,12 @@ export function createEbaySellerApi(credentials: EbayCredentials): EbaySellerApi
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ requests }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay bulk update price/quantity failed (${response.status}): ${errorText}`);
       }
 

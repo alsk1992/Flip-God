@@ -136,10 +136,11 @@ export async function obtainAliExpressToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
     body: new URLSearchParams(params).toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
     throw new Error(`AliExpress OAuth token create failed (${response.status}): ${errorText}`);
   }
 
@@ -178,10 +179,11 @@ export async function refreshAliExpressToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
     body: new URLSearchParams(params).toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
     throw new Error(`AliExpress OAuth token refresh failed (${response.status}): ${errorText}`);
   }
 
@@ -269,11 +271,12 @@ export async function callAliExpressApi<T = unknown>(
     method: 'POST',
     headers,
     body,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, method, error: errorText }, 'AliExpress API request failed');
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
+    logger.error({ status: response.status, method }, 'AliExpress API request failed');
     throw new Error(`AliExpress API failed (${response.status}): ${errorText}`);
   }
 

@@ -534,7 +534,7 @@ export function createRepricingEngine(
       maxPrice: row.max_price as number,
       enabled: Boolean(row.enabled),
       lastRun: (row.last_run as number) ?? undefined,
-      runIntervalMs: (row.run_interval_ms as number) ?? 3600000,
+      runIntervalMs: Math.max(60_000, (row.run_interval_ms as number) ?? 3600000),
       createdAt: (row.created_at as number) ?? undefined,
     };
   }

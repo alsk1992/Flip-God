@@ -60,12 +60,12 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const ids = itemIds.map(id => encodeURIComponent(id)).join(',');
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item?item_ids=${ids}`,
-          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to batch get items');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to batch get items');
           return [];
         }
 
@@ -82,12 +82,12 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item/get_item_by_legacy_id?legacy_item_id=${encodeURIComponent(legacyId)}`,
-          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, legacyId, error: errorText }, 'Failed to get item by legacy ID');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, legacyId }, 'Failed to get item by legacy ID');
           return null;
         }
 
@@ -103,12 +103,12 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item/get_items_by_item_group?item_group_id=${encodeURIComponent(itemGroupId)}`,
-          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, itemGroupId, error: errorText }, 'Failed to get items by item group');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, itemGroupId }, 'Failed to get items by item group');
           return null;
         }
 
@@ -137,12 +137,13 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
               'X-EBAY-C-MARKETPLACE-ID': marketplaceId,
             },
             body: JSON.stringify({ image: { imageUrl } }),
+            signal: AbortSignal.timeout(30_000),
           },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, error: errorText }, 'Failed to search by image');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status }, 'Failed to search by image');
           return [];
         }
 

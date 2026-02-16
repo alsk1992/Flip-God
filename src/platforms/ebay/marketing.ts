@@ -102,11 +102,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
           startDate: params.startDate,
           endDate: params.endDate,
         }),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to create campaign');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to create campaign');
         throw new Error(`eBay create campaign failed (${response.status}): ${errorText}`);
       }
 
@@ -125,12 +126,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
 
       const response = await fetch(
         `${baseUrl}/sell/marketing/v1/ad_campaign?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get campaigns');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get campaigns');
         throw new Error(`eBay get campaigns failed (${response.status}): ${errorText}`);
       }
 
@@ -143,12 +144,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/sell/marketing/v1/ad_campaign/${encodeURIComponent(campaignId)}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, campaignId, error: errorText }, 'Failed to get campaign');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, campaignId }, 'Failed to get campaign');
           return null;
         }
 
@@ -173,12 +174,13 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
             listingId,
             bidPercentage: bidPercentage ?? '5.0',
           }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to add ad');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to add ad');
         throw new Error(`eBay add ad failed (${response.status}): ${errorText}`);
       }
 
@@ -194,12 +196,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
 
       const response = await fetch(
         `${baseUrl}/sell/marketing/v1/ad_campaign/${encodeURIComponent(campaignId)}/ad?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get ads');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get ads');
         throw new Error(`eBay get ads failed (${response.status}): ${errorText}`);
       }
 
@@ -214,11 +216,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
         {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay remove ad failed (${response.status}): ${errorText}`);
       }
 
@@ -241,11 +244,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
               bidPercentage: bidPercentage ?? '5.0',
             })),
           }),
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay bulk create ads failed (${response.status}): ${errorText}`);
       }
 
@@ -261,11 +265,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay pause campaign failed (${response.status}): ${errorText}`);
       }
 
@@ -279,11 +284,12 @@ export function createEbayMarketingApi(credentials: EbayCredentials): EbayMarket
         {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
+          signal: AbortSignal.timeout(30_000),
         },
       );
 
       if (!response.ok && response.status !== 204) {
-        const errorText = await response.text();
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
         throw new Error(`eBay resume campaign failed (${response.status}): ${errorText}`);
       }
 

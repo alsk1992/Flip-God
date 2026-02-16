@@ -44,7 +44,8 @@ function parseConfigRow(row: Record<string, unknown>): DynamicPricingConfig {
   let params: DynamicPricingParams = {};
   try {
     params = JSON.parse((row.params as string) ?? '{}');
-  } catch {
+  } catch (parseErr) {
+    logger.warn({ id: row.id, err: parseErr }, 'Corrupted pricing config params, using defaults');
     params = {};
   }
 

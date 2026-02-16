@@ -96,11 +96,12 @@ export function createAmazonExtendedApi(config: AmazonSigningConfig): AmazonExte
       method: 'POST',
       headers,
       body,
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, operation, error: errorText }, 'Amazon PA-API error');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, operation }, 'Amazon PA-API error');
       throw new Error(`Amazon PA-API ${operation} failed (${response.status}): ${errorText}`);
     }
 

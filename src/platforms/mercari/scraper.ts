@@ -223,6 +223,7 @@ export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(use
           method: 'POST',
           headers: { ...baseHeaders, DPoP: dpop },
           body: JSON.stringify(body),
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!response.ok) {
@@ -247,6 +248,7 @@ export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(use
       try {
         const response = await fetch(url, {
           headers: { ...baseHeaders, DPoP: dpop },
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return null;
         const data = await response.json() as { data?: MercariItemDetail; result?: string };
@@ -270,6 +272,7 @@ export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(use
       try {
         const response = await fetch(url, {
           headers: { ...baseHeaders, DPoP: dpop },
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return null;
         const data = await response.json() as {

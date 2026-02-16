@@ -193,10 +193,11 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       init.body = JSON.stringify(options.body);
     }
 
+    init.signal = AbortSignal.timeout(30_000);
     const response = await fetch(url, init);
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, path, error: errorText }, 'Walmart Marketplace API request failed');
+      const errorText = (await response.text().catch(() => '')).slice(0, 200);
+      logger.error({ status: response.status, path }, 'Walmart Marketplace API request failed');
       throw new Error(`Walmart Marketplace API (${response.status}): ${errorText}`);
     }
     return response.json() as Promise<T>;

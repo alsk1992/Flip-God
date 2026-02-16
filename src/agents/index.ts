@@ -3413,8 +3413,10 @@ async function executeTool(
 
         if (result.success && result.listingId) {
           // Derive source platform and price from product data
+          const VALID_PLATFORMS = new Set(['amazon', 'ebay', 'walmart', 'aliexpress', 'bestbuy', 'target', 'costco', 'homedepot', 'poshmark', 'mercari', 'facebook', 'faire', 'bstock', 'bulq', 'liquidation']);
           const [sourcePlatformRaw] = productId.split(':');
-          const sourcePlatform = (sourcePlatformRaw !== 'ebay' ? sourcePlatformRaw : 'aliexpress') as Platform;
+          const sourcePlatformResolved = sourcePlatformRaw !== 'ebay' ? sourcePlatformRaw : 'aliexpress';
+          const sourcePlatform = (VALID_PLATFORMS.has(sourcePlatformResolved) ? sourcePlatformResolved : 'amazon') as Platform;
           const latestPrices = context.db.getLatestPrices(productId);
           const sourceEntry = latestPrices.find(p => p.platform === sourcePlatform);
           const sourcePrice = sourceEntry?.price ?? 0;
@@ -3528,8 +3530,8 @@ async function executeTool(
           if (listings.length === 0) {
             return { status: 'error', message: `Listing ${listingId} not found.` };
           }
-          titleToOptimize = titleToOptimize || listings[0].title || '';
-          descriptionToOptimize = listings[0].description || '';
+          titleToOptimize = titleToOptimize ?? listings[0].title ?? '';
+          descriptionToOptimize = listings[0].description ?? '';
         }
 
         if (!titleToOptimize) {
@@ -4036,10 +4038,10 @@ async function executeTool(
         analysis: analysis.map(a => ({
           category: a.category,
           opportunityCount: a.opportunity_count,
-          avgMargin: Math.round((a.avg_margin as number) * 100) / 100,
+          avgMargin: Math.round(((a.avg_margin as number) ?? 0) * 100) / 100,
           minBuyPrice: a.min_buy_price,
           maxSellPrice: a.max_sell_price,
-          avgProfit: Math.round((a.avg_profit as number) * 100) / 100,
+          avgProfit: Math.round(((a.avg_profit as number) ?? 0) * 100) / 100,
         })),
       };
     }
@@ -5499,10 +5501,10 @@ async function executeTool(
           return { status: 'error', message: 'eBay credentials with refresh token required.' };
         }
         const logisticsApi = createEbayLogisticsApi(creds.ebay);
-        const dims = input.dimensions as { height: number; length: number; width: number; unit?: string };
-        const wt = input.weight as { value: number; unit?: string };
-        const sf = input.shipFrom as { postalCode: string; country?: string };
-        const st = input.shipTo as { postalCode: string; country?: string };
+        const dims = (input.dimensions ?? {}) as { height: number; length: number; width: number; unit?: string };
+        const wt = (input.weight ?? {}) as { value: number; unit?: string };
+        const sf = (input.shipFrom ?? {}) as { postalCode: string; country?: string };
+        const st = (input.shipTo ?? {}) as { postalCode: string; country?: string };
         const quote = await logisticsApi.createShippingQuote({
           orders: [{ orderId: input.orderId as string }],
           packageSpecification: {
@@ -5692,7 +5694,11 @@ async function executeTool(
           return { status: 'error', message: 'Keepa API key not configured.' };
         }
         const keepa = createKeepaApi({ apiKey: keepaKey4 });
-        const priceInCents = Math.round((input.targetPrice as number) * 100);
+        const targetPrice = typeof input.targetPrice === 'number' ? input.targetPrice : 0;
+        if (targetPrice <= 0) {
+          return { status: 'error', message: 'targetPrice must be a positive number.' };
+        }
+        const priceInCents = Math.round(targetPrice * 100);
         const success = await keepa.addTracking({
           asin: input.asin as string,
           thresholdValue: priceInCents,
@@ -5723,15 +5729,15 @@ async function executeTool(
         const shipment = await ep.createShipment({
           fromAddress: {
             street1: (input.fromStreet as string) ?? '',
-            city: input.fromCity as string ?? '',
-            state: input.fromState as string ?? '',
-            zip: input.fromZip as string,
-            country: (input.fromCountry as string) ?? 'US',
+            city: (input.fromCity as string | undefined) ?? '',
+            state: (input.fromState as string | undefined) ?? '',
+            zip: (input.fromZip as string | undefined) ?? '',
+            country: (input.fromCountry as string | undefined) ?? 'US',
           },
           toAddress: {
-            street1: (input.toStreet as string) ?? '',
-            city: input.toCity as string ?? '',
-            state: input.toState as string ?? '',
+            street1: (input.toStreet as string | undefined) ?? '',
+            city: (input.toCity as string | undefined) ?? '',
+            state: (input.toState as string | undefined) ?? '',
             zip: input.toZip as string,
             country: (input.toCountry as string) ?? 'US',
           },
@@ -6010,9 +6016,9 @@ async function executeTool(
         if (!order) {
           return { status: 'error', message: `Order ${input.purchaseOrderId} not found.` };
         }
-        const lineItems = order.orderLines.map(ol => ({
+        const lineItems = (order.orderLines ?? []).map(ol => ({
           lineNumber: ol.lineNumber,
-          quantity: parseInt(ol.orderLineQuantity.amount, 10) || 1,
+          quantity: (() => { const p = parseInt(ol.orderLineQuantity?.amount, 10); return p > 0 ? p : 1; })(),
         }));
         const success = await sellerApi.shipOrder(input.purchaseOrderId as string, {
           lineItems,
@@ -6270,8 +6276,8 @@ async function executeTool(
           }
         } else if (strategy === 'fixed_margin') {
           const sourcePrice = listing.source_price as number;
-          const targetMargin = typeof input.marginPct === 'number' ? input.marginPct : 20;
-          if (sourcePrice > 0) {
+          const targetMargin = typeof input.marginPct === 'number' ? Math.min(input.marginPct, 99) : 20;
+          if (sourcePrice > 0 && targetMargin < 100) {
             newPrice = Math.round((sourcePrice / (1 - targetMargin / 100)) * 100) / 100;
           }
         } else if (strategy === 'match') {
@@ -6295,8 +6301,8 @@ async function executeTool(
             try {
               const seller = createEbaySellerApi(creds.ebay);
               await seller.updateOfferPrice(listing.platform_listing_id as string, newPrice);
-            } catch {
-              // DB already updated, platform update is best-effort
+            } catch (platformErr) {
+              logger.warn({ err: platformErr, listingId: listing.id }, 'Platform price update failed (DB already updated)');
             }
           }
 
@@ -6781,7 +6787,11 @@ async function executeTool(
           clientSecret: creds.amazon.spClientSecret!,
           refreshToken: creds.amazon.spRefreshToken,
         });
-        const mcfItems = (input.items as Array<{ sellerSku: string; quantity: number }>).map((item, idx) => ({
+        const rawItems = input.items as Array<{ sellerSku: string; quantity: number }> | undefined;
+        if (!Array.isArray(rawItems) || rawItems.length === 0) {
+          return { status: 'error', message: 'items array is required with at least one item.' };
+        }
+        const mcfItems = rawItems.map((item, idx) => ({
           sellerSku: item.sellerSku,
           sellerFulfillmentOrderItemId: `${input.orderId}-item-${idx + 1}`,
           quantity: item.quantity,

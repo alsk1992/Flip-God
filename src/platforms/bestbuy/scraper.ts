@@ -77,7 +77,7 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
         // NOTE: Best Buy Products API only supports API key as a query parameter (apiKey=...).
         // Header-based auth is not available for this API. Use HTTPS to protect the key in transit.
         const url = `${API_BASE}/products${filter}?apiKey=${apiKey}&format=json&pageSize=${pageSize}&show=sku,name,salePrice,regularPrice,onSale,freeShipping,shippingCost,inStoreAvailability,onlineAvailability,url,image,largeFrontImage,upc,manufacturer,categoryPath,customerReviewAverage,customerReviewCount`;
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
         if (!response.ok) {
           logger.error({ status: response.status }, 'Best Buy search failed');
           return [];
@@ -97,7 +97,7 @@ export function createBestBuyAdapter(config?: BestBuyConfig): PlatformAdapter {
       try {
         // NOTE: Best Buy Products API only supports API key as a query parameter.
         const url = `${API_BASE}/products/${encodeURIComponent(productId)}.json?apiKey=${apiKey}&show=sku,name,salePrice,regularPrice,onSale,freeShipping,shippingCost,inStoreAvailability,onlineAvailability,url,image,largeFrontImage,upc,manufacturer,categoryPath,customerReviewAverage,customerReviewCount`;
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
         if (!response.ok) return null;
         const item = await response.json() as BestBuyProduct;
         return parseProduct(item);

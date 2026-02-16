@@ -113,12 +113,12 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
 
       const response = await fetch(
         `${baseUrl}/sell/finances/v1/transaction?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get transactions');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get transactions');
         throw new Error(`eBay get transactions failed (${response.status}): ${errorText}`);
       }
 
@@ -133,12 +133,12 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
 
       const response = await fetch(
         `${baseUrl}/sell/finances/v1/transaction_summary?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get transaction summary');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get transaction summary');
         return null;
       }
 
@@ -155,12 +155,12 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
 
       const response = await fetch(
         `${baseUrl}/sell/finances/v1/payout?${qp.toString()}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get payouts');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get payouts');
         throw new Error(`eBay get payouts failed (${response.status}): ${errorText}`);
       }
 
@@ -172,13 +172,13 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
       const token = await getToken();
       const response = await fetch(
         `${baseUrl}/sell/finances/v1/payout/${encodeURIComponent(payoutId)}`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
         if (response.status === 404) return null;
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get payout');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get payout');
         return null;
       }
 
@@ -189,12 +189,12 @@ export function createEbayFinancesApi(credentials: EbayCredentials): EbayFinance
       const token = await getToken();
       const response = await fetch(
         `${baseUrl}/sell/finances/v1/seller_funds_summary`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to get funds summary');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to get funds summary');
         return null;
       }
 

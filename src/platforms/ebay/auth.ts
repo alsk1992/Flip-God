@@ -85,11 +85,12 @@ export async function refreshEbayToken(
       'Authorization': `Basic ${basicAuth}`,
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'eBay refresh_token grant failed');
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
+    logger.error({ status: response.status }, 'eBay refresh_token grant failed');
     throw new Error(`eBay token refresh failed (${response.status}): ${errorText}`);
   }
 
@@ -170,11 +171,12 @@ export async function getAccessToken(config: EbayAuthConfig): Promise<string> {
       'Authorization': `Basic ${basicAuth}`,
     },
     body: body.toString(),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'eBay OAuth token request failed');
+    const errorText = (await response.text().catch(() => '')).slice(0, 200);
+    logger.error({ status: response.status }, 'eBay OAuth token request failed');
     throw new Error(`eBay OAuth failed (${response.status}): ${errorText}`);
   }
 

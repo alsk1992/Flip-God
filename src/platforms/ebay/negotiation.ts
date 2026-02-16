@@ -84,10 +84,11 @@ export function createEbayNegotiationApi(credentials: EbayCredentials): EbayNego
           'Authorization': `Bearer ${token}`,
           'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
         },
+        signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to find eligible items');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to find eligible items');
         throw new Error(`eBay find eligible items failed (${response.status}): ${errorText}`);
       }
       return await response.json() as EligibleItemsResponse;
@@ -105,11 +106,12 @@ export function createEbayNegotiationApi(credentials: EbayCredentials): EbayNego
             'X-EBAY-C-MARKETPLACE-ID': ebayMarketplace,
           },
           body: JSON.stringify(params),
+          signal: AbortSignal.timeout(30_000),
         },
       );
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.error({ status: response.status, error: errorText }, 'Failed to send offer to interested buyers');
+        const errorText = (await response.text().catch(() => '')).slice(0, 200);
+        logger.error({ status: response.status }, 'Failed to send offer to interested buyers');
         throw new Error(`eBay send offer to interested buyers failed (${response.status}): ${errorText}`);
       }
       const data = await response.json() as SendOfferResponse;

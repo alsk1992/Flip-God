@@ -140,7 +140,7 @@ export function createBStockAdapter(): PlatformAdapter {
         const params = new URLSearchParams({ q: options.query });
         if (options.category) params.set('category', options.category);
 
-        const response = await fetch(`${SEARCH_BASE}?${params.toString()}`, { headers: HEADERS });
+        const response = await fetch(`${SEARCH_BASE}?${params.toString()}`, { headers: HEADERS, signal: AbortSignal.timeout(30_000) });
 
         if (!response.ok) {
           if (response.status === 403) {
@@ -170,6 +170,7 @@ export function createBStockAdapter(): PlatformAdapter {
       try {
         const response = await fetch(`https://bstock.com/auction/${encodeURIComponent(productId)}`, {
           headers: HEADERS,
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return null;
 

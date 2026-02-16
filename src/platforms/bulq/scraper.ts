@@ -133,7 +133,7 @@ export function createBulqAdapter(): PlatformAdapter {
       try {
         // BULQ search URL pattern
         const url = `${BASE_URL}/search?q=${encodeURIComponent(options.query)}`;
-        const response = await fetch(url, { headers: HEADERS });
+        const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(30_000) });
 
         if (!response.ok) {
           if (response.status === 403) {
@@ -163,6 +163,7 @@ export function createBulqAdapter(): PlatformAdapter {
       try {
         const response = await fetch(`${BASE_URL}/lot/${encodeURIComponent(productId)}`, {
           headers: HEADERS,
+          signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return null;
 

@@ -196,6 +196,7 @@ export function calculateMonthlyStorageFee(
   month: number, // 1-12
   isHazmat: boolean = false,
 ): number {
+  if (dims.lengthInches <= 0 || dims.widthInches <= 0 || dims.heightInches <= 0) return 0;
   const cubicFeet = (dims.lengthInches * dims.widthInches * dims.heightInches) / 1728;
   const sizeTier = determineSizeTier(dims);
   const isOversize = sizeTier !== 'small_standard' && sizeTier !== 'large_standard';

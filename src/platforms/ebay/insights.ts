@@ -76,12 +76,12 @@ export function createEbayInsightsApi(credentials: EbayCredentials): EbayInsight
 
         const response = await fetch(
           `${baseUrl}/buy/marketplace_insights/v1_beta/item_sales/search?${qp.toString()}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, query, error: errorText }, 'Failed to search sold items');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, query }, 'Failed to search sold items');
           return { items: [], total: 0 };
         }
 

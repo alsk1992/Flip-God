@@ -108,6 +108,7 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { get
         // Primary: Try vm-rest/posts endpoint with search params
         const response = await fetch(`${VM_REST_BASE}/posts?${params.toString()}`, {
           headers,
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (response.ok) {
@@ -125,6 +126,7 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { get
             ...HEADERS,
             'Accept': 'text/html',
           },
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!webResponse.ok) {
@@ -168,12 +170,14 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { get
         // vm-rest/posts/{id} returns the full listing JSON
         const response = await fetch(`${VM_REST_BASE}/posts/${encodeURIComponent(productId)}`, {
           headers,
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!response.ok) {
           // Fallback: try the listing page __NEXT_DATA__
           const webResponse = await fetch(`https://poshmark.com/listing/${encodeURIComponent(productId)}`, {
             headers: { ...HEADERS, 'Accept': 'text/html' },
+            signal: AbortSignal.timeout(30_000),
           });
           if (!webResponse.ok) return null;
 
@@ -211,7 +215,7 @@ export function createPoshmarkAdapter(cookies?: string): PlatformAdapter & { get
         });
         if (params?.cursor) urlParams.set('max_id', params.cursor);
         const url = `https://poshmark.com/vm-rest/users/${encodeURIComponent(userId)}/posts?${urlParams.toString()}`;
-        const response = await fetch(url, { headers });
+        const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
         if (!response.ok) {
           logger.warn({ userId, status: response.status }, 'Poshmark closet fetch failed');
           return [];

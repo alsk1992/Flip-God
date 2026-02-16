@@ -74,12 +74,12 @@ export function createEbayCatalogApi(credentials: EbayCredentials): EbayCatalogA
 
         const response = await fetch(
           `${baseUrl}/commerce/catalog/v1_beta/product_summary/search?${qp.toString()}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, query, error: errorText }, 'Failed to search catalog');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, query }, 'Failed to search catalog');
           return [];
         }
 
@@ -96,12 +96,12 @@ export function createEbayCatalogApi(credentials: EbayCredentials): EbayCatalogA
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/commerce/catalog/v1_beta/product/${encodeURIComponent(epid)}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) },
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          logger.error({ status: response.status, epid, error: errorText }, 'Failed to get catalog product');
+          const errorText = (await response.text().catch(() => '')).slice(0, 200);
+          logger.error({ status: response.status, epid }, 'Failed to get catalog product');
           return null;
         }
 

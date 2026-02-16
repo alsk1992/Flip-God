@@ -117,7 +117,7 @@ export function createCostcoAdapter(options?: {
       });
 
       try {
-        const response = await fetch(`${SEARCH_URL}?${params.toString()}`, { headers });
+        const response = await fetch(`${SEARCH_URL}?${params.toString()}`, { headers, signal: AbortSignal.timeout(30_000) });
 
         if (!response.ok) {
           // Akamai may return 403 — log and return empty
@@ -161,7 +161,7 @@ export function createCostcoAdapter(options?: {
           catalogId: '10701',
         });
 
-        const response = await fetch(`${PRICE_URL}?${priceParams.toString()}`, { headers });
+        const response = await fetch(`${PRICE_URL}?${priceParams.toString()}`, { headers, signal: AbortSignal.timeout(30_000) });
 
         if (response.ok) {
           const contentType = response.headers.get('content-type') ?? '';
