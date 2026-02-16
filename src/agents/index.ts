@@ -58,6 +58,7 @@ import { createAliExpressExtendedApi } from '../platforms/aliexpress/extended';
 import { createWalmartExtendedApi } from '../platforms/walmart/extended';
 import { createAmazonExtendedApi } from '../platforms/amazon/extended';
 import { createAmazonSpApi } from '../platforms/amazon/sp-api';
+import type { SpApiAuthConfig } from '../platforms/amazon/sp-auth';
 import { createEbayFinancesApi } from '../platforms/ebay/finances';
 import { createEbayAnalyticsApi } from '../platforms/ebay/analytics';
 import { createEbayMarketingApi } from '../platforms/ebay/marketing';
@@ -97,6 +98,8 @@ import {
   getDsOrderTracking,
   queryDsFreight,
 } from '../platforms/aliexpress/complete';
+import { getAuthorizationUrl, obtainAliExpressToken } from '../platforms/aliexpress/auth';
+import { createFbaMcfApi } from '../fulfillment/fba';
 
 const logger = createLogger('agent');
 
@@ -385,13 +388,17 @@ function defineTools(): ToolDefinition[] {
     },
     {
       name: 'optimize_listing',
-      description: 'Optimize an existing listing by improving title, description, and keywords for better search ranking.',
+      description: 'Optimize a listing for better search ranking. Returns optimized title, description, bullet points, and search terms.',
       input_schema: {
         type: 'object',
         properties: {
-          listingId: { type: 'string', description: 'Internal listing ID to optimize' },
+          listingId: { type: 'string', description: 'Internal listing ID to optimize (reads title/description from DB)' },
+          platform: { type: 'string', description: 'Target platform for optimization hints', enum: ['ebay', 'amazon'] },
+          productName: { type: 'string', description: 'Product name (used if no listingId)' },
+          category: { type: 'string', description: 'Product category for keyword suggestions' },
+          brand: { type: 'string', description: 'Brand name to include in title' },
+          features: { type: 'string', description: 'Comma-separated product features for bullet points' },
         },
-        required: ['listingId'],
       },
     },
     {
@@ -639,6 +646,20 @@ function defineTools(): ToolDefinition[] {
           appSecret: { type: 'string', description: 'AliExpress App Secret' },
         },
         required: ['appKey', 'appSecret'],
+      },
+    },
+    {
+      name: 'setup_aliexpress_oauth',
+      description: 'Complete AliExpress OAuth flow. Step 1: provide appKey + redirectUri to get the authorization URL. Step 2: after user authorizes, provide appKey + appSecret + code to exchange for tokens.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          appKey: { type: 'string', description: 'AliExpress App Key' },
+          appSecret: { type: 'string', description: 'AliExpress App Secret (required for code exchange)' },
+          redirectUri: { type: 'string', description: 'OAuth redirect URI (required for step 1)' },
+          code: { type: 'string', description: 'Authorization code from AliExpress redirect (required for step 2)' },
+        },
+        required: ['appKey'],
       },
     },
     {
@@ -978,6 +999,27 @@ function defineTools(): ToolDefinition[] {
       input_schema: {
         type: 'object',
         properties: {},
+      },
+    },
+    {
+      name: 'ebay_transaction_summary',
+      description: 'Get eBay transaction summary — aggregated credit/debit totals and fees for P&L reporting.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          filter: { type: 'string', description: 'eBay filter string (e.g., "transactionDate:[2026-01-01T00:00:00.000Z..2026-02-01T00:00:00.000Z]")' },
+        },
+      },
+    },
+    {
+      name: 'ebay_payout_detail',
+      description: 'Get details for a specific eBay payout by payout ID.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          payoutId: { type: 'string', description: 'eBay payout ID' },
+        },
+        required: ['payoutId'],
       },
     },
     {
@@ -1526,6 +1568,8 @@ function defineTools(): ToolDefinition[] {
           spClientId: { type: 'string', description: 'LWA client ID' },
           spClientSecret: { type: 'string', description: 'LWA client secret' },
           spRefreshToken: { type: 'string', description: 'LWA refresh token' },
+          sellerId: { type: 'string', description: 'Amazon Seller ID (optional, defaults to "me")' },
+          marketplaceId: { type: 'string', description: 'Amazon Marketplace ID (optional, defaults to ATVPDKIKX0DER for US)' },
         },
         required: ['spClientId', 'spClientSecret', 'spRefreshToken'],
       },
@@ -2513,6 +2557,144 @@ function defineTools(): ToolDefinition[] {
         required: ['query'],
       },
     },
+
+    // -------------------------------------------------------------------------
+    // Best Buy Categories (Feature 1 - Category browsing)
+    // -------------------------------------------------------------------------
+    {
+      name: 'bestbuy_get_categories',
+      description: 'Get Best Buy product categories for browsing and filtering. Optionally pass a parent category ID to get subcategories.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          parentId: { type: 'string', description: 'Parent category ID to get subcategories (omit for top-level)' },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // FBA Multi-Channel Fulfillment (Feature 2)
+    // -------------------------------------------------------------------------
+    {
+      name: 'fba_create_fulfillment',
+      description: 'Create an FBA Multi-Channel Fulfillment (MCF) order. Ships from Amazon FBA warehouse to any destination — enables fulfilling eBay/Walmart orders via FBA inventory.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'Unique fulfillment order ID (e.g., "MCF-12345")' },
+          displayableOrderId: { type: 'string', description: 'Order ID shown to buyer' },
+          displayableOrderComment: { type: 'string', description: 'Comment shown to buyer (e.g., "Thank you for your order!")' },
+          shippingSpeed: { type: 'string', description: 'Shipping speed', enum: ['Standard', 'Expedited', 'Priority'] },
+          name: { type: 'string', description: 'Recipient full name' },
+          addressLine1: { type: 'string', description: 'Street address line 1' },
+          addressLine2: { type: 'string', description: 'Street address line 2 (optional)' },
+          city: { type: 'string', description: 'City' },
+          stateOrRegion: { type: 'string', description: 'State or region code' },
+          postalCode: { type: 'string', description: 'Postal/ZIP code' },
+          countryCode: { type: 'string', description: 'Country code (e.g., US)', default: 'US' },
+          phone: { type: 'string', description: 'Recipient phone number (optional)' },
+          items: {
+            type: 'array',
+            description: 'Items to fulfill: [{sellerSku, quantity}]',
+            items: {
+              type: 'object',
+              properties: {
+                sellerSku: { type: 'string', description: 'Amazon seller SKU' },
+                quantity: { type: 'number', description: 'Quantity to ship' },
+              },
+              required: ['sellerSku', 'quantity'],
+            },
+          },
+        },
+        required: ['orderId', 'shippingSpeed', 'name', 'addressLine1', 'city', 'stateOrRegion', 'postalCode', 'items'],
+      },
+    },
+    {
+      name: 'fba_check_fulfillment',
+      description: 'Check the status of an FBA Multi-Channel Fulfillment (MCF) order. Shows shipment tracking info.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          orderId: { type: 'string', description: 'The sellerFulfillmentOrderId used when creating the MCF order' },
+        },
+        required: ['orderId'],
+      },
+    },
+    {
+      name: 'fba_check_inventory',
+      description: 'Check FBA inventory levels. Shows fulfillable quantity, inbound, and reserved stock per SKU.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sellerSkus: { type: 'string', description: 'Comma-separated seller SKUs to check (omit for all FBA inventory)' },
+        },
+      },
+    },
+
+    // -------------------------------------------------------------------------
+    // Multi-Warehouse Inventory (Feature 3)
+    // -------------------------------------------------------------------------
+    {
+      name: 'warehouse_list',
+      description: 'List all warehouses/locations for the current user (home, FBA, 3PL, etc.).',
+      input_schema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'warehouse_create',
+      description: 'Create a new warehouse/location for inventory tracking.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Warehouse name (e.g., "Home Office", "FBA US East", "ShipBob LA")' },
+          type: { type: 'string', description: 'Warehouse type', enum: ['manual', 'fba', '3pl'] },
+          address: { type: 'string', description: 'Warehouse address (JSON or free text)' },
+          isDefault: { type: 'boolean', description: 'Set as default warehouse' },
+        },
+        required: ['name'],
+      },
+    },
+    {
+      name: 'warehouse_inventory',
+      description: 'Get inventory at a specific warehouse, or across all warehouses for a SKU.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          warehouseId: { type: 'string', description: 'Warehouse ID (omit to show all warehouses)' },
+          sku: { type: 'string', description: 'Filter by SKU (omit to show all SKUs at the warehouse)' },
+        },
+      },
+    },
+    {
+      name: 'warehouse_update_stock',
+      description: 'Update stock quantity at a warehouse for a SKU. Use for receiving shipments, adjustments, etc.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          warehouseId: { type: 'string', description: 'Warehouse ID' },
+          sku: { type: 'string', description: 'Product SKU' },
+          quantity: { type: 'number', description: 'New total quantity (not delta)' },
+          productId: { type: 'string', description: 'Internal product ID to link (optional)' },
+        },
+        required: ['warehouseId', 'sku', 'quantity'],
+      },
+    },
+    {
+      name: 'warehouse_transfer',
+      description: 'Transfer stock between warehouses. Decrements source and increments destination.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          fromWarehouseId: { type: 'string', description: 'Source warehouse ID' },
+          toWarehouseId: { type: 'string', description: 'Destination warehouse ID' },
+          sku: { type: 'string', description: 'Product SKU to transfer' },
+          quantity: { type: 'number', description: 'Quantity to transfer' },
+        },
+        required: ['fromWarehouseId', 'toWarehouseId', 'sku', 'quantity'],
+      },
+    },
   ];
 
   // Apply metadata to all tools
@@ -2628,6 +2810,20 @@ function getAdapter(platform: Platform, creds: ReturnType<typeof getUserCreds>):
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
+}
+
+/**
+ * Build SP-API auth config from Amazon credentials.
+ * Passes through optional sellerId and marketplaceId if the user configured them.
+ */
+function buildSpApiConfig(amazon: AmazonCredentials): SpApiAuthConfig {
+  return {
+    clientId: amazon.spClientId!,
+    clientSecret: amazon.spClientSecret!,
+    refreshToken: amazon.spRefreshToken!,
+    ...(amazon.spSellerId ? { sellerId: amazon.spSellerId } : {}),
+    ...(amazon.spMarketplaceId ? { marketplaceId: amazon.spMarketplaceId } : {}),
+  };
 }
 
 /**
@@ -2749,6 +2945,55 @@ async function executeTool(
         context.credentials.setCredentials(context.userId, 'aliexpress', credData);
       }
       return { status: 'ok', message: 'AliExpress credentials saved and encrypted.' };
+    }
+
+    case 'setup_aliexpress_oauth': {
+      const appKey = input.appKey as string;
+      const appSecret = input.appSecret as string | undefined;
+      const redirectUri = input.redirectUri as string | undefined;
+      const code = input.code as string | undefined;
+
+      // Step 2: Exchange authorization code for tokens
+      if (code) {
+        if (!appSecret) {
+          return { status: 'error', message: 'appSecret is required to exchange an authorization code for tokens.' };
+        }
+        try {
+          const token = await obtainAliExpressToken(code, { appKey, appSecret });
+          // Store the full credential set including tokens
+          const credData = {
+            appKey,
+            appSecret,
+            accessToken: token.accessToken,
+            refreshToken: token.refreshToken,
+          };
+          if (context.credentials.setCredentials) {
+            context.credentials.setCredentials(context.userId, 'aliexpress', credData);
+          }
+          return {
+            status: 'ok',
+            message: 'AliExpress OAuth tokens obtained and saved. Access token and refresh token are now stored.',
+            expiresAt: new Date(token.expiresAt).toISOString(),
+            refreshExpiresAt: new Date(token.refreshExpiresAt).toISOString(),
+          };
+        } catch (err) {
+          return {
+            status: 'error',
+            message: `Failed to exchange code for tokens: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
+      }
+
+      // Step 1: Generate authorization URL
+      if (!redirectUri) {
+        return { status: 'error', message: 'Provide redirectUri to get the authorization URL, or provide code to exchange for tokens.' };
+      }
+      const authUrl = getAuthorizationUrl(appKey, redirectUri);
+      return {
+        status: 'ok',
+        authorizationUrl: authUrl,
+        message: `Visit this URL to authorize the app, then use this tool again with the code parameter: ${authUrl}`,
+      };
     }
 
     case 'list_credentials': {
@@ -3163,30 +3408,44 @@ async function executeTool(
 
     case 'optimize_listing': {
       try {
-        const listingId = input.listingId as string;
+        const listingId = input.listingId as string | undefined;
+        const platform = (input.platform as string | undefined) ?? 'ebay';
+        const brand = input.brand as string | undefined;
+        const category = input.category as string | undefined;
+        const features = input.features as string | undefined;
 
-        // Get listing from DB
-        const listings = context.db.query<{ title: string; price: number }>(
-          'SELECT title, price FROM listings WHERE id = ?',
-          [listingId],
-        );
+        let titleToOptimize = (input.productName as string | undefined) ?? '';
+        let descriptionToOptimize = '';
 
-        if (listings.length === 0) {
-          return { status: 'error', message: `Listing ${listingId} not found.` };
+        // If listingId provided, read from DB
+        if (listingId) {
+          const listings = context.db.query<{ title: string; description: string; price: number }>(
+            'SELECT title, description, price FROM listings WHERE id = ?',
+            [listingId],
+          );
+          if (listings.length === 0) {
+            return { status: 'error', message: `Listing ${listingId} not found.` };
+          }
+          titleToOptimize = titleToOptimize || listings[0].title || '';
+          descriptionToOptimize = listings[0].description || '';
         }
 
-        const { title: optimizedTitle, description: optimizedDescription } = await optimizeListing(
-          listings[0].title ?? '',
-          '',
-        );
+        if (!titleToOptimize) {
+          return { status: 'error', message: 'Provide either a listingId or productName to optimize.' };
+        }
+
+        const optimized = await optimizeListing(titleToOptimize, descriptionToOptimize, {
+          platform,
+          brand,
+          category,
+          features: features ? features.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+        });
 
         return {
           status: 'ok',
           listingId,
-          optimized: {
-            title: optimizedTitle,
-            description: optimizedDescription,
-          },
+          platform,
+          optimized,
           message: 'Listing optimized. Apply changes with update_listing_price or create a new listing.',
         };
       } catch (err) {
@@ -4073,11 +4332,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured. Use setup_amazon_sp_credentials first.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const keywords = input.keywords ? (input.keywords as string).split(',').map(s => s.trim()) : undefined;
         const identifiers = input.identifiers ? (input.identifiers as string).split(',').map(s => s.trim()) : undefined;
         const result = await spApi.searchCatalog({
@@ -4098,11 +4353,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const asins = (input.asins as string).split(',').map(s => s.trim());
         const pricing = await spApi.getCompetitivePricing(asins);
         return { status: 'ok', pricing, count: pricing.length };
@@ -4117,11 +4368,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const fees = await spApi.getMyFeesEstimate([{
           asin: input.asin as string,
           price: input.price as number,
@@ -4140,11 +4387,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const attributes: Record<string, unknown> = {};
         if (input.title) attributes.item_name = [{ value: input.title, language_tag: 'en_US' }];
         if (input.price) attributes.purchasable_offer = [{ our_price: [{ schedule: [{ value_with_tax: input.price }] }], currency: 'USD' }];
@@ -4168,11 +4411,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const orderStatuses = input.orderStatuses ? (input.orderStatuses as string).split(',').map(s => s.trim()) : undefined;
         const result = await spApi.getOrders({
           createdAfter: input.createdAfter as string | undefined,
@@ -4191,11 +4430,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spApi = createAmazonSpApi({
-          clientId: creds.amazon.spClientId!,
-          clientSecret: creds.amazon.spClientSecret!,
-          refreshToken: creds.amazon.spRefreshToken,
-        });
+        const spApi = createAmazonSpApi(buildSpApiConfig(creds.amazon));
         const sellerSkus = input.sellerSkus ? (input.sellerSkus as string).split(',').map(s => s.trim()) : undefined;
         const result = await spApi.getInventorySummaries({ sellerSkus });
         return { status: 'ok', summaries: result.summaries, count: result.summaries.length };
@@ -4213,7 +4448,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtRestr = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtRestr = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const restrictions = await spExtRestr.getListingsRestrictions(input.asin as string, input.conditionType as string | undefined);
         return { status: 'ok', ...restrictions };
       } catch (err) {
@@ -4227,7 +4462,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtFin = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtFin = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const finEvents = await spExtFin.listFinancialEvents({ orderId: input.orderId as string | undefined, postedAfter: input.postedAfter as string | undefined, postedBefore: input.postedBefore as string | undefined });
         return { status: 'ok', ...finEvents };
       } catch (err) {
@@ -4241,7 +4476,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtShip = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtShip = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         await spExtShip.confirmShipment(input.orderId as string, { packageReferenceId: input.packageReferenceId as string, carrierCode: input.carrierCode as string, trackingNumber: input.trackingNumber as string, shipDate: input.shipDate as string, orderItems: input.orderItems as Array<{ orderItemId: string; quantity: number }> });
         return { status: 'ok', message: 'Shipment confirmed successfully.' };
       } catch (err) {
@@ -4255,7 +4490,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtPrev = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtPrev = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const preview = await spExtPrev.getFulfillmentPreview({ name: input.name as string, addressLine1: input.addressLine1 as string, city: input.city as string, stateOrRegion: input.stateOrRegion as string, postalCode: input.postalCode as string, countryCode: (input.countryCode as string) ?? 'US' }, input.items as Array<{ sellerSku: string; quantity: number }>);
         return { status: 'ok', ...preview };
       } catch (err) {
@@ -4269,7 +4504,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtMcf = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtMcf = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         await spExtMcf.createFulfillmentOrder({
           sellerFulfillmentOrderId: input.sellerFulfillmentOrderId as string, displayableOrderId: input.displayableOrderId as string, displayableOrderDate: new Date().toISOString(), displayableOrderComment: input.displayableOrderComment as string,
           shippingSpeedCategory: input.shippingSpeedCategory as 'Standard' | 'Expedited' | 'Priority',
@@ -4288,7 +4523,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtBuy = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtBuy = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const shipResult = await spExtBuy.purchaseShipment({ clientReferenceId: input.clientReferenceId as string, shipFrom: input.shipFrom as ShippingAddress, shipTo: input.shipTo as ShippingAddress, packages: input.packages as ShippingPackage[], selectedService: { serviceId: input.serviceId as string } });
         return { status: 'ok', ...shipResult };
       } catch (err) {
@@ -4302,7 +4537,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtTrack = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtTrack = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const tracking = await spExtTrack.getTracking(input.trackingId as string, input.carrierId as string);
         if (!tracking) { return { status: 'error', message: 'Tracking not found.' }; }
         return { status: 'ok', ...tracking };
@@ -4317,7 +4552,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtRpt = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtRpt = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const reportResult = await spExtRpt.createReport(input.reportType as string, input.startDate as string | undefined, input.endDate as string | undefined);
         return { status: 'ok', ...reportResult };
       } catch (err) {
@@ -4331,7 +4566,7 @@ async function executeTool(
         return { status: 'error', message: 'Amazon SP-API credentials not configured.' };
       }
       try {
-        const spExtRptGet = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spExtRptGet = createAmazonSpApiExtended(buildSpApiConfig(creds.amazon));
         const report = await spExtRptGet.getReport(input.reportId as string);
         let downloadUrl: string | undefined;
         if (report.reportDocumentId) { const doc = await spExtRptGet.getReportDocument(report.reportDocumentId); downloadUrl = doc.url; }
@@ -4348,7 +4583,7 @@ async function executeTool(
     case 'amazon_sp_get_catalog_item': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompCat = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompCat = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const catalogItem = await spCompCat.getCatalogItem(input.asin as string);
         if (!catalogItem) { return { status: 'error', message: `ASIN ${input.asin} not found.` }; }
         return { status: 'ok', ...catalogItem };
@@ -4358,7 +4593,7 @@ async function executeTool(
     case 'amazon_sp_item_offers': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompOffers = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompOffers = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const offers = await spCompOffers.getItemOffers(input.asin as string);
         if (!offers) { return { status: 'error', message: `No offers found for ASIN ${input.asin}.` }; }
         return { status: 'ok', data: offers };
@@ -4368,7 +4603,7 @@ async function executeTool(
     case 'amazon_sp_batch_fees': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompFees = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompFees = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const feeResults = await spCompFees.getMyFeesEstimates(input.items as Array<{ asin: string; price: number; currencyCode?: string }>);
         return { status: 'ok', fees: feeResults, count: feeResults.length };
       } catch (err) { logger.error({ err, tool: 'amazon_sp_batch_fees' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
@@ -4377,7 +4612,7 @@ async function executeTool(
     case 'amazon_sp_get_order_details': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompOrd = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompOrd = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const order = await spCompOrd.getOrder(input.orderId as string);
         if (!order) { return { status: 'error', message: `Order ${input.orderId} not found.` }; }
         return { status: 'ok', ...order };
@@ -4387,7 +4622,7 @@ async function executeTool(
     case 'amazon_sp_get_order_items': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompOrdItems = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompOrdItems = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const orderItems = await spCompOrdItems.getOrderItems(input.orderId as string);
         if (!orderItems) { return { status: 'error', message: `Order items for ${input.orderId} not found.` }; }
         return { status: 'ok', ...orderItems };
@@ -4397,7 +4632,7 @@ async function executeTool(
     case 'amazon_sp_delete_listing': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompDel = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompDel = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         await spCompDel.deleteListingsItem(input.sellerId as string, input.sku as string);
         return { status: 'ok', message: `Listing ${input.sku} deleted.` };
       } catch (err) { logger.error({ err, tool: 'amazon_sp_delete_listing' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
@@ -4406,7 +4641,7 @@ async function executeTool(
     case 'amazon_sp_order_metrics': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompMetrics = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompMetrics = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const metrics = await spCompMetrics.getOrderMetrics({ interval: input.interval as string, granularity: input.granularity as 'Day' | 'Week' | 'Month' });
         return { status: 'ok', ...metrics };
       } catch (err) { logger.error({ err, tool: 'amazon_sp_order_metrics' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
@@ -4415,7 +4650,7 @@ async function executeTool(
     case 'amazon_sp_data_kiosk_query': {
       if (!creds.amazon?.spRefreshToken) { return { status: 'error', message: 'Amazon SP-API credentials not configured.' }; }
       try {
-        const spCompKiosk = createAmazonSpApiComplete({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
+        const spCompKiosk = createAmazonSpApiComplete(buildSpApiConfig(creds.amazon));
         const queryResult = await spCompKiosk.createQuery(input.query as string);
         return { status: 'ok', ...queryResult };
       } catch (err) { logger.error({ err, tool: 'amazon_sp_data_kiosk_query' }, 'Tool execution failed'); return { status: 'error', message: err instanceof Error ? err.message : String(err) }; }
@@ -4680,6 +4915,42 @@ async function executeTool(
           return { status: 'error', message: 'Could not retrieve funds summary.' };
         }
         return { status: 'ok', ...summary };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'ebay_transaction_summary': {
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const finApiTxnSum = createEbayFinancesApi(creds.ebay);
+        const txnSummary = await finApiTxnSum.getTransactionSummary({
+          filter: input.filter as string | undefined,
+        });
+        if (!txnSummary) {
+          return { status: 'error', message: 'Could not retrieve transaction summary.' };
+        }
+        return { status: 'ok', ...txnSummary };
+      } catch (err) {
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'ebay_payout_detail': {
+      try {
+        if (!creds.ebay?.refreshToken) {
+          return { status: 'error', message: 'eBay credentials with refresh token required.' };
+        }
+        const finApiPayDet = createEbayFinancesApi(creds.ebay);
+        const payoutDetail = await finApiPayDet.getPayout(input.payoutId as string);
+        if (!payoutDetail) {
+          return { status: 'error', message: `Payout ${input.payoutId} not found.` };
+        }
+        return { status: 'ok', ...payoutDetail };
       } catch (err) {
         logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
@@ -5490,12 +5761,14 @@ async function executeTool(
     case 'setup_amazon_sp_credentials': {
       // Merge SP-API fields into existing Amazon credentials
       const existing = creds.amazon ?? {} as AmazonCredentials;
-      const merged = {
+      const merged: AmazonCredentials = {
         ...existing,
         spClientId: input.spClientId as string,
         spClientSecret: input.spClientSecret as string,
         spRefreshToken: input.spRefreshToken as string,
       };
+      if (input.sellerId) merged.spSellerId = input.sellerId as string;
+      if (input.marketplaceId) merged.spMarketplaceId = input.marketplaceId as string;
       if (context.credentials.setCredentials) {
         context.credentials.setCredentials(context.userId, 'amazon', merged);
       }
@@ -6375,6 +6648,353 @@ async function executeTool(
         return { status: 'ok', results, count: results.length };
       } catch (err) {
         logger.error({ err, tool: toolName }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Best Buy Categories (Feature 1)
+    // -----------------------------------------------------------------------
+    case 'bestbuy_get_categories': {
+      try {
+        const bbApi = createBestBuyExtendedApi(process.env.BESTBUY_API_KEY);
+        const bbCategories = await bbApi.getCategories(input.parentId as string | undefined);
+        return { status: 'ok', categories: bbCategories, count: bbCategories.length };
+      } catch (err) {
+        logger.error({ err, tool: 'bestbuy_get_categories' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // FBA Multi-Channel Fulfillment (Feature 2)
+    // -----------------------------------------------------------------------
+    case 'fba_create_fulfillment': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured. Required for FBA MCF.' };
+      }
+      try {
+        const mcfApi = createFbaMcfApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const mcfItems = (input.items as Array<{ sellerSku: string; quantity: number }>).map((item, idx) => ({
+          sellerSku: item.sellerSku,
+          sellerFulfillmentOrderItemId: `${input.orderId}-item-${idx + 1}`,
+          quantity: item.quantity,
+        }));
+        const mcfResult = await mcfApi.createFulfillmentOrder({
+          sellerFulfillmentOrderId: input.orderId as string,
+          displayableOrderId: (input.displayableOrderId as string) ?? (input.orderId as string),
+          displayableOrderDate: new Date().toISOString(),
+          displayableOrderComment: (input.displayableOrderComment as string) ?? 'Thank you for your order!',
+          shippingSpeedCategory: (input.shippingSpeed as 'Standard' | 'Expedited' | 'Priority') ?? 'Standard',
+          destinationAddress: {
+            name: input.name as string,
+            addressLine1: input.addressLine1 as string,
+            addressLine2: input.addressLine2 as string | undefined,
+            city: input.city as string,
+            stateOrRegion: input.stateOrRegion as string,
+            postalCode: input.postalCode as string,
+            countryCode: (input.countryCode as string) ?? 'US',
+            phone: input.phone as string | undefined,
+          },
+          items: mcfItems,
+        });
+        return { ...mcfResult, status: 'ok', orderId: input.orderId };
+      } catch (err) {
+        logger.error({ err, tool: 'fba_create_fulfillment' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'fba_check_fulfillment': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured. Required for FBA MCF.' };
+      }
+      try {
+        const mcfCheckApi = createFbaMcfApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const mcfOrder = await mcfCheckApi.getFulfillmentOrder(input.orderId as string);
+        if (!mcfOrder) {
+          return { status: 'error', message: `MCF order ${input.orderId} not found.` };
+        }
+        return { status: 'ok', ...mcfOrder };
+      } catch (err) {
+        logger.error({ err, tool: 'fba_check_fulfillment' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'fba_check_inventory': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials not configured. Required for FBA inventory.' };
+      }
+      try {
+        const mcfInvApi = createFbaMcfApi({
+          clientId: creds.amazon.spClientId!,
+          clientSecret: creds.amazon.spClientSecret!,
+          refreshToken: creds.amazon.spRefreshToken,
+        });
+        const fbaSkus = input.sellerSkus
+          ? (input.sellerSkus as string).split(',').map(s => s.trim()).filter(Boolean)
+          : undefined;
+        const fbaResult = await mcfInvApi.getInventory(fbaSkus);
+        return { status: 'ok', summaries: fbaResult.summaries, count: fbaResult.summaries.length };
+      } catch (err) {
+        logger.error({ err, tool: 'fba_check_inventory' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Multi-Warehouse Inventory (Feature 3)
+    // -----------------------------------------------------------------------
+    case 'warehouse_list': {
+      try {
+        const whList = context.db.query<{
+          id: string;
+          user_id: string;
+          name: string;
+          type: string;
+          address: string | null;
+          is_default: number;
+          created_at: number;
+        }>(
+          'SELECT id, user_id, name, type, address, is_default, created_at FROM warehouses WHERE user_id = ? ORDER BY is_default DESC, name ASC',
+          [context.userId],
+        );
+        return {
+          status: 'ok',
+          warehouses: whList.map(w => ({
+            id: w.id,
+            name: w.name,
+            type: w.type,
+            address: w.address,
+            isDefault: Boolean(w.is_default),
+            createdAt: new Date(w.created_at).toISOString(),
+          })),
+          count: whList.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'warehouse_list' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'warehouse_create': {
+      try {
+        const newWhId = randomUUID().slice(0, 12);
+        const newWhType = (input.type as string) ?? 'manual';
+        const newWhDefault = input.isDefault ? 1 : 0;
+
+        // If setting as default, unset any existing default for this user
+        if (newWhDefault) {
+          context.db.run(
+            'UPDATE warehouses SET is_default = 0 WHERE user_id = ? AND is_default = 1',
+            [context.userId],
+          );
+        }
+
+        context.db.run(
+          'INSERT INTO warehouses (id, user_id, name, type, address, is_default, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [newWhId, context.userId, input.name as string, newWhType, (input.address as string) ?? null, newWhDefault, Date.now()],
+        );
+        return {
+          status: 'ok',
+          warehouse: {
+            id: newWhId,
+            name: input.name,
+            type: newWhType,
+            address: input.address ?? null,
+            isDefault: Boolean(newWhDefault),
+          },
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'warehouse_create' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'warehouse_inventory': {
+      try {
+        let whInvQuery: string;
+        const whInvParams: unknown[] = [];
+
+        if (input.warehouseId && input.sku) {
+          whInvQuery = `SELECT wi.id, wi.warehouse_id, w.name as warehouse_name, wi.sku, wi.product_id, wi.quantity, wi.reserved, wi.updated_at
+                        FROM warehouse_inventory wi JOIN warehouses w ON w.id = wi.warehouse_id
+                        WHERE wi.warehouse_id = ? AND wi.sku = ? AND w.user_id = ?`;
+          whInvParams.push(input.warehouseId, input.sku, context.userId);
+        } else if (input.warehouseId) {
+          whInvQuery = `SELECT wi.id, wi.warehouse_id, w.name as warehouse_name, wi.sku, wi.product_id, wi.quantity, wi.reserved, wi.updated_at
+                        FROM warehouse_inventory wi JOIN warehouses w ON w.id = wi.warehouse_id
+                        WHERE wi.warehouse_id = ? AND w.user_id = ? ORDER BY wi.sku`;
+          whInvParams.push(input.warehouseId, context.userId);
+        } else if (input.sku) {
+          whInvQuery = `SELECT wi.id, wi.warehouse_id, w.name as warehouse_name, wi.sku, wi.product_id, wi.quantity, wi.reserved, wi.updated_at
+                        FROM warehouse_inventory wi JOIN warehouses w ON w.id = wi.warehouse_id
+                        WHERE wi.sku = ? AND w.user_id = ? ORDER BY w.name`;
+          whInvParams.push(input.sku, context.userId);
+        } else {
+          whInvQuery = `SELECT wi.id, wi.warehouse_id, w.name as warehouse_name, wi.sku, wi.product_id, wi.quantity, wi.reserved, wi.updated_at
+                        FROM warehouse_inventory wi JOIN warehouses w ON w.id = wi.warehouse_id
+                        WHERE w.user_id = ? ORDER BY w.name, wi.sku`;
+          whInvParams.push(context.userId);
+        }
+
+        const whInventory = context.db.query<{
+          id: string;
+          warehouse_id: string;
+          warehouse_name: string;
+          sku: string;
+          product_id: string | null;
+          quantity: number;
+          reserved: number;
+          updated_at: number;
+        }>(whInvQuery, whInvParams);
+
+        return {
+          status: 'ok',
+          inventory: whInventory.map(i => ({
+            id: i.id,
+            warehouseId: i.warehouse_id,
+            warehouseName: i.warehouse_name,
+            sku: i.sku,
+            productId: i.product_id,
+            quantity: i.quantity,
+            reserved: i.reserved,
+            available: i.quantity - i.reserved,
+            updatedAt: new Date(i.updated_at).toISOString(),
+          })),
+          count: whInventory.length,
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'warehouse_inventory' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'warehouse_update_stock': {
+      try {
+        // Verify the warehouse belongs to this user
+        const whCheck = context.db.query<{ id: string }>(
+          'SELECT id FROM warehouses WHERE id = ? AND user_id = ?',
+          [input.warehouseId, context.userId],
+        );
+        if (whCheck.length === 0) {
+          return { status: 'error', message: `Warehouse ${input.warehouseId} not found.` };
+        }
+
+        const stockQty = typeof input.quantity === 'number' ? input.quantity : 0;
+        if (stockQty < 0) {
+          return { status: 'error', message: 'Quantity cannot be negative.' };
+        }
+
+        // Upsert warehouse inventory
+        const existingInv = context.db.query<{ id: string }>(
+          'SELECT id FROM warehouse_inventory WHERE warehouse_id = ? AND sku = ?',
+          [input.warehouseId, input.sku],
+        );
+
+        if (existingInv.length > 0) {
+          context.db.run(
+            'UPDATE warehouse_inventory SET quantity = ?, product_id = COALESCE(?, product_id), updated_at = ? WHERE warehouse_id = ? AND sku = ?',
+            [stockQty, (input.productId as string) ?? null, Date.now(), input.warehouseId, input.sku],
+          );
+        } else {
+          const newInvId = randomUUID().slice(0, 12);
+          context.db.run(
+            'INSERT INTO warehouse_inventory (id, warehouse_id, sku, product_id, quantity, reserved, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+            [newInvId, input.warehouseId, input.sku, (input.productId as string) ?? null, stockQty, Date.now()],
+          );
+        }
+
+        return { status: 'ok', warehouseId: input.warehouseId, sku: input.sku, quantity: stockQty };
+      } catch (err) {
+        logger.error({ err, tool: 'warehouse_update_stock' }, 'Tool execution failed');
+        return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+
+    case 'warehouse_transfer': {
+      try {
+        const xferQty = typeof input.quantity === 'number' ? input.quantity : 0;
+        if (xferQty <= 0) {
+          return { status: 'error', message: 'Transfer quantity must be positive.' };
+        }
+
+        // Verify both warehouses belong to this user
+        const xferFrom = context.db.query<{ id: string }>(
+          'SELECT id FROM warehouses WHERE id = ? AND user_id = ?',
+          [input.fromWarehouseId, context.userId],
+        );
+        const xferTo = context.db.query<{ id: string }>(
+          'SELECT id FROM warehouses WHERE id = ? AND user_id = ?',
+          [input.toWarehouseId, context.userId],
+        );
+        if (xferFrom.length === 0) {
+          return { status: 'error', message: `Source warehouse ${input.fromWarehouseId} not found.` };
+        }
+        if (xferTo.length === 0) {
+          return { status: 'error', message: `Destination warehouse ${input.toWarehouseId} not found.` };
+        }
+
+        // Check source has enough stock
+        const srcInv = context.db.query<{ quantity: number; reserved: number }>(
+          'SELECT quantity, reserved FROM warehouse_inventory WHERE warehouse_id = ? AND sku = ?',
+          [input.fromWarehouseId, input.sku],
+        );
+        if (srcInv.length === 0) {
+          return { status: 'error', message: `SKU ${input.sku} not found in source warehouse.` };
+        }
+        const avail = srcInv[0].quantity - srcInv[0].reserved;
+        if (avail < xferQty) {
+          return { status: 'error', message: `Insufficient stock. Available: ${avail}, requested: ${xferQty}.` };
+        }
+
+        // Decrement source
+        context.db.run(
+          'UPDATE warehouse_inventory SET quantity = quantity - ?, updated_at = ? WHERE warehouse_id = ? AND sku = ?',
+          [xferQty, Date.now(), input.fromWarehouseId, input.sku],
+        );
+
+        // Increment destination (upsert)
+        const dstInv = context.db.query<{ id: string }>(
+          'SELECT id FROM warehouse_inventory WHERE warehouse_id = ? AND sku = ?',
+          [input.toWarehouseId, input.sku],
+        );
+        if (dstInv.length > 0) {
+          context.db.run(
+            'UPDATE warehouse_inventory SET quantity = quantity + ?, updated_at = ? WHERE warehouse_id = ? AND sku = ?',
+            [xferQty, Date.now(), input.toWarehouseId, input.sku],
+          );
+        } else {
+          const xferInvId = randomUUID().slice(0, 12);
+          // Copy product_id from source if available
+          const srcProdId = context.db.query<{ product_id: string | null }>(
+            'SELECT product_id FROM warehouse_inventory WHERE warehouse_id = ? AND sku = ?',
+            [input.fromWarehouseId, input.sku],
+          );
+          context.db.run(
+            'INSERT INTO warehouse_inventory (id, warehouse_id, sku, product_id, quantity, reserved, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+            [xferInvId, input.toWarehouseId, input.sku, srcProdId[0]?.product_id ?? null, xferQty, Date.now()],
+          );
+        }
+
+        return {
+          status: 'ok',
+          transferred: xferQty,
+          sku: input.sku,
+          from: input.fromWarehouseId,
+          to: input.toWarehouseId,
+        };
+      } catch (err) {
+        logger.error({ err, tool: 'warehouse_transfer' }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }

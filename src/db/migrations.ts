@@ -318,9 +318,51 @@ const MIGRATIONS: Migration[] = [
     `,
   },
 
-  // ── Migration 4: Job queue and repricing rules ────────────────────────────
+  // ── Migration 4: Hot-column performance indexes ─────────────────────────
   {
     version: 4,
+    name: 'hot_column_indexes',
+    up: `
+      -- Products: UPC lookups (idx_products_upc already exists from migration 2,
+      -- but IF NOT EXISTS makes this safe / idempotent)
+      CREATE INDEX IF NOT EXISTS idx_products_upc ON products(upc);
+
+      -- Prices: product + platform + time lookups
+      CREATE INDEX IF NOT EXISTS idx_prices_product_id ON prices(product_id);
+      CREATE INDEX IF NOT EXISTS idx_prices_platform ON prices(platform);
+      CREATE INDEX IF NOT EXISTS idx_prices_fetched_at ON prices(fetched_at);
+
+      -- Opportunities: status + margin + time filtering
+      CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
+      CREATE INDEX IF NOT EXISTS idx_opportunities_margin ON opportunities(margin_pct);
+      CREATE INDEX IF NOT EXISTS idx_opportunities_found_at ON opportunities(found_at);
+
+      -- Listings: status + platform filtering
+      CREATE INDEX IF NOT EXISTS idx_listings_status ON listings(status);
+      CREATE INDEX IF NOT EXISTS idx_listings_platform ON listings(platform);
+
+      -- Orders: status + time filtering
+      CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+      CREATE INDEX IF NOT EXISTS idx_orders_ordered_at ON orders(ordered_at);
+    `,
+    down: `
+      DROP INDEX IF EXISTS idx_products_upc;
+      DROP INDEX IF EXISTS idx_prices_product_id;
+      DROP INDEX IF EXISTS idx_prices_platform;
+      DROP INDEX IF EXISTS idx_prices_fetched_at;
+      DROP INDEX IF EXISTS idx_opportunities_status;
+      DROP INDEX IF EXISTS idx_opportunities_margin;
+      DROP INDEX IF EXISTS idx_opportunities_found_at;
+      DROP INDEX IF EXISTS idx_listings_status;
+      DROP INDEX IF EXISTS idx_listings_platform;
+      DROP INDEX IF EXISTS idx_orders_status;
+      DROP INDEX IF EXISTS idx_orders_ordered_at;
+    `,
+  },
+
+  // ── Migration 5: Job queue and repricing rules ────────────────────────────
+  {
+    version: 5,
     name: 'jobs_and_repricing_rules',
     up: `
       -- Job queue for bulk operations
@@ -362,6 +404,43 @@ const MIGRATIONS: Migration[] = [
     down: `
       DROP TABLE IF EXISTS repricing_rules;
       DROP TABLE IF EXISTS jobs;
+    `,
+  },
+
+  // ── Migration 6: Multi-warehouse inventory ──────────────────────────────
+  {
+    version: 6,
+    name: 'warehouses_and_inventory',
+    up: `
+      -- Warehouses (home, FBA, 3PL, etc.)
+      CREATE TABLE IF NOT EXISTS warehouses (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'manual',
+        address TEXT,
+        is_default INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_warehouses_user ON warehouses(user_id);
+
+      -- Warehouse inventory per SKU per location
+      CREATE TABLE IF NOT EXISTS warehouse_inventory (
+        id TEXT PRIMARY KEY,
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        sku TEXT NOT NULL,
+        product_id TEXT,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        reserved INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(warehouse_id, sku)
+      );
+      CREATE INDEX IF NOT EXISTS idx_warehouse_inv_sku ON warehouse_inventory(sku);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_inv_warehouse ON warehouse_inventory(warehouse_id);
+    `,
+    down: `
+      DROP TABLE IF EXISTS warehouse_inventory;
+      DROP TABLE IF EXISTS warehouses;
     `,
   },
 ];

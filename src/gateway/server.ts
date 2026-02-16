@@ -659,13 +659,50 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
   // ---------------------------------------------------------------------------
   const server = http.createServer(app);
 
-  // Create WebSocket server for chat
-  const wss = new WebSocketServer({ server, path: '/chat' });
+  // Create WebSocket server for chat (noServer so we can authenticate on upgrade)
+  const wss = new WebSocketServer({ noServer: true });
 
   wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
     if (callbacks?.onChatConnection) {
       callbacks.onChatConnection(ws, req);
     }
+  });
+
+  // Authenticate WebSocket upgrade requests
+  server.on('upgrade', (req: http.IncomingMessage, socket, head) => {
+    // Only handle /chat path
+    const pathname = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`).pathname;
+    if (pathname !== '/chat') {
+      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // If authToken is configured, require matching token
+    if (config.authToken) {
+      const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+      const queryToken = url.searchParams.get('token');
+      const authHeader = req.headers.authorization;
+      const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+      const token = queryToken ?? headerToken;
+
+      if (
+        typeof token !== 'string' ||
+        token.length !== config.authToken.length ||
+        !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(config.authToken))
+      ) {
+        const ip = req.socket.remoteAddress ?? 'unknown';
+        logger.warn({ ip }, 'WebSocket connection rejected: invalid or missing auth token');
+        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
+
+    // Auth passed (or no auth configured — development mode)
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req);
+    });
   });
 
   return {

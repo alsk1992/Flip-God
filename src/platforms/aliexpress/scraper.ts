@@ -10,8 +10,20 @@ import type { Platform, AliExpressCredentials } from '../../types';
 import type { PlatformAdapter, ProductSearchResult, SearchOptions } from '../index';
 import type { AliExpressProductQueryResponse, AliExpressProductDetailResponse, AliExpressApiProduct } from './types';
 import { callAliExpressApi, type AliExpressAuthConfig } from './auth';
+import { createAliExpressShippingApi } from './shipping';
 
 const logger = createLogger('aliexpress');
+
+/**
+ * Estimate shipping cost based on product price when real shipping data
+ * is not available. AliExpress sellers frequently offer free shipping on
+ * higher-priced items; conservative defaults prevent overstating margins.
+ */
+function estimateShipping(price: number): number {
+  if (price >= 20) return 0;       // Free shipping common for $20+
+  if (price >= 5)  return 4.99;    // $5-20 range: standard shipping
+  return 2.99;                     // Under $5: small packet rate
+}
 
 function parseProduct(item: AliExpressApiProduct): ProductSearchResult {
   const price = parseFloat(
@@ -27,7 +39,7 @@ function parseProduct(item: AliExpressApiProduct): ProductSearchResult {
     platform: 'aliexpress',
     title: item.product_title,
     price,
-    shipping: 0, // AliExpress typically offers free shipping; actual rates vary by seller and destination
+    shipping: estimateShipping(price),
     currency: item.target_app_sale_price_currency
       ?? item.app_sale_price_currency
       ?? item.sale_price_currency
@@ -44,7 +56,16 @@ function parseProduct(item: AliExpressApiProduct): ProductSearchResult {
   };
 }
 
-export function createAliExpressAdapter(credentials?: AliExpressCredentials): PlatformAdapter {
+export interface AliExpressAdapterWithShipping extends PlatformAdapter {
+  /**
+   * Fetch real shipping cost for a specific product from the AliExpress
+   * logistics API. Falls back to the price-based estimate when the API
+   * call fails or credentials lack an access token.
+   */
+  getShippingCost(productId: string, countryCode?: string): Promise<number>;
+}
+
+export function createAliExpressAdapter(credentials?: AliExpressCredentials): AliExpressAdapterWithShipping {
   function getAuthConfig(): AliExpressAuthConfig | null {
     if (!credentials) return null;
     return {
@@ -52,6 +73,31 @@ export function createAliExpressAdapter(credentials?: AliExpressCredentials): Pl
       appSecret: credentials.appSecret,
       accessToken: credentials.accessToken,
     };
+  }
+
+  /**
+   * Try to resolve the real cheapest shipping cost via the logistics API.
+   * Returns null when the call cannot be made or returns no results.
+   */
+  async function fetchRealShippingCost(
+    productId: string,
+    countryCode: string,
+    authConfig: AliExpressAuthConfig,
+  ): Promise<number | null> {
+    try {
+      const shippingApi = createAliExpressShippingApi(authConfig);
+      const cheapest = await shippingApi.getCheapestShipping(productId, countryCode);
+      if (cheapest) {
+        return parseFloat(cheapest.freightAmount.amount) || 0;
+      }
+      return null;
+    } catch (err) {
+      logger.debug(
+        { productId, error: err instanceof Error ? err.message : String(err) },
+        'Failed to fetch real shipping cost, will use estimate',
+      );
+      return null;
+    }
   }
 
   return {
@@ -115,7 +161,60 @@ export function createAliExpressAdapter(credentials?: AliExpressCredentials): Pl
       );
 
       const products = response.resp_result?.result?.products?.product ?? [];
-      return products.length > 0 ? parseProduct(products[0]) : null;
+      if (products.length === 0) return null;
+
+      const product = parseProduct(products[0]);
+
+      // Attempt to resolve real shipping cost when credentials include an access token
+      if (authConfig.accessToken) {
+        const realCost = await fetchRealShippingCost(productId, 'US', authConfig);
+        if (realCost !== null) {
+          product.shipping = realCost;
+        }
+      }
+
+      return product;
+    },
+
+    async getShippingCost(productId: string, countryCode = 'US'): Promise<number> {
+      const authConfig = getAuthConfig();
+      if (!authConfig) {
+        logger.warn('AliExpress credentials not configured, returning estimate');
+        return estimateShipping(0);
+      }
+
+      const realCost = await fetchRealShippingCost(productId, countryCode, authConfig);
+      if (realCost !== null) {
+        return realCost;
+      }
+
+      // Fall back to price-based estimate; fetch product price for better accuracy
+      try {
+        const response = await callAliExpressApi<AliExpressProductDetailResponse>(
+          'aliexpress.affiliate.product.detail.get',
+          {
+            product_ids: productId,
+            target_currency: 'USD',
+            target_language: 'en',
+          },
+          authConfig,
+        );
+        const items = response.resp_result?.result?.products?.product ?? [];
+        if (items.length > 0) {
+          const price = parseFloat(
+            items[0].target_app_sale_price
+            ?? items[0].app_sale_price
+            ?? items[0].sale_price
+            ?? items[0].original_price
+            ?? '0'
+          ) || 0;
+          return estimateShipping(price);
+        }
+      } catch {
+        // ignore — return generic estimate below
+      }
+
+      return estimateShipping(0);
     },
 
     async checkStock(productId: string): Promise<{ inStock: boolean; quantity?: number }> {

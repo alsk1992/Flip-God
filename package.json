@@ -11,6 +11,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc && node -e \"const{cpSync,readdirSync}=require('fs'),p=require('path');readdirSync('src/skills/bundled',{withFileTypes:true}).filter(d=>d.isDirectory()).forEach(d=>{const s=p.join('src/skills/bundled',d.name,'SKILL.md'),t=p.join('dist/skills/bundled',d.name,'SKILL.md');try{cpSync(s,t)}catch{}})\"",
     "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
@@ -54,6 +56,7 @@
     "@types/sql.js": "^1.4.9",
     "@types/ws": "^8.5.10",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
   }
 }

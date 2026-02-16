@@ -143,22 +143,297 @@ export async function createListing(
   }
 }
 
-/** Apply basic title capitalization and description defaults to a listing draft. */
+// ---------------------------------------------------------------------------
+// Listing Optimization
+// ---------------------------------------------------------------------------
+
+/** Stop words to remove from keyword extraction. */
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+  'of', 'with', 'by', 'from', 'is', 'it', 'this', 'that', 'are', 'was',
+  'be', 'has', 'had', 'have', 'not', 'no', 'do', 'does', 'did', 'will',
+  'can', 'may', 'so', 'if', 'as', 'up', 'out', 'its', 'our', 'your',
+  'their', 'we', 'you', 'he', 'she', 'they', 'my', 'me', 'us', 'him',
+  'her', 'who', 'which', 'what', 'when', 'where', 'how', 'all', 'each',
+  'every', 'both', 'few', 'more', 'most', 'some', 'any', 'such', 'than',
+  'too', 'very', 'just', 'about', 'also', 'then', 'into', 'over', 'only',
+]);
+
+/** Words that should always stay uppercase. */
+const ALWAYS_UPPER = new Set([
+  'usb', 'led', 'lcd', 'hd', 'uhd', 'hdmi', 'wifi', 'nfc', 'gps', 'rgb',
+  'ac', 'dc', 'uk', 'us', 'eu', 'diy', 'pc', 'tv', 'dvd', 'cd', 'io',
+  'xl', 'xxl', 'xs', 'sm', 'md', 'lg', 'oz', 'lb', 'kg', 'ml', 'mm',
+  'cm', 'ft', 'in', 'qt', 'aaa', 'aa', 'am', 'fm', 'ip', 'hdr',
+]);
+
+export interface OptimizeOptions {
+  platform?: string;
+  brand?: string;
+  category?: string;
+  features?: string[];
+}
+
+export interface OptimizedListing {
+  title: string;
+  description: string;
+  bulletPoints: string[];
+  searchTerms: string[];
+  itemSpecifics?: Record<string, string>;
+}
+
+/**
+ * Extract meaningful keywords from text.
+ * Removes stop words, deduplicates, and returns keywords sorted by relevance
+ * (longer words first, as they tend to be more specific).
+ */
+export function extractKeywords(text: string): string[] {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const word of words) {
+    if (!seen.has(word)) {
+      seen.add(word);
+      unique.push(word);
+    }
+  }
+
+  // Sort by length descending (more specific words first), then alphabetically
+  return unique.sort((a, b) => b.length - a.length || a.localeCompare(b));
+}
+
+/**
+ * Generate an optimized product title.
+ *
+ * eBay: max 80 chars, keyword-rich, brand first if available.
+ * Amazon: max 200 chars, structured as "Brand - Product Name - Key Features".
+ */
+export function generateOptimizedTitle(
+  productName: string,
+  options?: { category?: string; brand?: string; platform?: string },
+): string {
+  const platform = options?.platform ?? 'ebay';
+  const maxLen = platform === 'amazon' ? 200 : 80;
+
+  // Capitalize each word properly
+  const capitalize = (text: string): string =>
+    text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(word => {
+        const lower = word.toLowerCase();
+        if (ALWAYS_UPPER.has(lower)) return lower.toUpperCase();
+        if (STOP_WORDS.has(lower) && word !== text.split(/\s+/)[0]) return lower;
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ');
+
+  const parts: string[] = [];
+
+  // Brand first (if available)
+  if (options?.brand) {
+    parts.push(options.brand.trim());
+  }
+
+  // Product name (cleaned up)
+  const cleanName = productName
+    .replace(/\s+/g, ' ')
+    .trim();
+  parts.push(cleanName);
+
+  // Category hint at the end (if it adds value and fits)
+  if (options?.category && !cleanName.toLowerCase().includes(options.category.toLowerCase())) {
+    parts.push(options.category.trim());
+  }
+
+  let title = capitalize(parts.join(' - '));
+
+  // Trim to max length at a word boundary
+  if (title.length > maxLen) {
+    title = title.slice(0, maxLen);
+    const lastSpace = title.lastIndexOf(' ');
+    if (lastSpace > maxLen * 0.6) {
+      title = title.slice(0, lastSpace);
+    }
+  }
+
+  return title.trim();
+}
+
+/**
+ * Generate SEO-optimized bullet points from a description and feature list.
+ * Each bullet focuses on a single benefit/feature and starts with a capital.
+ * Amazon style: KEYWORD IN CAPS - then description.
+ */
+export function generateBulletPoints(
+  description: string,
+  features?: string[],
+  options?: { platform?: string },
+): string[] {
+  const platform = options?.platform ?? 'ebay';
+  const bullets: string[] = [];
+
+  // Use explicit features first
+  if (features?.length) {
+    for (const feat of features) {
+      const trimmed = feat.trim();
+      if (!trimmed) continue;
+
+      if (platform === 'amazon') {
+        // Amazon style: extract first 2-3 words as caps header
+        const words = trimmed.split(/\s+/);
+        const headerLen = Math.min(3, Math.ceil(words.length / 3));
+        const header = words.slice(0, headerLen).join(' ').toUpperCase();
+        const rest = words.slice(headerLen).join(' ');
+        bullets.push(rest ? `${header} - ${rest.charAt(0).toUpperCase()}${rest.slice(1)}` : header);
+      } else {
+        bullets.push(trimmed.charAt(0).toUpperCase() + trimmed.slice(1));
+      }
+    }
+  }
+
+  // Extract additional bullet points from description if we have fewer than 5
+  if (bullets.length < 5 && description) {
+    const sentences = description
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10 && s.length < 200);
+
+    for (const sentence of sentences) {
+      if (bullets.length >= 5) break;
+      // Skip if too similar to existing bullets
+      const lower = sentence.toLowerCase();
+      const isDupe = bullets.some(b => {
+        const bLower = b.toLowerCase();
+        return bLower.includes(lower) || lower.includes(bLower);
+      });
+      if (isDupe) continue;
+
+      if (platform === 'amazon') {
+        const words = sentence.split(/\s+/);
+        const headerLen = Math.min(3, Math.ceil(words.length / 3));
+        const header = words.slice(0, headerLen).join(' ').toUpperCase();
+        const rest = words.slice(headerLen).join(' ');
+        bullets.push(rest ? `${header} - ${rest.charAt(0).toUpperCase()}${rest.slice(1)}` : header);
+      } else {
+        bullets.push(sentence.charAt(0).toUpperCase() + sentence.slice(1));
+      }
+    }
+  }
+
+  return bullets;
+}
+
+/**
+ * Generate search terms from a product name, description, and features.
+ * Returns unique keywords not already in the title (Amazon backend search terms).
+ */
+function generateSearchTerms(
+  title: string,
+  description: string,
+  features?: string[],
+): string[] {
+  const titleKeywords = new Set(
+    title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean),
+  );
+
+  const allText = [description, ...(features ?? [])].join(' ');
+  const keywords = extractKeywords(allText);
+
+  // Filter out words already in the title
+  return keywords
+    .filter(kw => !titleKeywords.has(kw))
+    .slice(0, 50); // Amazon allows up to 250 bytes, roughly 50 words
+}
+
+/**
+ * Optimize a listing for a target platform.
+ *
+ * For eBay: generates optimized 80-char title, keyword-rich description,
+ * item specifics suggestions.
+ *
+ * For Amazon: generates SEO-optimized title, bullet points with caps headers,
+ * and backend search terms.
+ *
+ * No external API calls -- uses keyword extraction and formatting heuristics.
+ */
 export async function optimizeListing(
   title: string,
   description: string,
-): Promise<{ title: string; description: string }> {
-  // Basic optimization: capitalize important words, add key selling points
-  const optimizedTitle = title
-    .split(' ')
-    .map(word => word.length > 3 ? word.charAt(0).toUpperCase() + word.slice(1) : word)
-    .join(' ')
-    .slice(0, 80);
+  options?: OptimizeOptions,
+): Promise<OptimizedListing> {
+  const platform = options?.platform ?? 'ebay';
 
-  const optimizedDescription = description || `High-quality product. Fast shipping. Satisfaction guaranteed.`;
+  // Generate optimized title
+  const optimizedTitle = generateOptimizedTitle(title, {
+    brand: options?.brand,
+    category: options?.category,
+    platform,
+  });
+
+  // Generate bullet points
+  const bulletPoints = generateBulletPoints(description, options?.features, { platform });
+
+  // Build optimized description
+  let optimizedDescription: string;
+  if (platform === 'amazon') {
+    // Amazon: structured description from bullet points + original
+    const bulletSection = bulletPoints.length > 0
+      ? bulletPoints.map(b => `* ${b}`).join('\n')
+      : '';
+    const descBody = description.trim() || 'Premium quality product with fast shipping and satisfaction guarantee.';
+    optimizedDescription = bulletSection
+      ? `${bulletSection}\n\n${descBody}`
+      : descBody;
+  } else {
+    // eBay: clean and enhance description
+    const descBody = description.trim();
+    const sellingPoints = [
+      'Fast shipping from US warehouse.',
+      '100% satisfaction guaranteed.',
+      'Top-rated seller. Buy with confidence.',
+    ];
+    if (descBody) {
+      // Append selling points that aren't already present
+      const lowerDesc = descBody.toLowerCase();
+      const newPoints = sellingPoints.filter(sp =>
+        !lowerDesc.includes(sp.toLowerCase().slice(0, 20)),
+      );
+      optimizedDescription = newPoints.length > 0
+        ? `${descBody}\n\n${newPoints.join(' ')}`
+        : descBody;
+    } else {
+      optimizedDescription = `${optimizedTitle}. ${sellingPoints.join(' ')}`;
+    }
+  }
+
+  // Generate search terms (mainly useful for Amazon backend keywords)
+  const searchTerms = generateSearchTerms(
+    optimizedTitle,
+    description,
+    options?.features,
+  );
+
+  // Generate item specifics suggestions (eBay)
+  const itemSpecifics: Record<string, string> = {};
+  if (options?.brand) {
+    itemSpecifics['Brand'] = options.brand;
+  }
+  if (options?.category) {
+    itemSpecifics['Type'] = options.category;
+  }
 
   return {
     title: optimizedTitle,
     description: optimizedDescription,
+    bulletPoints,
+    searchTerms,
+    itemSpecifics: Object.keys(itemSpecifics).length > 0 ? itemSpecifics : undefined,
   };
 }

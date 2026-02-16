@@ -220,6 +220,10 @@ export interface AmazonCredentials {
   spClientSecret?: string;
   /** LWA refresh token for SP-API */
   spRefreshToken?: string;
+  /** Amazon Seller ID for SP-API (optional, defaults to 'me') */
+  spSellerId?: string;
+  /** Amazon Marketplace ID for SP-API (optional, defaults to US/ATVPDKIKX0DER) */
+  spMarketplaceId?: string;
 }
 
 export interface EbayCredentials {
@@ -245,6 +249,7 @@ export interface AliExpressCredentials {
   appKey: string;
   appSecret: string;
   accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface KeepaCredentials {

@@ -91,6 +91,22 @@ export function buildSignedRequest(
 // ─── OAuth Token Management ───
 
 const OAUTH_GATEWAY = 'https://api-sg.aliexpress.com';
+const OAUTH_AUTHORIZE_URL = 'https://api-sg.aliexpress.com/oauth/authorize';
+
+/**
+ * Build the AliExpress OAuth authorization URL that the user must visit
+ * to grant the app access. After authorizing, AliExpress redirects to
+ * `redirectUri` with a `code` query parameter.
+ */
+export function getAuthorizationUrl(appKey: string, redirectUri: string): string {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    force_auth: 'true',
+    redirect_uri: redirectUri,
+    client_id: appKey,
+  });
+  return `${OAUTH_AUTHORIZE_URL}?${params.toString()}`;
+}
 
 export interface AliExpressOAuthToken {
   accessToken: string;
