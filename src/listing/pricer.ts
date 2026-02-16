@@ -9,6 +9,7 @@ import type { PricingRecommendation } from './types';
 
 const logger = createLogger('pricer');
 
+/** Recommend a sell price based on cost, target margin, and competitor pricing. */
 export function recommendPrice(
   buyPlatform: Platform,
   buyPrice: number,
@@ -19,11 +20,12 @@ export function recommendPrice(
 ): PricingRecommendation {
   // Calculate minimum viable price (breakeven + target margin)
   const totalCost = buyPrice + buyShipping;
-  if (targetMarginPct >= 100) {
-    logger.error({ targetMarginPct }, 'Target margin >= 100% is invalid (causes division by zero), clamping to 99%');
-    targetMarginPct = 99;
+  let clampedMargin = targetMarginPct;
+  if (clampedMargin >= 100) {
+    logger.error({ targetMarginPct: clampedMargin }, 'Target margin >= 100% is invalid (causes division by zero), clamping to 99%');
+    clampedMargin = 99;
   }
-  const minViablePrice = totalCost / (1 - targetMarginPct / 100);
+  const minViablePrice = totalCost / (1 - clampedMargin / 100);
 
   // Factor in competitor pricing
   const avgCompetitor = competitorPrices.length > 0

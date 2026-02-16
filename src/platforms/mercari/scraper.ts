@@ -265,7 +265,6 @@ export function createMercariAdapter(): PlatformAdapter & { getSellerProfile(use
 
     async getSellerProfile(userId: string): Promise<SellerProfileResult | null> {
       logger.info({ userId }, 'Getting Mercari seller profile');
-      const keyPair = generateECKeyPair();
       const url = `${API_BASE}/v2/users/get?user_id=${encodeURIComponent(userId)}`;
       const dpop = generateDPoP(url, 'GET', keyPair);
       try {

@@ -36,6 +36,7 @@ export interface EbayBrowseExtendedApi {
 export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayBrowseExtendedApi {
   const env = credentials.environment ?? 'production';
   const baseUrl = API_BASE[env];
+  const marketplaceId = credentials.marketplace ?? 'EBAY_US';
 
   async function getToken(): Promise<string> {
     return getAccessToken({
@@ -59,7 +60,7 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const ids = itemIds.map(id => encodeURIComponent(id)).join(',');
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item?item_ids=${ids}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
         );
 
         if (!response.ok) {
@@ -81,7 +82,7 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item/get_item_by_legacy_id?legacy_item_id=${encodeURIComponent(legacyId)}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
         );
 
         if (!response.ok) {
@@ -102,7 +103,7 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
         const token = await getToken();
         const response = await fetch(
           `${baseUrl}/buy/browse/v1/item/get_items_by_item_group?item_group_id=${encodeURIComponent(itemGroupId)}`,
-          { headers: { 'Authorization': `Bearer ${token}` } },
+          { headers: { 'Authorization': `Bearer ${token}`, 'X-EBAY-C-MARKETPLACE-ID': marketplaceId } },
         );
 
         if (!response.ok) {
@@ -133,6 +134,7 @@ export function createEbayBrowseExtendedApi(credentials: EbayCredentials): EbayB
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
+              'X-EBAY-C-MARKETPLACE-ID': marketplaceId,
             },
             body: JSON.stringify({ image: { imageUrl } }),
           },

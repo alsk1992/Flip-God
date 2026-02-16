@@ -18,6 +18,7 @@ import { createEasyPostApi } from '../platforms/easypost';
 
 const logger = createLogger('tracker');
 
+/** Fetch shipment tracking info from AliExpress, EasyPost, or a basic fallback. */
 export async function getTracking(
   trackingNumber: string,
   carrier?: string,
@@ -93,6 +94,7 @@ export async function getTracking(
   };
 }
 
+/** Push a tracking number to a selling platform (currently eBay only). */
 export async function updateTrackingOnPlatform(
   platform: string,
   orderId: string,

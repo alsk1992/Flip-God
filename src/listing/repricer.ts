@@ -89,6 +89,7 @@ export function createRepricer(): Repricer {
           break;
       }
 
+      if (newPrice <= 0) newPrice = rule.minPrice ?? listing.price;
       newPrice = Math.round(newPrice * 100) / 100;
       if (newPrice < rule.minPrice) { newPrice = rule.minPrice; reason += ' (floor)'; }
       if (newPrice > rule.maxPrice) { newPrice = rule.maxPrice; reason += ' (ceiling)'; }

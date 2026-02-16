@@ -337,6 +337,7 @@ export interface RunRegistry {
 
 /** Create a run registry */
 export function createRunRegistry(): RunRegistry {
+  const MAX_RUNS = 1000;
   const runs: Map<string, SubagentRun> = new Map();
 
   return {
@@ -344,6 +345,21 @@ export function createRunRegistry(): RunRegistry {
       runs.set(run.state.config.id, run);
       saveSubagentState(run.state);
       logger.debug({ id: run.state.config.id }, 'Registered subagent run');
+
+      // Evict oldest completed/failed runs if over cap
+      if (runs.size > MAX_RUNS) {
+        for (const [id, r] of runs) {
+          if (r.state.status === 'completed' || r.state.status === 'failed' || r.state.status === 'cancelled') {
+            runs.delete(id);
+            if (runs.size <= MAX_RUNS) break;
+          }
+        }
+        // Hard cap: remove oldest entry if still over
+        if (runs.size > MAX_RUNS) {
+          const firstKey = runs.keys().next().value;
+          if (firstKey) runs.delete(firstKey);
+        }
+      }
     },
 
     get(id) {

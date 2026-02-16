@@ -250,6 +250,11 @@ async function fetchWithControl(
 
       if (response.status === 429 || response.status >= 500) {
         if (attempt >= maxAttempts) return response;
+
+        // Consume response body to free the underlying connection and
+        // prevent memory leaks in Node.  We don't need the content.
+        try { await response.body?.cancel(); } catch { /* ignore */ }
+
         const retryAfter = parseRetryAfter(
           response.headers.get('retry-after')
         );
@@ -297,6 +302,7 @@ async function fetchWithControl(
 // Public API
 // =============================================================================
 
+/** Merge additional rate-limit / retry settings into the HTTP client config. */
 export function configureHttpClient(config?: HttpRateLimitConfig): void {
   if (!config) return;
   httpConfig = {
@@ -308,6 +314,7 @@ export function configureHttpClient(config?: HttpRateLimitConfig): void {
   hostBuckets.clear();
 }
 
+/** Install the rate-limited / retrying fetch wrapper as the global `fetch`. */
 export function installHttpClient(config?: HttpRateLimitConfig): void {
   if (!originalFetch) {
     originalFetch = globalThis.fetch.bind(globalThis);
@@ -316,6 +323,7 @@ export function installHttpClient(config?: HttpRateLimitConfig): void {
   if (config) configureHttpClient(config);
 }
 
+/** Return the current HTTP client configuration (rate limits + retry). */
 export function getHttpClientConfig(): HttpRateLimitConfig {
   return httpConfig;
 }

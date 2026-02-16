@@ -25,6 +25,7 @@ import type {
   KeepaCredentials,
   EasyPostCredentials,
 } from '../types';
+import { ALL_PLATFORMS } from '../types';
 import { createLogger } from '../utils/logger';
 import {
   ToolRegistry,
@@ -48,7 +49,7 @@ import { calculateProfit, calculateFees } from '../arbitrage/calculator';
 import { autoPurchase } from '../fulfillment/purchaser';
 import { getTracking, updateTrackingOnPlatform } from '../fulfillment/tracker';
 import { createEbaySellerApi } from '../platforms/ebay/seller';
-import { createEbayOrdersApi } from '../platforms/ebay/orders';
+import { createEbayOrdersApi, type EbayRefundRequest } from '../platforms/ebay/orders';
 import { createEbayAccountApi } from '../platforms/ebay/account';
 import { createEbayTaxonomyApi } from '../platforms/ebay/taxonomy';
 import { createAliExpressShippingApi } from '../platforms/aliexpress/shipping';
@@ -87,7 +88,7 @@ import { createBulqAdapter } from '../platforms/bulq/scraper';
 import { createLiquidationAdapter } from '../platforms/liquidation/scraper';
 import { createWalmartAffiliateExtendedApi } from '../platforms/walmart/affiliate-extended';
 import { createWalmartMarketplaceExtendedApi } from '../platforms/walmart/marketplace-extended';
-import { createAmazonSpApiExtended } from '../platforms/amazon/sp-api-extended';
+import { createAmazonSpApiExtended, type ShippingAddress, type ShippingPackage } from '../platforms/amazon/sp-api-extended';
 import { createAmazonSpApiComplete } from '../platforms/amazon/sp-api-complete';
 import { createAliExpressDiscoveryApi } from '../platforms/aliexpress/discovery';
 import {
@@ -362,6 +363,10 @@ function defineTools(): ToolDefinition[] {
           title: { type: 'string', description: 'Product title' },
           price: { type: 'number', description: 'Listing price in USD' },
           asin: { type: 'string', description: 'ASIN to list against (existing product)' },
+          description: { type: 'string', description: 'Product description' },
+          imageUrl: { type: 'string', description: 'Product image URL' },
+          condition: { type: 'string', description: 'Product condition', enum: ['new', 'used', 'refurbished'] },
+          quantity: { type: 'number', description: 'Quantity to list (default: 1)' },
         },
         required: ['productId', 'title', 'price'],
       },
@@ -2435,6 +2440,8 @@ function getAdapter(platform: Platform, creds: ReturnType<typeof getUserCreds>):
     case 'bstock': return createBStockAdapter();
     case 'bulq': return createBulqAdapter();
     case 'liquidation': return createLiquidationAdapter();
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
   }
 }
 
@@ -2582,6 +2589,7 @@ async function executeTool(
     // Scanners — Real API calls
     // -----------------------------------------------------------------------
     case 'scan_amazon': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       if (!creds.amazon) {
         return { status: 'error', message: 'Amazon credentials not configured. Use setup_amazon_credentials first.' };
       }
@@ -2601,6 +2609,7 @@ async function executeTool(
     }
 
     case 'scan_ebay': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       if (!creds.ebay) {
         return { status: 'error', message: 'eBay credentials not configured. Use setup_ebay_credentials first.' };
       }
@@ -2620,6 +2629,7 @@ async function executeTool(
     }
 
     case 'scan_walmart': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       if (!creds.walmart) {
         return { status: 'error', message: 'Walmart credentials not configured. Use setup_walmart_credentials first.' };
       }
@@ -2639,6 +2649,7 @@ async function executeTool(
     }
 
     case 'scan_aliexpress': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       if (!creds.aliexpress) {
         return { status: 'error', message: 'AliExpress credentials not configured. Use setup_aliexpress_credentials first.' };
       }
@@ -2658,8 +2669,9 @@ async function executeTool(
     }
 
     case 'compare_prices': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       const query = input.query as string;
-      const targetPlatforms = (input.platforms as Platform[] | undefined) ?? ['amazon', 'ebay', 'walmart', 'aliexpress'] as Platform[];
+      const targetPlatforms = (input.platforms as Platform[] | undefined) ?? ALL_PLATFORMS;
       const maxResults = 5;
 
       // Search all configured platforms in parallel
@@ -2742,8 +2754,9 @@ async function executeTool(
     }
 
     case 'match_products': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       const query = input.query as string;
-      const targetPlatforms = (input.platforms as Platform[] | undefined) ?? ['amazon', 'ebay', 'walmart', 'aliexpress'] as Platform[];
+      const targetPlatforms = (input.platforms as Platform[] | undefined) ?? ALL_PLATFORMS;
 
       // Search all platforms for the same product
       const searchPromises = targetPlatforms.map(async (platform) => {
@@ -2777,6 +2790,8 @@ async function executeTool(
     }
 
     case 'get_product_details': {
+      if (!input.platform) return { status: 'error', message: 'platform is required' };
+      if (!input.productId) return { status: 'error', message: 'productId is required' };
       const platform = input.platform as Platform;
       const productId = input.productId as string;
 
@@ -2809,6 +2824,8 @@ async function executeTool(
     }
 
     case 'check_stock': {
+      if (!input.platform) return { status: 'error', message: 'platform is required' };
+      if (!input.productId) return { status: 'error', message: 'productId is required' };
       const platform = input.platform as Platform;
       const productId = input.productId as string;
       const adapter = getAdapter(platform, creds);
@@ -2822,6 +2839,7 @@ async function executeTool(
     }
 
     case 'get_price_history': {
+      if (!input.productId) return { status: 'error', message: 'productId is required' };
       const history = context.db.getPriceHistory(
         input.productId as string,
         input.platform as Platform | undefined,
@@ -2838,6 +2856,12 @@ async function executeTool(
     // Listings — Real eBay Inventory API
     // -----------------------------------------------------------------------
     case 'create_ebay_listing': {
+      if (!input.productId) return { status: 'error', message: 'productId is required' };
+      if (!input.title) return { status: 'error', message: 'title is required' };
+      if (typeof input.price !== 'number' || input.price <= 0) return { status: 'error', message: 'price must be a positive number' };
+      if (!creds.ebay?.refreshToken) {
+        return { status: 'error', message: 'eBay credentials required for listing creation. Use setup_ebay_credentials first.' };
+      }
       try {
         const productId = input.productId as string;
         const title = input.title as string;
@@ -2888,6 +2912,9 @@ async function executeTool(
     }
 
     case 'create_amazon_listing': {
+      if (!creds.amazon?.spRefreshToken) {
+        return { status: 'error', message: 'Amazon SP-API credentials required for listing creation.' };
+      }
       try {
         const result = await createListing('amazon', {
           title: input.title as string,
@@ -3774,14 +3801,12 @@ async function executeTool(
       }
       try {
         const ordersApi = createEbayOrdersApi(creds.ebay);
-        const refundReq: Record<string, unknown> = {
-          reasonForRefund: input.reason as string,
+        const refundReq: EbayRefundRequest = {
+          reasonForRefund: input.reason as EbayRefundRequest['reasonForRefund'],
           comment: input.comment as string | undefined,
+          ...(typeof input.amount === 'number' ? { orderLevelRefundAmount: { value: input.amount.toFixed(2), currency: 'USD' } } : {}),
         };
-        if (typeof input.amount === 'number') {
-          refundReq.orderLevelRefundAmount = { value: (input.amount as number).toFixed(2), currency: 'USD' };
-        }
-        const refund = await ordersApi.issueRefund(input.orderId as string, refundReq as any);
+        const refund = await ordersApi.issueRefund(input.orderId as string, refundReq);
         return { status: 'ok', ...refund };
       } catch (err) {
         logger.error({ err, tool: 'ebay_issue_refund' }, 'Tool execution failed');
@@ -4079,7 +4104,7 @@ async function executeTool(
       }
       try {
         const spExtBuy = createAmazonSpApiExtended({ clientId: creds.amazon.spClientId!, clientSecret: creds.amazon.spClientSecret!, refreshToken: creds.amazon.spRefreshToken });
-        const shipResult = await spExtBuy.purchaseShipment({ clientReferenceId: input.clientReferenceId as string, shipFrom: input.shipFrom as any, shipTo: input.shipTo as any, packages: input.packages as any[], selectedService: { serviceId: input.serviceId as string } });
+        const shipResult = await spExtBuy.purchaseShipment({ clientReferenceId: input.clientReferenceId as string, shipFrom: input.shipFrom as ShippingAddress, shipTo: input.shipTo as ShippingAddress, packages: input.packages as ShippingPackage[], selectedService: { serviceId: input.serviceId as string } });
         return { status: 'ok', ...shipResult };
       } catch (err) {
         logger.error({ err, tool: 'amazon_sp_buy_shipping' }, 'Tool execution failed');
@@ -4227,7 +4252,7 @@ async function executeTool(
         const imageResults = await aeDiscImg.imageSearch(input.imageUrl as string);
         return { status: 'ok', products: imageResults, count: imageResults.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4251,7 +4276,7 @@ async function executeTool(
         });
         return { status: 'ok', orders: affOrders, count: affOrders.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4275,7 +4300,7 @@ async function executeTool(
         });
         return { status: 'ok', products: feedProducts, count: feedProducts.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4298,7 +4323,7 @@ async function executeTool(
         });
         return { status: 'ok', ...disputeResult };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4319,7 +4344,7 @@ async function executeTool(
         }
         return { status: 'ok', ...dispute };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4346,7 +4371,7 @@ async function executeTool(
         );
         return { status: 'ok', links: affLinks, count: affLinks.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4369,7 +4394,7 @@ async function executeTool(
         }
         return { status: 'ok', ...dsProduct };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4392,7 +4417,7 @@ async function executeTool(
         }
         return { status: 'ok', ...dsTracking };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4416,7 +4441,7 @@ async function executeTool(
         );
         return { status: 'ok', options: freightOptions, count: freightOptions.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4437,7 +4462,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4454,7 +4479,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4471,7 +4496,7 @@ async function executeTool(
         }
         return { status: 'ok', ...summary };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4491,7 +4516,7 @@ async function executeTool(
         });
         return { status: 'ok', report };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4508,7 +4533,7 @@ async function executeTool(
         });
         return { status: 'ok', metric };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4526,7 +4551,7 @@ async function executeTool(
         });
         return { status: 'ok', campaignId, campaignName: input.campaignName };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4542,7 +4567,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4561,7 +4586,7 @@ async function executeTool(
         );
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4579,7 +4604,7 @@ async function executeTool(
         const items = await browseExtApi.getItems(itemIds);
         return { status: 'ok', items, count: items.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4596,7 +4621,7 @@ async function executeTool(
         }
         return { status: 'ok', item };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4616,7 +4641,7 @@ async function executeTool(
         );
         return { status: 'ok', items: imageResults, count: imageResults.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4636,7 +4661,7 @@ async function executeTool(
         );
         return { status: 'ok', products: catalogResults, count: catalogResults.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4653,7 +4678,7 @@ async function executeTool(
         }
         return { status: 'ok', product: catalogProduct };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4675,7 +4700,7 @@ async function executeTool(
         );
         return { status: 'ok', items: soldResult.items, total: soldResult.total, count: soldResult.items.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4693,7 +4718,7 @@ async function executeTool(
         });
         return { status: 'ok', ...violations };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4707,7 +4732,7 @@ async function executeTool(
         const summary = await complianceApi2.getListingViolationsSummary();
         return { status: 'ok', ...summary };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4724,7 +4749,7 @@ async function executeTool(
         );
         return { status: 'ok', message: 'Violation suppressed.' };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4738,7 +4763,7 @@ async function executeTool(
         const inventoryItem = await sellerExtApi.getInventoryItem(input.sku as string);
         return { status: 'ok', item: inventoryItem };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4753,7 +4778,7 @@ async function executeTool(
         const bulkResult = await sellerExtApi2.bulkCreateOrReplaceInventoryItem(bulkItems);
         return { status: 'ok', ...bulkResult };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4767,7 +4792,7 @@ async function executeTool(
         const offersResult = await sellerExtApi3.getOffers(input.sku as string);
         return { status: 'ok', ...offersResult };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4796,7 +4821,7 @@ async function executeTool(
         );
         return { status: 'ok', message: 'Inventory location created.', merchantLocationKey: input.merchantLocationKey };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4810,7 +4835,7 @@ async function executeTool(
         const locations = await sellerExtApi5.getInventoryLocations();
         return { status: 'ok', ...locations };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4830,7 +4855,7 @@ async function executeTool(
         }
         return { status: 'ok', taskId };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4847,7 +4872,7 @@ async function executeTool(
         }
         return { status: 'ok', task };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4870,7 +4895,7 @@ async function executeTool(
         }
         return { status: 'ok', destinationId };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4891,7 +4916,7 @@ async function executeTool(
         }
         return { status: 'ok', subscriptionId };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4905,7 +4930,7 @@ async function executeTool(
         const topics = await notifApi3.getTopics();
         return { status: 'ok', topics, count: topics.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4931,7 +4956,7 @@ async function executeTool(
         });
         return { status: 'ok', ...quote };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4948,7 +4973,7 @@ async function executeTool(
         });
         return { status: 'ok', ...shipment };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4962,7 +4987,7 @@ async function executeTool(
         const labelBase64 = await logisticsApi3.downloadLabelFile(input.shipmentId as string);
         return { status: 'ok', labelBase64, format: 'pdf' };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4985,7 +5010,7 @@ async function executeTool(
         });
         return { status: 'ok', ...offerResult };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -4999,7 +5024,7 @@ async function executeTool(
         const conditionPolicies = await metadataApi.getItemConditionPolicies(input.categoryId as string | undefined);
         return { status: 'ok', ...conditionPolicies };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5013,7 +5038,7 @@ async function executeTool(
         const returnPolicies = await metadataApi2.getReturnPolicies(input.categoryId as string | undefined);
         return { status: 'ok', ...returnPolicies };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5058,7 +5083,7 @@ async function executeTool(
           count: products.length,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5080,7 +5105,7 @@ async function executeTool(
         });
         return { status: 'ok', deals, count: deals.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5096,7 +5121,7 @@ async function executeTool(
         const asins = await keepa.getBestsellers({ categoryId: input.categoryId as number });
         return { status: 'ok', asins, count: asins.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5121,7 +5146,7 @@ async function executeTool(
             : 'Failed to set up tracking.',
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5180,7 +5205,7 @@ async function executeTool(
           rateCount: shipment.rates.length,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5203,7 +5228,7 @@ async function executeTool(
           rate: purchased.selectedRate?.rate,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5234,7 +5259,7 @@ async function executeTool(
           })),
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5269,7 +5294,7 @@ async function executeTool(
           errors: verified.verifications?.delivery?.errors,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5338,7 +5363,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5355,7 +5380,7 @@ async function executeTool(
         const result = await sellerApi.updatePrice(input.sku as string, input.price as number);
         return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5372,7 +5397,7 @@ async function executeTool(
         const result = await sellerApi.updateInventory(input.sku as string, input.quantity as number);
         return { status: 'ok', feedId: result.feedId, feedStatus: result.feedStatus };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5392,7 +5417,7 @@ async function executeTool(
         }
         return { status: 'ok', sku: inv.sku, quantity: inv.quantity.amount, unit: inv.quantity.unit, fulfillmentLagTime: inv.fulfillmentLagTime };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5425,7 +5450,7 @@ async function executeTool(
           count: orders.length,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5461,7 +5486,7 @@ async function executeTool(
             : 'Failed to update shipping on Walmart.',
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5481,7 +5506,7 @@ async function executeTool(
           message: success ? `Item ${input.sku} retired from Walmart.` : `Failed to retire item ${input.sku}.`,
         };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5633,6 +5658,7 @@ async function executeTool(
     // Additional platform scanners
     // -----------------------------------------------------------------------
     case 'scan_bestbuy': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createBestBuyAdapter();
         const results = await adapter.search({
@@ -5642,12 +5668,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_target': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createTargetAdapter();
         const results = await adapter.search({
@@ -5657,12 +5684,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_costco': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createCostcoAdapter();
         const results = await adapter.search({
@@ -5672,12 +5700,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_homedepot': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createHomeDepotAdapter();
         const results = await adapter.search({
@@ -5687,12 +5716,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_poshmark': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createPoshmarkAdapter();
         const results = await adapter.search({
@@ -5704,12 +5734,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_mercari': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createMercariAdapter();
         const results = await adapter.search({
@@ -5721,12 +5752,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_facebook': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createFacebookAdapter();
         const results = await adapter.search({
@@ -5738,12 +5770,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_faire': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createFaireAdapter();
         const results = await adapter.search({
@@ -5753,12 +5786,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_bstock': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createBStockAdapter();
         const results = await adapter.search({
@@ -5768,12 +5802,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_bulq': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createBulqAdapter();
         const results = await adapter.search({
@@ -5783,12 +5818,13 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
 
     case 'scan_liquidation': {
+      if (!input.query) return { status: 'error', message: 'query is required' };
       try {
         const adapter = createLiquidationAdapter();
         const results = await adapter.search({
@@ -5798,7 +5834,7 @@ async function executeTool(
         storeResults(context.db, results);
         return { status: 'ok', results: results.slice(0, 20), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5817,7 +5853,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5831,7 +5867,7 @@ async function executeTool(
         });
         return { status: 'ok', ...result };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5846,7 +5882,7 @@ async function executeTool(
         });
         return { status: 'ok', stores, count: stores.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5863,7 +5899,7 @@ async function executeTool(
         );
         return { status: 'ok', availability, count: availability.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5877,7 +5913,7 @@ async function executeTool(
         );
         return { status: 'ok', availability, count: availability.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5891,7 +5927,7 @@ async function executeTool(
         );
         return { status: 'ok', results: results.slice(0, 48), count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5905,7 +5941,7 @@ async function executeTool(
         }
         return { status: 'ok', profile };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5922,7 +5958,7 @@ async function executeTool(
         }
         return { status: 'ok', ...reviews };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5940,7 +5976,7 @@ async function executeTool(
         });
         return { status: 'ok', stores, count: stores.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5954,7 +5990,7 @@ async function executeTool(
         const items = await api.getRecommendations(input.itemId as string);
         return { status: 'ok', items, count: items.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5976,7 +6012,7 @@ async function executeTool(
         });
         return { status: 'ok', strategy };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -5993,7 +6029,7 @@ async function executeTool(
         const results = await mpApi.catalogSearch(input.query as string);
         return { status: 'ok', results, count: results.length };
       } catch (err) {
-        logger.error({ err, tool: name }, 'Tool execution failed');
+        logger.error({ err, tool: toolName }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
     }
@@ -6003,7 +6039,7 @@ async function executeTool(
     // -----------------------------------------------------------------------
     default:
       logger.warn({ toolName }, 'Unknown tool called');
-      return { error: `Unknown tool: ${toolName}` };
+      return { status: 'error', message: `Unknown tool: ${toolName}` };
   }
 }
 
@@ -6118,8 +6154,7 @@ export function createAgentManager(deps: {
     // -----------------------------------------------------------------------
     // Prompt caching: wrap system prompt in cache_control blocks
     // -----------------------------------------------------------------------
-    type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
-    const systemBlocks: SystemBlock[] = [
+    const systemBlocks: Anthropic.TextBlockParam[] = [
       { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
     ];
 
@@ -6196,7 +6231,7 @@ export function createAgentManager(deps: {
         // Prepare tools with cache_control on the last tool definition
         const apiTools = toApiTools(selectedTools);
         if (apiTools.length > 0) {
-          (apiTools[apiTools.length - 1] as any).cache_control = { type: 'ephemeral' };
+          apiTools[apiTools.length - 1].cache_control = { type: 'ephemeral' };
         }
 
         response = await withRetry(async () => {
@@ -6211,7 +6246,7 @@ export function createAgentManager(deps: {
           const stream = client.messages.stream({
             model,
             max_tokens: 4096,
-            system: systemBlocks as any,
+            system: systemBlocks,
             messages: currentMessages,
             tools: apiTools,
           });
@@ -6387,12 +6422,14 @@ function ensureAlternatingRoles(
     const last = result[result.length - 1];
 
     if (last && last.role === msg.role) {
-      // Merge consecutive same-role text messages
       if (typeof last.content === 'string' && typeof msg.content === 'string') {
         last.content = last.content + '\n' + msg.content;
+      } else {
+        // Convert both to array format and merge
+        const lastArr = typeof last.content === 'string' ? [{ type: 'text' as const, text: last.content }] : Array.isArray(last.content) ? last.content : [last.content];
+        const msgArr = typeof msg.content === 'string' ? [{ type: 'text' as const, text: msg.content }] : Array.isArray(msg.content) ? msg.content : [msg.content];
+        last.content = [...lastArr, ...msgArr] as any;
       }
-      // If either is non-string (tool blocks), just skip the merge and keep both
-      // by converting to array content -- but for simplicity we leave the last one
       continue;
     }
 
@@ -6409,8 +6446,7 @@ function ensureAlternatingRoles(
 
   // Ensure last message is from user (required by API)
   if (result.length > 0 && result[result.length - 1].role !== 'user') {
-    // This shouldn't happen in normal flow since we always add user msg last
-    // but defensive check
+    result.push({ role: 'user', content: '' });
   }
 
   return result;

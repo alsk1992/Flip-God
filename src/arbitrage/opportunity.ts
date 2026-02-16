@@ -21,6 +21,17 @@ const PLATFORM_RELIABILITY: Record<string, number> = {
   ebay: 0.85,
   walmart: 0.90,
   aliexpress: 0.70,
+  bestbuy: 0.9,
+  target: 0.9,
+  costco: 0.9,
+  homedepot: 0.85,
+  poshmark: 0.65,
+  mercari: 0.6,
+  facebook: 0.55,
+  faire: 0.75,
+  bstock: 0.7,
+  bulq: 0.7,
+  liquidation: 0.65,
 };
 
 export function scoreOpportunity(

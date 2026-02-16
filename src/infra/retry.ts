@@ -146,10 +146,11 @@ export function isTransientError(err: Error): boolean {
   }
 
   // HTTP status code on the error object
+  const errRecord = err as unknown as Record<string, unknown>;
   const statusCode =
-    (err as any).status ??
-    (err as any).statusCode ??
-    (err as any).response?.status;
+    (errRecord.status as number | undefined) ??
+    (errRecord.statusCode as number | undefined) ??
+    ((errRecord.response as Record<string, unknown> | undefined)?.status as number | undefined);
   if (typeof statusCode === 'number') {
     if (statusCode === 429 || (statusCode >= 500 && statusCode <= 504)) {
       return true;

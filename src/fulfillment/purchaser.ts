@@ -22,6 +22,7 @@ export interface PurchaseResult {
   manualRequired?: boolean;
 }
 
+/** Automatically purchase a product from the source platform to fulfill a pending order. */
 export async function autoPurchase(
   orderId: string,
   db: Database,

@@ -49,7 +49,7 @@ export async function createGateway(config: Config): Promise<Gateway> {
 
   // 1. Initialize database
   const db = await createDatabase();
-  initDatabase(db);
+  await initDatabase(db);
   logger.info('Database initialized');
 
   // 2. Create credentials manager
@@ -96,8 +96,8 @@ export async function createGateway(config: Config): Promise<Gateway> {
 
         // Emit message:after hook
         await hooks.emit('message:after', {
-          message: { text: processedMessage.text } as any,
-          response: { text: response } as any,
+          message: processedMessage,
+          response: { platform: processedMessage.platform, chatId: processedMessage.chatId, text: response },
         });
       }
     },

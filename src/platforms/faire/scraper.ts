@@ -90,7 +90,7 @@ export function createFaireAdapter(accessToken?: string): PlatformAdapter {
       const pageSize = Math.min(options.maxResults ?? 10, 50);
 
       try {
-        // Faire External API v2 uses POST for product listing with filters
+        // Faire External API v2 uses GET for product listing with filters
         const response = await fetch(`${API_BASE}/products`, {
           method: 'GET',
           headers,

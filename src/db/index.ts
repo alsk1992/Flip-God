@@ -19,6 +19,7 @@ import {
 } from 'fs';
 import { createLogger } from '../utils/logger';
 import { resolveStateDir } from '../utils/config';
+import { createMigrationRunner } from './migrations';
 import type {
   Product,
   PriceSnapshot,
@@ -246,10 +247,7 @@ const SCHEMA_SQL = `
 // createDatabase / initDatabase
 // ---------------------------------------------------------------------------
 
-/**
- * Initialize the database, create tables, and return a Database handle.
- * Calling multiple times returns the same singleton.
- */
+/** Initialize the SQLite (sql.js WASM) database singleton, running schema DDL and scheduling backups. */
 export async function createDatabase(): Promise<Database> {
   if (dbInstance) return dbInstance;
   if (dbInitPromise) return dbInitPromise;
@@ -962,13 +960,9 @@ export async function createDatabase(): Promise<Database> {
   return dbInitPromise;
 }
 
-/**
- * Run schema migrations on an existing Database handle.
- * Currently a no-op since createDatabase() runs the schema DDL,
- * but this is the hook for future migration scripts.
- */
-export function initDatabase(db: Database): void {
-  // Schema is already created in createDatabase().
-  // Add future ALTER TABLE / migration logic here.
-  logger.info('Database schema verified');
+/** Run schema migrations on an existing Database handle. */
+export async function initDatabase(db: Database): Promise<void> {
+  const runner = createMigrationRunner(db);
+  runner.migrate();
+  logger.info('Database schema verified and migrations applied');
 }

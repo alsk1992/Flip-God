@@ -65,9 +65,7 @@ import { createBStockAdapter } from './bstock/scraper';
 import { createBulqAdapter } from './bulq/scraper';
 import { createLiquidationAdapter } from './liquidation/scraper';
 
-/**
- * Create all platform adapters given credentials per platform.
- */
+/** Create all platform adapters (15 platforms) given optional credentials per platform. */
 export function createAllAdapters(credentials: {
   amazon?: AmazonCredentials;
   ebay?: EbayCredentials;

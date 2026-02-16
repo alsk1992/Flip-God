@@ -14,6 +14,7 @@ import { createAmazonSpApi } from '../platforms/amazon/sp-api';
 
 const logger = createLogger('listing-creator');
 
+/** Create a product listing on the specified selling platform (eBay or Amazon). */
 export async function createListing(
   platform: Platform,
   draft: ListingDraft,
@@ -131,6 +132,7 @@ export async function createListing(
   }
 }
 
+/** Apply basic title capitalization and description defaults to a listing draft. */
 export async function optimizeListing(
   title: string,
   description: string,

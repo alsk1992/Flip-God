@@ -10,6 +10,7 @@
  * - Request timeout (30s default)
  */
 
+import crypto from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -215,7 +216,7 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
       );
 
       // Record request metrics
-      const userId = (req as any).userId ?? req.headers['x-user-id'] as string | undefined;
+      const userId = (req as unknown as Record<string, unknown>).userId as string | undefined ?? req.headers['x-user-id'] as string | undefined;
       const isError = res.statusCode >= 400 ? new Error(`HTTP ${res.statusCode}`) : null;
       requestMetrics.record(`${req.method} ${req.path}`, userId, isError);
     });
@@ -254,7 +255,8 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
   const requireAuth = (req: Request, res: Response, next: NextFunction) => {
     if (!config.authToken) return next();
     const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
-    if (token !== config.authToken) {
+    if (typeof token !== 'string' || token.length !== config.authToken.length ||
+        !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(config.authToken))) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
@@ -369,7 +371,8 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
       return; // Can't send a response if headers already sent
     }
 
-    const status = (err as any).status || (err as any).statusCode || 500;
+    const errRecord = err as unknown as Record<string, unknown>;
+    const status = (typeof errRecord.status === 'number' ? errRecord.status : undefined) || (typeof errRecord.statusCode === 'number' ? errRecord.statusCode : undefined) || 500;
     res.status(status).json({
       error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
     });

@@ -13,12 +13,16 @@ import { createEbayOrdersApi } from '../platforms/ebay/orders';
 
 const logger = createLogger('order-monitor');
 
+/** How often to poll for new unfulfilled orders (5 minutes). */
+const ORDER_POLL_INTERVAL_MS = 5 * 60 * 1000;
+
 export interface OrderMonitor {
   start(): void;
   stop(): void;
   checkOrders(): Promise<number>;
 }
 
+/** Create an order monitor that polls selling platforms for new unfulfilled orders. */
 export function createOrderMonitor(
   db: Database,
   credentials?: { ebay?: EbayCredentials },
@@ -28,10 +32,9 @@ export function createOrderMonitor(
   return {
     start() {
       logger.info('Order monitor started');
-      // Check every 5 minutes
       interval = setInterval(() => {
         this.checkOrders().catch(err => logger.error({ err }, 'Order check failed'));
-      }, 5 * 60 * 1000);
+      }, ORDER_POLL_INTERVAL_MS);
     },
 
     stop() {
@@ -73,9 +76,10 @@ export function createOrderMonitor(
               [sku, `%${escapedSku}%`],
             ) : [];
 
-            const sellPrice = ebayOrder.pricingSummary?.total
+            const parsedSellPrice = ebayOrder.pricingSummary?.total
               ? parseFloat(ebayOrder.pricingSummary.total.value)
               : 0;
+            const sellPrice = Number.isFinite(parsedSellPrice) ? parsedSellPrice : 0;
 
             // Get shipping address
             const shipTo = ebayOrder.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo;

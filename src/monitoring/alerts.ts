@@ -13,6 +13,11 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('alerts');
 
+/** One minute in milliseconds, used for rate-limit windows and cooldowns. */
+const ONE_MINUTE_MS = 60_000;
+/** Five minutes in milliseconds, used as default alert cooldown. */
+const FIVE_MINUTES_MS = 300_000;
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -107,7 +112,7 @@ export class AlertManager {
   constructor(config: AlertManagerConfig = {}) {
     this.config = {
       enabled: config.enabled ?? true,
-      defaultCooldownMs: config.defaultCooldownMs ?? 300000, // 5 minutes
+      defaultCooldownMs: config.defaultCooldownMs ?? FIVE_MINUTES_MS,
       maxHistorySize: config.maxHistorySize ?? 1000,
       webhooks: config.webhooks ?? [],
       alerts: config.alerts ?? [],
@@ -136,7 +141,7 @@ export class AlertManager {
       rateLimitPerMinute: webhook.rateLimitPerMinute ?? 10,
       lastSent: new Map(),
       sentCount: 0,
-      sentResetAt: Date.now() + 60000,
+      sentResetAt: Date.now() + ONE_MINUTE_MS,
     });
   }
 
@@ -189,8 +194,12 @@ export class AlertManager {
       return false;
     }
 
-    // Record alert time
+    // Record alert time (cap at 10000 entries to prevent unbounded growth)
     this.lastAlertTimes.set(alertKey, Date.now());
+    if (this.lastAlertTimes.size > 10000) {
+      const firstKey = this.lastAlertTimes.keys().next().value;
+      if (firstKey) this.lastAlertTimes.delete(firstKey);
+    }
 
     // Add to history
     this.alertHistory.push(fullAlert);
@@ -232,8 +241,12 @@ export class AlertManager {
 
         if (triggered) {
           if (!state) {
-            // Start tracking
+            // Start tracking (cap at 10000 entries to prevent unbounded growth)
             this.sustainedStates.set(stateKey, { value, startTime: Date.now() });
+            if (this.sustainedStates.size > 10000) {
+              const firstKey = this.sustainedStates.keys().next().value;
+              if (firstKey) this.sustainedStates.delete(firstKey);
+            }
           } else if (Date.now() - state.startTime >= config.threshold.sustainedMs) {
             // Sustained long enough, fire alert
             await this.fire({
@@ -300,7 +313,7 @@ export class AlertManager {
       const now = Date.now();
       if (now > webhook.sentResetAt) {
         webhook.sentCount = 0;
-        webhook.sentResetAt = now + 60000;
+        webhook.sentResetAt = now + ONE_MINUTE_MS;
       }
 
       if (webhook.sentCount >= (webhook.rateLimitPerMinute ?? 10)) {
@@ -526,9 +539,9 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       metric: 'process_memory_percent',
       operator: '>',
       value: 80,
-      sustainedMs: 60000,
+      sustainedMs: ONE_MINUTE_MS,
     },
-    cooldownMs: 300000,
+    cooldownMs: FIVE_MINUTES_MS,
     tags: ['system', 'memory'],
   },
   {
@@ -540,7 +553,7 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       operator: '>',
       value: 95,
     },
-    cooldownMs: 60000,
+    cooldownMs: ONE_MINUTE_MS,
     tags: ['system', 'memory'],
   },
 
@@ -553,9 +566,9 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       metric: 'http_error_rate',
       operator: '>',
       value: 5,
-      sustainedMs: 60000,
+      sustainedMs: ONE_MINUTE_MS,
     },
-    cooldownMs: 300000,
+    cooldownMs: FIVE_MINUTES_MS,
     tags: ['http', 'errors'],
   },
   {
@@ -567,7 +580,7 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       operator: '>',
       value: 20,
     },
-    cooldownMs: 60000,
+    cooldownMs: ONE_MINUTE_MS,
     tags: ['http', 'errors'],
   },
 
@@ -580,9 +593,9 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       metric: 'http_latency_avg_ms',
       operator: '>',
       value: 1000,
-      sustainedMs: 120000,
+      sustainedMs: 2 * ONE_MINUTE_MS,
     },
-    cooldownMs: 300000,
+    cooldownMs: FIVE_MINUTES_MS,
     tags: ['http', 'latency'],
   },
   {
@@ -594,7 +607,7 @@ export const DEFAULT_ALERT_CONFIGS: AlertConfig[] = [
       operator: '>',
       value: 5000,
     },
-    cooldownMs: 60000,
+    cooldownMs: ONE_MINUTE_MS,
     tags: ['http', 'latency'],
   },
 ];

@@ -14,6 +14,9 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('health');
 
+/** Duration (ms) after which a connected WebSocket with no messages is considered stale. */
+const WS_STALE_THRESHOLD_MS = 60_000;
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -380,7 +383,7 @@ export function createWebSocketHealthCheck(
     // Check if connection is stale (no messages in last 60 seconds)
     if (connected && stats) {
       const staleSince = Date.now() - stats.lastMessageAt;
-      if (staleSince > 60000) {
+      if (staleSince > WS_STALE_THRESHOLD_MS) {
         status = 'degraded';
       }
     }

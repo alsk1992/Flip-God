@@ -85,9 +85,6 @@ const BROWSER_HEADERS: Record<string, string> = {
   'Sec-Fetch-Site': 'same-origin',
 };
 
-// Location cookies (default to US delivery)
-const LOCATION_COOKIES = 'invCheckPostalCode=90210; invCheckCity=Beverly%20Hills; C_LOC=90210||Beverly%20Hills||CA||US';
-
 export function createCostcoAdapter(options?: {
   postalCode?: string;
   city?: string;

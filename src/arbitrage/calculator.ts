@@ -165,10 +165,12 @@ const DEFAULT_FEE_SCHEDULES: Record<Platform, FeeStructure> = {
 // Alias for backward compat
 const FEE_SCHEDULES = DEFAULT_FEE_SCHEDULES;
 
+/** Return the default fee structure for a given selling platform. */
 export function getFeeSchedule(platform: Platform): FeeStructure {
   return FEE_SCHEDULES[platform];
 }
 
+/** Calculate net profit, margin, and ROI for a cross-platform arbitrage trade. */
 export function calculateProfit(
   sellPlatform: Platform,
   sellPrice: number,
@@ -181,7 +183,7 @@ export function calculateProfit(
 
   const platformFees = (sellPrice * fees.sellerFeePct) / 100 + fees.fixedFee;
   const paymentFees = (sellPrice * fees.paymentProcessingPct) / 100;
-  const shippingCost = sellShipping || fees.shippingEstimate;
+  const shippingCost = sellShipping ?? fees.shippingEstimate;
 
   const totalCost = buyPrice + buyShipping + platformFees + paymentFees + shippingCost;
   const grossProfit = sellPrice - buyPrice - buyShipping;
@@ -204,6 +206,7 @@ export function calculateProfit(
   };
 }
 
+/** Calculate platform seller fees (including category-specific rates) for a given price. */
 export function calculateFees(platform: Platform, price: number, category?: string): {
   sellerFee: number;
   fixedFee: number;
