@@ -18,6 +18,8 @@ import { createLogger } from '../utils/logger';
 import { RateLimiter } from '../security';
 import { HealthChecker, ErrorTracker, RequestMetrics, getMemorySnapshot } from '../utils/production';
 import type { Database } from '../db';
+import type { JobQueue, JobType, JobStatus } from '../queue/job-queue';
+import type { RepricingEngine } from '../listing/repricer';
 
 const logger = createLogger('server');
 
@@ -45,9 +47,21 @@ export interface ServerConfig {
   requestTimeoutMs?: number;
 }
 
+export interface MonitoringState {
+  /** Prometheus-compatible metrics registry */
+  metricsRegistry?: import('../monitoring/metrics').MetricsRegistry;
+  /** Health checker instance */
+  healthChecker?: import('../monitoring/health').HealthChecker;
+  /** Alert manager instance */
+  alertManager?: import('../monitoring/alerts').AlertManager;
+}
+
 export interface ServerCallbacks {
   onChatConnection?: (ws: WebSocket, req: http.IncomingMessage) => void;
   db?: Database;
+  monitoring?: MonitoringState;
+  jobQueue?: JobQueue;
+  repricingEngine?: RepricingEngine;
 }
 
 // =============================================================================
@@ -266,14 +280,31 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
   // ---------------------------------------------------------------------------
   // Metrics endpoint (auth-protected)
   // ---------------------------------------------------------------------------
-  app.get('/metrics', requireAuth, (_req: Request, res: Response) => {
-    res.json({
+  app.get('/metrics', requireAuth, (req: Request, res: Response) => {
+    const accept = req.headers.accept ?? '';
+    const monitoring = callbacks?.monitoring;
+
+    // If Prometheus format is requested and we have a registry, return text
+    if (accept.includes('text/plain') && monitoring?.metricsRegistry) {
+      res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+      res.send(monitoring.metricsRegistry.toPrometheusText());
+      return;
+    }
+
+    // JSON format with both legacy and new metrics
+    const result: Record<string, unknown> = {
       requests: requestMetrics.getMetrics(),
       errors: errorTracker.getErrorCounts(),
       recentErrors: errorTracker.getRecent(10),
       memory: getMemorySnapshot(),
       uptime: process.uptime(),
-    });
+    };
+
+    if (monitoring?.metricsRegistry) {
+      result.prometheus = monitoring.metricsRegistry.toJSON();
+    }
+
+    res.json(result);
   });
 
   // ---------------------------------------------------------------------------
@@ -349,6 +380,251 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
       activeListings: listings[0]?.cnt ?? 0,
       pendingOrders: pending[0]?.cnt ?? 0,
       totalProfit: profitRow[0]?.total ?? 0,
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Job Queue API endpoints
+  // ---------------------------------------------------------------------------
+  const jobQueue = callbacks?.jobQueue;
+
+  // POST /api/jobs - Create a new bulk job
+  app.post('/api/jobs', requireAuth, (req: Request, res: Response) => {
+    if (!jobQueue) {
+      return res.status(503).json({ error: 'Job queue not available' });
+    }
+
+    const { type, payload, totalItems, userId } = req.body as {
+      type?: string;
+      payload?: Record<string, unknown>;
+      totalItems?: number;
+      userId?: string;
+    };
+
+    const validTypes: JobType[] = ['bulk_list', 'bulk_reprice', 'bulk_scan', 'bulk_inventory_sync', 'bulk_import'];
+    if (!type || !validTypes.includes(type as JobType)) {
+      return res.status(400).json({ error: `Invalid job type. Must be one of: ${validTypes.join(', ')}` });
+    }
+
+    if (!payload || typeof payload !== 'object') {
+      return res.status(400).json({ error: 'payload is required and must be an object' });
+    }
+
+    const itemCount = typeof totalItems === 'number' && totalItems > 0 ? totalItems : 0;
+    const user = typeof userId === 'string' && userId.length > 0 ? userId : 'system';
+
+    const jobId = jobQueue.enqueue({
+      type: type as JobType,
+      payload,
+      totalItems: itemCount,
+      userId: user,
+    });
+
+    res.status(201).json({ jobId, status: 'pending' });
+  });
+
+  // GET /api/jobs - List jobs for a user
+  app.get('/api/jobs', requireAuth, (req: Request, res: Response) => {
+    if (!jobQueue) {
+      return res.json({ jobs: [] });
+    }
+
+    const userId = (req.query.userId as string) || 'system';
+    const status = req.query.status as string | undefined;
+    const validStatuses: JobStatus[] = ['pending', 'running', 'completed', 'failed', 'cancelled'];
+
+    if (status && !validStatuses.includes(status as JobStatus)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const jobs = jobQueue.getJobs(userId, status as JobStatus | undefined);
+    res.json({ jobs });
+  });
+
+  // GET /api/jobs/:id - Get a specific job
+  app.get('/api/jobs/:id', requireAuth, (req: Request, res: Response) => {
+    if (!jobQueue) {
+      return res.status(503).json({ error: 'Job queue not available' });
+    }
+
+    const job = jobQueue.getJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    res.json({ job });
+  });
+
+  // POST /api/jobs/:id/cancel - Cancel a job
+  app.post('/api/jobs/:id/cancel', requireAuth, (req: Request, res: Response) => {
+    if (!jobQueue) {
+      return res.status(503).json({ error: 'Job queue not available' });
+    }
+
+    const cancelled = jobQueue.cancelJob(req.params.id);
+    if (!cancelled) {
+      return res.status(400).json({ error: 'Job cannot be cancelled (not found or already finished)' });
+    }
+
+    res.json({ status: 'cancelled' });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Repricing Engine API endpoints
+  // ---------------------------------------------------------------------------
+  const repricingEngine = callbacks?.repricingEngine;
+
+  // GET /api/repricing/rules - List all repricing rules
+  app.get('/api/repricing/rules', requireAuth, (req: Request, res: Response) => {
+    if (!repricingEngine) {
+      return res.json({ rules: [] });
+    }
+
+    const listingId = req.query.listingId as string | undefined;
+    const rules = repricingEngine.getRules(listingId);
+    res.json({ rules });
+  });
+
+  // POST /api/repricing/rules - Create a repricing rule
+  app.post('/api/repricing/rules', requireAuth, (req: Request, res: Response) => {
+    if (!repricingEngine) {
+      return res.status(503).json({ error: 'Repricing engine not available' });
+    }
+
+    const { listingId, strategy, params, minPrice, maxPrice, runIntervalMs } = req.body as {
+      listingId?: string;
+      strategy?: string;
+      params?: Record<string, number | string>;
+      minPrice?: number;
+      maxPrice?: number;
+      runIntervalMs?: number;
+    };
+
+    if (!listingId || typeof listingId !== 'string') {
+      return res.status(400).json({ error: 'listingId is required' });
+    }
+    if (!strategy || typeof strategy !== 'string') {
+      return res.status(400).json({ error: 'strategy is required' });
+    }
+    if (typeof minPrice !== 'number' || typeof maxPrice !== 'number') {
+      return res.status(400).json({ error: 'minPrice and maxPrice are required numbers' });
+    }
+
+    const { generateId: genId } = require('../utils/id');
+    const rule = {
+      id: genId('rr') as string,
+      listingId,
+      strategy: strategy as import('../listing/repricer').RepricingStrategy,
+      params: params ?? {},
+      minPrice,
+      maxPrice,
+      enabled: true,
+      runIntervalMs: runIntervalMs ?? 3600000,
+      createdAt: Date.now(),
+    };
+
+    repricingEngine.addRule(rule);
+    res.status(201).json({ rule });
+  });
+
+  // DELETE /api/repricing/rules/:id - Delete a repricing rule
+  app.delete('/api/repricing/rules/:id', requireAuth, (req: Request, res: Response) => {
+    if (!repricingEngine) {
+      return res.status(503).json({ error: 'Repricing engine not available' });
+    }
+
+    const rule = repricingEngine.getRule(req.params.id);
+    if (!rule) {
+      return res.status(404).json({ error: 'Rule not found' });
+    }
+
+    repricingEngine.removeRule(req.params.id);
+    res.json({ status: 'deleted' });
+  });
+
+  // POST /api/repricing/run - Run all due repricing rules
+  app.post('/api/repricing/run', requireAuth, async (_req: Request, res: Response) => {
+    if (!repricingEngine) {
+      return res.status(503).json({ error: 'Repricing engine not available' });
+    }
+
+    const results = await repricingEngine.runAll();
+    res.json({
+      totalRules: results.length,
+      adjusted: results.filter(r => r.applied).length,
+      results,
+    });
+  });
+
+  // POST /api/repricing/rules/:id/run - Run a specific rule
+  app.post('/api/repricing/rules/:id/run', requireAuth, async (req: Request, res: Response) => {
+    if (!repricingEngine) {
+      return res.status(503).json({ error: 'Repricing engine not available' });
+    }
+
+    const result = await repricingEngine.runRule(req.params.id);
+    res.json({ result });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Dashboard endpoint - aggregated view of system state
+  // ---------------------------------------------------------------------------
+  app.get('/api/dashboard', requireAuth, async (_req: Request, res: Response) => {
+    const monitoring = callbacks?.monitoring;
+
+    // Active listings count
+    let activeListings = 0;
+    let pendingOrders = 0;
+    let todayProfit = 0;
+    if (db) {
+      const listingRows = db.query<{ cnt: number }>(
+        "SELECT COUNT(*) as cnt FROM listings WHERE status = 'active'"
+      );
+      activeListings = listingRows[0]?.cnt ?? 0;
+
+      const pendingRows = db.query<{ cnt: number }>(
+        "SELECT COUNT(*) as cnt FROM orders WHERE status = 'pending'"
+      );
+      pendingOrders = pendingRows[0]?.cnt ?? 0;
+
+      // Today's profit (orders completed today)
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const profitRows = db.query<{ total: number | null }>(
+        'SELECT SUM(profit) as total FROM orders WHERE profit IS NOT NULL AND delivered_at >= ?',
+        [todayStart.toISOString()]
+      );
+      todayProfit = profitRows[0]?.total ?? 0;
+    }
+
+    // Health status
+    let healthStatus: Record<string, unknown> = { status: 'unknown' };
+    if (monitoring?.healthChecker) {
+      try {
+        const result = await monitoring.healthChecker.checkHealth();
+        healthStatus = {
+          status: result.status,
+          uptime: result.uptime,
+          components: result.summary,
+        };
+      } catch {
+        healthStatus = { status: 'error' };
+      }
+    }
+
+    // Recent alerts
+    let recentAlerts: unknown[] = [];
+    if (monitoring?.alertManager) {
+      recentAlerts = monitoring.alertManager.getHistory({ limit: 10 });
+    }
+
+    res.json({
+      activeListings,
+      pendingOrders,
+      todayProfit,
+      health: healthStatus,
+      recentAlerts,
+      timestamp: Date.now(),
     });
   });
 

@@ -445,6 +445,51 @@ export class AlertManager {
   }
 
   /**
+   * Dispatch an alert to specific webhooks (public API).
+   * Respects rate limits on each webhook.
+   */
+  async dispatchAlert(alert: Alert, webhooks: WebhookConfig[]): Promise<void> {
+    for (const webhook of webhooks) {
+      // Find or create tracked webhook state
+      const name = webhook.name || webhook.url;
+      let tracked = this.webhooks.get(name);
+      if (!tracked) {
+        tracked = {
+          ...webhook,
+          enabled: webhook.enabled ?? true,
+          minLevel: webhook.minLevel ?? 'warning',
+          rateLimitPerMinute: webhook.rateLimitPerMinute ?? 10,
+          lastSent: new Map(),
+          sentCount: 0,
+          sentResetAt: Date.now() + ONE_MINUTE_MS,
+        };
+        this.webhooks.set(name, tracked);
+      }
+
+      if (!tracked.enabled) continue;
+
+      // Check rate limit
+      const now = Date.now();
+      if (now > tracked.sentResetAt) {
+        tracked.sentCount = 0;
+        tracked.sentResetAt = now + ONE_MINUTE_MS;
+      }
+
+      if (tracked.sentCount >= (tracked.rateLimitPerMinute ?? 10)) {
+        logger.warn({ webhook: name, alert: alert.name }, 'Webhook rate limited during dispatch');
+        continue;
+      }
+
+      try {
+        await this.sendWebhook(tracked, alert);
+        tracked.sentCount++;
+      } catch (error) {
+        logger.error({ error, webhook: name, alert: alert.name }, 'Failed to dispatch alert to webhook');
+      }
+    }
+  }
+
+  /**
    * Get alert history
    */
   getHistory(options: { level?: AlertLevel; name?: string; limit?: number; since?: number } = {}): Alert[] {

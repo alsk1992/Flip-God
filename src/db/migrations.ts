@@ -317,6 +317,53 @@ const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS usage_records;
     `,
   },
+
+  // ── Migration 4: Job queue and repricing rules ────────────────────────────
+  {
+    version: 4,
+    name: 'jobs_and_repricing_rules',
+    up: `
+      -- Job queue for bulk operations
+      CREATE TABLE IF NOT EXISTS jobs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        payload TEXT NOT NULL,
+        result TEXT,
+        progress INTEGER DEFAULT 0,
+        total_items INTEGER DEFAULT 0,
+        completed_items INTEGER DEFAULT 0,
+        failed_items INTEGER DEFAULT 0,
+        errors TEXT DEFAULT '[]',
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_jobs_user_status ON jobs(user_id, status);
+      CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+
+      -- Repricing rules for advanced repricing strategies
+      CREATE TABLE IF NOT EXISTS repricing_rules (
+        id TEXT PRIMARY KEY,
+        listing_id TEXT NOT NULL,
+        strategy TEXT NOT NULL,
+        params TEXT NOT NULL DEFAULT '{}',
+        min_price REAL NOT NULL,
+        max_price REAL NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        last_run INTEGER,
+        run_interval_ms INTEGER NOT NULL DEFAULT 3600000,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_repricing_rules_listing ON repricing_rules(listing_id);
+      CREATE INDEX IF NOT EXISTS idx_repricing_rules_enabled ON repricing_rules(enabled);
+    `,
+    down: `
+      DROP TABLE IF EXISTS repricing_rules;
+      DROP TABLE IF EXISTS jobs;
+    `,
+  },
 ];
 
 // =============================================================================

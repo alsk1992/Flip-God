@@ -3,6 +3,12 @@
  *
  * Wired to eBay Inventory API for real listing creation.
  * Amazon listing is flagged as manual (requires SP-API seller approval).
+ *
+ * eBay flow:
+ * 1. ensurePolicies() — check/create fulfillment, payment, return policies
+ * 2. createInventoryItem() — product data + availability
+ * 3. createOffer() — price, category, policies
+ * 4. publishOffer() — go live on eBay
  */
 
 import { randomUUID } from 'crypto';
@@ -10,6 +16,7 @@ import { createLogger } from '../utils/logger';
 import type { Platform, EbayCredentials, AmazonCredentials } from '../types';
 import type { ListingDraft, ListingResult } from './types';
 import { createEbaySellerApi } from '../platforms/ebay/seller';
+import { ensurePolicies } from '../platforms/ebay/account';
 import { createAmazonSpApi } from '../platforms/amazon/sp-api';
 
 const logger = createLogger('listing-creator');
@@ -32,10 +39,15 @@ export async function createListing(
         return { success: false, error: 'eBay refresh token required for listing creation. Provide refreshToken in credentials.' };
       }
 
-      const seller = createEbaySellerApi(credentials.ebay);
-      const sku = `fa-${randomUUID().slice(0, 8)}`;
-
       try {
+        // Step 1: Ensure seller policies exist (creates defaults if needed)
+        const policyIds = await ensurePolicies(credentials.ebay);
+        logger.info({ policyIds }, 'eBay policies ready');
+
+        // Step 2-4: Create inventory item, offer, and publish
+        const seller = createEbaySellerApi(credentials.ebay);
+        const sku = `fa-${randomUUID().slice(0, 8)}`;
+
         const result = await seller.createAndPublishListing({
           sku,
           title: draft.title.slice(0, 80), // eBay 80-char title limit
@@ -47,10 +59,9 @@ export async function createListing(
           condition: draft.condition === 'new' ? 'NEW'
             : draft.condition === 'refurbished' ? 'LIKE_NEW'
             : 'GOOD',
-          // These policy IDs must be configured by the seller in their eBay account
-          fulfillmentPolicyId: process.env.EBAY_FULFILLMENT_POLICY_ID ?? '',
-          paymentPolicyId: process.env.EBAY_PAYMENT_POLICY_ID ?? '',
-          returnPolicyId: process.env.EBAY_RETURN_POLICY_ID ?? '',
+          fulfillmentPolicyId: policyIds.fulfillmentPolicyId,
+          paymentPolicyId: policyIds.paymentPolicyId,
+          returnPolicyId: policyIds.returnPolicyId,
         });
 
         return {

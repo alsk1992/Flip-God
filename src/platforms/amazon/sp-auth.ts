@@ -4,11 +4,18 @@
  * Handles access token management for SP-API.
  * For private (1P) seller apps, only needs LWA refresh_token + client_id/secret.
  * No IAM role needed for self-authorized apps.
+ *
+ * LWA access tokens expire in ~1 hour (3600s). We refresh 5 minutes before
+ * expiry. If the refresh fails, the cache entry is cleared so subsequent calls
+ * retry from scratch with the original refresh_token.
  */
 
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('amazon-sp-auth');
+
+/** Buffer before expiry at which we proactively refresh (5 minutes). */
+const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 export interface SpApiAuthConfig {
   /** LWA client ID */
@@ -27,6 +34,7 @@ export interface SpApiAuthConfig {
 
 interface CachedToken {
   accessToken: string;
+  refreshToken: string;
   expiresAt: number;
 }
 
@@ -57,20 +65,23 @@ export const MARKETPLACE_IDS: Record<string, string> = {
 };
 
 /**
- * Get a valid LWA access token, refreshing if needed.
+ * Refresh an SP-API access token using the LWA refresh_token grant.
+ *
+ * This is the low-level refresh call. Most callers should use `getSpApiToken`
+ * which handles caching and automatic refresh transparently.
  */
-export async function getSpApiToken(config: SpApiAuthConfig): Promise<string> {
-  const cacheKey = `${config.clientId}:sp`;
-  const cached = tokenCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt - 60_000) {
-    return cached.accessToken;
-  }
+export async function refreshSpApiToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string,
+): Promise<{ accessToken: string; expiresIn: number }> {
+  logger.info('Refreshing SP-API access token via LWA refresh_token grant');
 
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
-    refresh_token: config.refreshToken,
-    client_id: config.clientId,
-    client_secret: config.clientSecret,
+    refresh_token: refreshToken,
+    client_id: clientId,
+    client_secret: clientSecret,
   });
 
   const response = await fetch(LWA_TOKEN_URL, {
@@ -81,25 +92,86 @@ export async function getSpApiToken(config: SpApiAuthConfig): Promise<string> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error({ status: response.status, error: errorText }, 'LWA token refresh failed');
+    logger.error({ status: response.status, error: errorText }, 'LWA refresh_token grant failed');
     throw new Error(`LWA token refresh failed (${response.status}): ${errorText}`);
   }
 
   const data = await response.json() as { access_token: string; expires_in: number };
+  logger.info({ expiresIn: data.expires_in }, 'SP-API access token refreshed');
 
-  const token: CachedToken = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
+  return { accessToken: data.access_token, expiresIn: data.expires_in };
+}
 
-  // Evict oldest entry if cache is full
-  if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+/** Store token in cache, evicting the oldest entry if full. */
+function evictAndSet(cacheKey: string, token: CachedToken): void {
+  if (tokenCache.size >= MAX_TOKEN_CACHE_SIZE && !tokenCache.has(cacheKey)) {
     const firstKey = tokenCache.keys().next().value;
     if (firstKey) tokenCache.delete(firstKey);
   }
   tokenCache.set(cacheKey, token);
-  logger.info({ expiresIn: data.expires_in }, 'SP-API access token obtained');
-  return token.accessToken;
+}
+
+/**
+ * Get a valid LWA access token, refreshing if needed.
+ *
+ * Checks the cache first — if the token is still valid (with a 5-minute
+ * buffer before expiry), returns it. Otherwise refreshes using the
+ * refresh_token. If the refresh fails, the cache is cleared and a fresh
+ * request is attempted once.
+ */
+export async function getSpApiToken(config: SpApiAuthConfig): Promise<string> {
+  const cacheKey = `${config.clientId}:sp`;
+  const cached = tokenCache.get(cacheKey);
+
+  if (cached && Date.now() < cached.expiresAt - EXPIRY_BUFFER_MS) {
+    return cached.accessToken;
+  }
+
+  // Use cached refresh token if available, otherwise fall back to config
+  const rtToUse = cached?.refreshToken ?? config.refreshToken;
+
+  try {
+    const { accessToken, expiresIn } = await refreshSpApiToken(
+      config.clientId,
+      config.clientSecret,
+      rtToUse,
+    );
+
+    const token: CachedToken = {
+      accessToken,
+      refreshToken: rtToUse,
+      expiresAt: Date.now() + expiresIn * 1000,
+    };
+    evictAndSet(cacheKey, token);
+    return token.accessToken;
+  } catch (err) {
+    // If we used a cached refresh token that differs from config, retry with config token
+    if (rtToUse !== config.refreshToken) {
+      logger.warn(
+        { error: err instanceof Error ? err.message : String(err) },
+        'SP-API refresh failed with cached token, retrying with original refresh_token',
+      );
+      tokenCache.delete(cacheKey);
+
+      const { accessToken, expiresIn } = await refreshSpApiToken(
+        config.clientId,
+        config.clientSecret,
+        config.refreshToken,
+      );
+
+      const token: CachedToken = {
+        accessToken,
+        refreshToken: config.refreshToken,
+        expiresAt: Date.now() + expiresIn * 1000,
+      };
+      evictAndSet(cacheKey, token);
+      return token.accessToken;
+    }
+
+    // No fallback available — clear cache and re-throw
+    tokenCache.delete(cacheKey);
+    throw err;
+  }
 }
 
 export function clearSpApiTokenCache(): void {

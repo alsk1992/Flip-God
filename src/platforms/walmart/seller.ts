@@ -9,6 +9,7 @@
  */
 
 import { createLogger } from '../../utils/logger';
+import { randomUUID } from 'crypto';
 import type { WalmartCredentials } from '../../types';
 import { getWalmartMarketplaceToken } from './auth';
 
@@ -103,21 +104,46 @@ export interface WalmartListingQualityItem {
   issues?: Array<{ issueType: string; issueDescription: string }>;
 }
 
+export interface WalmartCreateItemInput {
+  sku: string;
+  productName: string;
+  price: number;
+  currency?: string;
+  description?: string;
+  upc?: string;
+  brand?: string;
+  category?: string;
+  images?: string[];
+  shelfName?: string;
+  shortDescription?: string;
+  weight?: { value: number; unit: string };
+  additionalAttributes?: Record<string, unknown>;
+}
+
+export interface WalmartFeedListResponse {
+  feeds: Array<WalmartFeedResponse & { feedType?: string; feedDate?: string }>;
+  totalResults?: number;
+}
+
 // ---- API Interface ----
 
 export interface WalmartSellerApi {
   // Items
+  createItem(item: WalmartCreateItemInput): Promise<WalmartFeedResponse>;
+  updateItem(sku: string, updates: Partial<WalmartCreateItemInput>): Promise<WalmartFeedResponse>;
   getItem(sku: string): Promise<WalmartSellerItem | null>;
-  getAllItems(params?: { limit?: number; offset?: number }): Promise<{ items: WalmartSellerItem[]; totalItems: number; nextCursor?: string }>;
+  getAllItems(params?: { limit?: number; offset?: number; nextCursor?: string }): Promise<{ items: WalmartSellerItem[]; totalItems: number; nextCursor?: string }>;
   retireItem(sku: string): Promise<boolean>;
+  bulkUpdateItems(feedType: string, items: unknown[]): Promise<WalmartFeedResponse>;
 
   // Pricing
   updatePrice(sku: string, price: number, currency?: string): Promise<WalmartFeedResponse>;
-  bulkUpdatePrices(updates: Array<{ sku: string; price: number }>): Promise<WalmartFeedResponse>;
+  bulkUpdatePrices(items: Array<{ sku: string; price: number; currency?: string }>): Promise<WalmartFeedResponse>;
 
   // Inventory
   getInventory(sku: string): Promise<WalmartInventoryItem | null>;
   updateInventory(sku: string, quantity: number): Promise<WalmartFeedResponse>;
+  bulkUpdateInventory(items: Array<{ sku: string; quantity: number }>): Promise<WalmartFeedResponse>;
 
   // Orders
   getOrders(params?: { createdStartDate?: string; status?: string; limit?: number }): Promise<WalmartOrder[]>;
@@ -130,18 +156,18 @@ export interface WalmartSellerApi {
     trackingUrl?: string;
     methodCode: string;
   }): Promise<boolean>;
+  cancelOrder(purchaseOrderId: string, lineItems: WalmartCancelLineItem[]): Promise<boolean>;
+  refundOrder(purchaseOrderId: string, lineItems: WalmartRefundLineItem[]): Promise<boolean>;
 
   // Feed status
   getFeedStatus(feedId: string): Promise<WalmartFeedResponse>;
-
-  cancelOrder(purchaseOrderId: string, lineItems: WalmartCancelLineItem[]): Promise<boolean>;
-  refundOrder(purchaseOrderId: string, lineItems: WalmartRefundLineItem[]): Promise<boolean>;
+  getAllFeeds(params?: { feedType?: string; limit?: number; offset?: number }): Promise<WalmartFeedListResponse>;
 
   // Returns
   getReturns(params?: { returnCreationStartDate?: string; limit?: number }): Promise<WalmartReturn[]>;
   getReturnOrder(returnOrderId: string): Promise<WalmartReturn | null>;
 
-  // Bulk upload
+  // Bulk upload (legacy alias — prefer bulkUpdateItems)
   bulkItemUpload(feedType: string, items: unknown[]): Promise<WalmartFeedResponse>;
 
   // Insights
@@ -155,15 +181,15 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
     const accessToken = await getWalmartMarketplaceToken({ clientId: credentials.clientId, clientSecret: credentials.clientSecret });
     const url = `${API_BASE}${path}`;
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${accessToken}`,
+      'WM_SEC.ACCESS_TOKEN': accessToken,
       'WM_SVC.NAME': 'FlipAgent',
-      'WM_QOS.CORRELATION_ID': `flipagent-${Date.now()}`,
+      'WM_QOS.CORRELATION_ID': randomUUID(),
       'Accept': 'application/json',
+      'Content-Type': 'application/json',
     };
 
     const init: RequestInit = { method: options?.method ?? 'GET', headers };
     if (options?.body) {
-      headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(options.body);
     }
 
@@ -178,6 +204,75 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
 
   return {
     // --- Items ---
+    async createItem(item: WalmartCreateItemInput): Promise<WalmartFeedResponse> {
+      const payload = {
+        MPItemFeed: {
+          MPItemFeedHeader: { version: '3.2', requestId: randomUUID(), requestBatchId: randomUUID() },
+          MPItem: [{
+            sku: item.sku,
+            productIdentifiers: item.upc ? { productIdType: 'UPC', productId: item.upc } : undefined,
+            MPProduct: {
+              productName: item.productName,
+              shortDescription: item.shortDescription ?? item.description ?? '',
+              mainImageUrl: item.images?.[0] ?? '',
+              additionalImages: item.images?.slice(1)?.map(url => ({ url })),
+              brand: item.brand,
+              category: item.category,
+              shelfName: item.shelfName ?? item.category,
+              ...(item.additionalAttributes ?? {}),
+            },
+            MPOffer: {
+              price: item.price,
+              currency: item.currency ?? 'USD',
+              StartDate: new Date().toISOString().split('T')[0],
+              ShippingWeight: item.weight ? `${item.weight.value} ${item.weight.unit}` : undefined,
+            },
+          }],
+        },
+      };
+      const result = await walmartFetch<WalmartFeedResponse>('/feeds?feedType=item', { method: 'POST', body: payload });
+      logger.info({ sku: item.sku, feedId: result.feedId }, 'Item creation submitted via feed');
+      return result;
+    },
+
+    async updateItem(sku: string, updates: Partial<WalmartCreateItemInput>): Promise<WalmartFeedResponse> {
+      const mpProduct: Record<string, unknown> = {};
+      if (updates.productName) mpProduct.productName = updates.productName;
+      if (updates.description) mpProduct.shortDescription = updates.description;
+      if (updates.shortDescription) mpProduct.shortDescription = updates.shortDescription;
+      if (updates.brand) mpProduct.brand = updates.brand;
+      if (updates.category) mpProduct.category = updates.category;
+      if (updates.images?.length) {
+        mpProduct.mainImageUrl = updates.images[0];
+        if (updates.images.length > 1) {
+          mpProduct.additionalImages = updates.images.slice(1).map(url => ({ url }));
+        }
+      }
+      if (updates.additionalAttributes) {
+        Object.assign(mpProduct, updates.additionalAttributes);
+      }
+
+      const mpOffer: Record<string, unknown> = {};
+      if (updates.price != null) mpOffer.price = updates.price;
+      if (updates.currency) mpOffer.currency = updates.currency;
+      if (updates.weight) mpOffer.ShippingWeight = `${updates.weight.value} ${updates.weight.unit}`;
+
+      const payload = {
+        MPItemFeed: {
+          MPItemFeedHeader: { version: '3.2', requestId: randomUUID(), requestBatchId: randomUUID() },
+          MPItem: [{
+            sku,
+            productIdentifiers: updates.upc ? { productIdType: 'UPC', productId: updates.upc } : undefined,
+            MPProduct: Object.keys(mpProduct).length > 0 ? mpProduct : undefined,
+            MPOffer: Object.keys(mpOffer).length > 0 ? mpOffer : undefined,
+          }],
+        },
+      };
+      const result = await walmartFetch<WalmartFeedResponse>('/feeds?feedType=item', { method: 'POST', body: payload });
+      logger.info({ sku, feedId: result.feedId }, 'Item update submitted via feed');
+      return result;
+    },
+
     async getItem(sku: string): Promise<WalmartSellerItem | null> {
       try {
         return await walmartFetch<WalmartSellerItem>(`/items/${encodeURIComponent(sku)}`);
@@ -187,10 +282,11 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       }
     },
 
-    async getAllItems(params?): Promise<{ items: WalmartSellerItem[]; totalItems: number; nextCursor?: string }> {
+    async getAllItems(params?: { limit?: number; offset?: number; nextCursor?: string }): Promise<{ items: WalmartSellerItem[]; totalItems: number; nextCursor?: string }> {
       const query = new URLSearchParams();
       if (params?.limit) query.set('limit', String(params.limit));
       if (params?.offset) query.set('offset', String(params.offset));
+      if (params?.nextCursor) query.set('nextCursor', params.nextCursor);
       const qs = query.toString() ? `?${query.toString()}` : '';
 
       try {
@@ -219,6 +315,21 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       }
     },
 
+    async bulkUpdateItems(feedType: string, items: unknown[]): Promise<WalmartFeedResponse> {
+      try {
+        const payload = { items };
+        const result = await walmartFetch<WalmartFeedResponse>(
+          `/feeds?feedType=${encodeURIComponent(feedType)}`,
+          { method: 'POST', body: payload },
+        );
+        logger.info({ feedType, feedId: result.feedId, itemCount: items.length }, 'Bulk item update submitted');
+        return result;
+      } catch (err) {
+        logger.error({ feedType, error: err instanceof Error ? err.message : String(err) }, 'Bulk item update failed');
+        throw err;
+      }
+    },
+
     // --- Pricing ---
     async updatePrice(sku: string, price: number, currency = 'USD'): Promise<WalmartFeedResponse> {
       const payload = {
@@ -230,21 +341,23 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       return walmartFetch<WalmartFeedResponse>('/price', { method: 'PUT', body: payload });
     },
 
-    async bulkUpdatePrices(updates: Array<{ sku: string; price: number }>): Promise<WalmartFeedResponse> {
+    async bulkUpdatePrices(items: Array<{ sku: string; price: number; currency?: string }>): Promise<WalmartFeedResponse> {
       const payload = {
         PriceFeed: {
           PriceHeader: { version: '1.5.1' },
-          Price: updates.map(u => ({
+          Price: items.map(u => ({
             itemIdentifier: { sku: u.sku },
             pricingList: {
               pricing: [{
-                currentPrice: { currency: 'USD', amount: u.price },
+                currentPrice: { currency: u.currency ?? 'USD', amount: u.price },
               }],
             },
           })),
         },
       };
-      return walmartFetch<WalmartFeedResponse>('/price', { method: 'PUT', body: payload });
+      const result = await walmartFetch<WalmartFeedResponse>('/feeds?feedType=price', { method: 'POST', body: payload });
+      logger.info({ feedId: result.feedId, itemCount: items.length }, 'Bulk price update submitted via feed');
+      return result;
     },
 
     // --- Inventory ---
@@ -268,8 +381,23 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       return walmartFetch<WalmartFeedResponse>(`/inventory?sku=${encodeURIComponent(sku)}`, { method: 'PUT', body: payload });
     },
 
+    async bulkUpdateInventory(items: Array<{ sku: string; quantity: number }>): Promise<WalmartFeedResponse> {
+      const payload = {
+        InventoryFeed: {
+          InventoryHeader: { version: '1.4' },
+          Inventory: items.map(item => ({
+            sku: item.sku,
+            quantity: { unit: 'EACH', amount: item.quantity },
+          })),
+        },
+      };
+      const result = await walmartFetch<WalmartFeedResponse>('/feeds?feedType=inventory', { method: 'POST', body: payload });
+      logger.info({ feedId: result.feedId, itemCount: items.length }, 'Bulk inventory update submitted via feed');
+      return result;
+    },
+
     // --- Orders ---
-    async getOrders(params?): Promise<WalmartOrder[]> {
+    async getOrders(params?: { createdStartDate?: string; status?: string; limit?: number }): Promise<WalmartOrder[]> {
       const query = new URLSearchParams();
       if (params?.createdStartDate) query.set('createdStartDate', params.createdStartDate);
       if (params?.status) query.set('status', params.status);
@@ -306,11 +434,17 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
       }
     },
 
-    async shipOrder(purchaseOrderId: string, shipment): Promise<boolean> {
+    async shipOrder(purchaseOrderId: string, shipment: {
+      lineItems: Array<{ lineNumber: string; quantity: number }>;
+      carrier: string;
+      trackingNumber: string;
+      trackingUrl?: string;
+      methodCode: string;
+    }): Promise<boolean> {
       const payload = {
         orderShipment: {
           orderLines: {
-            orderLine: shipment.lineItems.map((li: { lineNumber: string; quantity: number }) => ({
+            orderLine: shipment.lineItems.map((li) => ({
               lineNumber: li.lineNumber,
               orderLineStatuses: {
                 orderLineStatus: [{
@@ -427,6 +561,26 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
     // --- Feed Status ---
     async getFeedStatus(feedId: string): Promise<WalmartFeedResponse> {
       return walmartFetch<WalmartFeedResponse>(`/feeds/${encodeURIComponent(feedId)}`);
+    },
+
+    async getAllFeeds(params?: { feedType?: string; limit?: number; offset?: number }): Promise<WalmartFeedListResponse> {
+      const query = new URLSearchParams();
+      if (params?.feedType) query.set('feedType', params.feedType);
+      query.set('limit', String(params?.limit ?? 50));
+      if (params?.offset) query.set('offset', String(params.offset));
+      try {
+        const data = await walmartFetch<{
+          results?: Array<WalmartFeedResponse & { feedType?: string; feedDate?: string }>;
+          totalResults?: number;
+        }>(`/feeds?${query.toString()}`);
+        return {
+          feeds: data.results ?? [],
+          totalResults: data.totalResults,
+        };
+      } catch (err) {
+        logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Get all feeds failed');
+        return { feeds: [] };
+      }
     },
 
     async bulkItemUpload(feedType: string, items: unknown[]): Promise<WalmartFeedResponse> {

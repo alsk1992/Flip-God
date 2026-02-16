@@ -3,6 +3,9 @@
  *
  * Manages seller business policies (fulfillment, payment, return) and
  * inventory locations required for listing creation.
+ *
+ * Includes `ensurePolicies()` helper that checks/creates default policies
+ * and caches the IDs for use in offer creation.
  */
 
 import { createLogger } from '../../utils/logger';
@@ -286,4 +289,113 @@ export function createEbayAccountApi(credentials: EbayCredentials): EbayAccountA
       return data.locations ?? [];
     },
   };
+}
+
+// =============================================================================
+// POLICY IDS — returned by ensurePolicies()
+// =============================================================================
+
+export interface PolicyIds {
+  fulfillmentPolicyId: string;
+  paymentPolicyId: string;
+  returnPolicyId: string;
+}
+
+// Cache: key = clientId:marketplace, value = PolicyIds
+const policyCache = new Map<string, PolicyIds>();
+
+/**
+ * Ensure eBay business policies exist for listing creation.
+ *
+ * 1. Checks cache first (avoids repeated API calls).
+ * 2. Calls getAllPolicies() to see if policies already exist.
+ * 3. If any policy type is missing, creates a sensible default.
+ * 4. Returns the policy IDs ready for use in offer creation.
+ *
+ * Default policies created:
+ * - Fulfillment: "FlipAgent Standard Shipping" — 1 business day handling,
+ *   USPS Priority Mail, free shipping
+ * - Payment: "FlipAgent Payment" — eBay Managed Payments (WALLET)
+ * - Return: "FlipAgent Returns" — 30-day returns accepted, buyer pays return shipping
+ */
+export async function ensurePolicies(credentials: EbayCredentials): Promise<PolicyIds> {
+  const marketplace = credentials.marketplace ?? 'EBAY_US';
+  const cacheKey = `${credentials.clientId}:${marketplace}`;
+
+  const cached = policyCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const accountApi = createEbayAccountApi(credentials);
+  const existing = await accountApi.getAllPolicies(marketplace);
+
+  logger.info(
+    {
+      fulfillmentCount: existing.fulfillment.length,
+      paymentCount: existing.payment.length,
+      returnCount: existing.return.length,
+    },
+    'Checked existing eBay policies',
+  );
+
+  let fulfillmentPolicyId: string;
+  let paymentPolicyId: string;
+  let returnPolicyId: string;
+
+  // Use existing policy or create a default
+  if (existing.fulfillment.length > 0) {
+    fulfillmentPolicyId = existing.fulfillment[0].fulfillmentPolicyId;
+    logger.info({ policyId: fulfillmentPolicyId }, 'Using existing fulfillment policy');
+  } else {
+    fulfillmentPolicyId = await accountApi.createFulfillmentPolicy({
+      name: 'FlipAgent Standard Shipping',
+      marketplaceId: marketplace,
+      handlingTimeDays: 1,
+      shippingServiceCode: 'USPSPriority',
+      freeShipping: true,
+    });
+    logger.info({ policyId: fulfillmentPolicyId }, 'Created default fulfillment policy');
+  }
+
+  if (existing.payment.length > 0) {
+    paymentPolicyId = existing.payment[0].paymentPolicyId;
+    logger.info({ policyId: paymentPolicyId }, 'Using existing payment policy');
+  } else {
+    paymentPolicyId = await accountApi.createPaymentPolicy({
+      name: 'FlipAgent Payment',
+      marketplaceId: marketplace,
+    });
+    logger.info({ policyId: paymentPolicyId }, 'Created default payment policy');
+  }
+
+  if (existing.return.length > 0) {
+    returnPolicyId = existing.return[0].returnPolicyId;
+    logger.info({ policyId: returnPolicyId }, 'Using existing return policy');
+  } else {
+    returnPolicyId = await accountApi.createReturnPolicy({
+      name: 'FlipAgent Returns',
+      marketplaceId: marketplace,
+      returnsAccepted: true,
+      returnDays: 30,
+      returnShippingCostPayer: 'BUYER',
+    });
+    logger.info({ policyId: returnPolicyId }, 'Created default return policy');
+  }
+
+  const policyIds: PolicyIds = {
+    fulfillmentPolicyId,
+    paymentPolicyId,
+    returnPolicyId,
+  };
+
+  policyCache.set(cacheKey, policyIds);
+  return policyIds;
+}
+
+/**
+ * Clear cached policy IDs. Useful for testing or when policies are deleted externally.
+ */
+export function clearPolicyCache(): void {
+  policyCache.clear();
 }

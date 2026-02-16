@@ -187,9 +187,17 @@ export async function refreshAliExpressToken(
 /**
  * Get a valid access token, refreshing if needed.
  * Caches tokens per appKey.
+ *
+ * AliExpress access tokens have variable lifetimes (typically several hours
+ * to days). We refresh 5 minutes before expiry. If the refresh token itself
+ * has expired, re-authorization is required.
  */
 // Capped to prevent unbounded growth if many credential sets are rotated.
 const MAX_TOKEN_CACHE_SIZE = 50;
+
+/** Buffer before expiry at which we proactively refresh (5 minutes). */
+const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
+
 const oauthTokenCache = new Map<string, AliExpressOAuthToken>();
 
 export async function getValidAliExpressToken(
@@ -198,7 +206,7 @@ export async function getValidAliExpressToken(
 ): Promise<string | null> {
   const cached = oauthTokenCache.get(config.appKey);
 
-  if (cached && Date.now() < cached.expiresAt - 60_000) {
+  if (cached && Date.now() < cached.expiresAt - EXPIRY_BUFFER_MS) {
     return cached.accessToken;
   }
 
@@ -210,20 +218,24 @@ export async function getValidAliExpressToken(
 
   if (cached && Date.now() > cached.refreshExpiresAt) {
     logger.error('AliExpress refresh token expired, re-authorization required');
+    oauthTokenCache.delete(config.appKey);
     return null;
   }
 
   try {
+    logger.info('Refreshing AliExpress access token via refresh_token');
     const newToken = await refreshAliExpressToken(rtToUse, config);
+    logger.info({ expiresAt: newToken.expiresAt }, 'AliExpress access token refreshed');
     // Evict oldest entry if cache is full
-    if (oauthTokenCache.size >= MAX_TOKEN_CACHE_SIZE) {
+    if (oauthTokenCache.size >= MAX_TOKEN_CACHE_SIZE && !oauthTokenCache.has(config.appKey)) {
       const firstKey = oauthTokenCache.keys().next().value;
       if (firstKey) oauthTokenCache.delete(firstKey);
     }
     oauthTokenCache.set(config.appKey, newToken);
     return newToken.accessToken;
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : String(err) }, 'Token refresh failed');
+    logger.error({ error: err instanceof Error ? err.message : String(err) }, 'AliExpress token refresh failed, clearing cache');
+    oauthTokenCache.delete(config.appKey);
     return null;
   }
 }

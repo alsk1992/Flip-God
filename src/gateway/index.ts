@@ -2,6 +2,7 @@
  * Gateway - Orchestrates all FlipAgent services
  *
  * Initializes: DB, credentials, sessions, agent, channels, hooks, cron, queue, HTTP server.
+ * Also wires: monitoring (health, metrics, alerts), notification channels (Telegram, Discord).
  */
 
 import { randomUUID } from 'crypto';
@@ -15,6 +16,9 @@ import { createCredentialsManager } from '../credentials';
 import { hooks } from '../hooks';
 import { CronScheduler, registerBuiltInJobs } from '../cron';
 import { MessageQueue } from '../queue';
+import { createJobQueue } from '../queue/job-queue';
+import { createJobWorker } from '../queue/worker';
+import { createRepricingEngine } from '../listing/repricer';
 // setupShutdownHandlers handled in src/index.ts and cli/index.ts
 import { scanForArbitrage } from '../arbitrage/scanner';
 import { createOrderMonitor } from '../fulfillment/monitor';
@@ -33,6 +37,25 @@ import { createFaireAdapter } from '../platforms/faire/scraper';
 import { createBStockAdapter } from '../platforms/bstock/scraper';
 import { createBulqAdapter } from '../platforms/bulq/scraper';
 import { createLiquidationAdapter } from '../platforms/liquidation/scraper';
+
+// Monitoring
+import {
+  healthChecker as monitoringHealthChecker,
+  createMemoryHealthCheck,
+  createDatabaseHealthCheck,
+} from '../monitoring/health';
+import {
+  registry as metricsRegistry,
+  startMetricsCollection,
+  stopMetricsCollection,
+} from '../monitoring/metrics';
+import {
+  alertManager as monitoringAlertManager,
+} from '../monitoring/alerts';
+
+// Notification channels
+import { createNotificationChannelManager } from '../channels/notifications';
+
 import type { Config, IncomingMessage, OutgoingMessage, Platform, AmazonCredentials, EbayCredentials, WalmartCredentials, AliExpressCredentials } from '../types';
 import type { Database } from '../db';
 import type { PlatformAdapter } from '../platforms/index';
@@ -122,6 +145,100 @@ export async function createGateway(config: Config): Promise<Gateway> {
   });
   logger.info('Channel manager initialized');
 
+  // 6b. Initialize notification channel manager
+  const notificationManager = createNotificationChannelManager({
+    telegram: process.env.FLIPAGENT_NOTIFY_TELEGRAM_TOKEN && process.env.FLIPAGENT_NOTIFY_TELEGRAM_CHAT
+      ? { botToken: process.env.FLIPAGENT_NOTIFY_TELEGRAM_TOKEN, chatId: process.env.FLIPAGENT_NOTIFY_TELEGRAM_CHAT }
+      : undefined,
+    discord: process.env.FLIPAGENT_NOTIFY_DISCORD_WEBHOOK
+      ? { webhookUrl: process.env.FLIPAGENT_NOTIFY_DISCORD_WEBHOOK }
+      : undefined,
+  });
+  logger.info({ channels: notificationManager.getChannelNames() }, 'Notification channel manager initialized');
+
+  // 6c. Initialize monitoring system
+  // Register database health check
+  monitoringHealthChecker.registerCheck(
+    'database',
+    createDatabaseHealthCheck('database', async () => {
+      try { db.query('SELECT 1'); return true; } catch { return false; }
+    }),
+    { cacheMs: 10000, critical: true },
+  );
+  // Register memory health check (already registered with default, but re-register with custom thresholds)
+  monitoringHealthChecker.registerCheck('memory', createMemoryHealthCheck(80, 95), { cacheMs: 5000, critical: false });
+
+  // Start Prometheus-compatible system metrics collection (every 15s)
+  startMetricsCollection(15000);
+
+  // Create application-specific metrics
+  const toolExecutionCount = metricsRegistry.createCounter({
+    name: 'tool_executions_total',
+    help: 'Total tool executions',
+    labels: ['tool', 'status'],
+  });
+  const toolExecutionDuration = metricsRegistry.createHistogram({
+    name: 'tool_execution_duration_ms',
+    help: 'Tool execution duration in milliseconds',
+    labels: ['tool'],
+    buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+  });
+  const activeSessionsGauge = metricsRegistry.createGauge({
+    name: 'active_sessions',
+    help: 'Number of active sessions',
+  });
+  const opportunityDiscoveryRate = metricsRegistry.createCounter({
+    name: 'opportunities_discovered_total',
+    help: 'Total opportunities discovered',
+    labels: ['buy_platform', 'sell_platform'],
+  });
+
+  logger.info('Monitoring system initialized');
+
+  // 6d. Initialize job queue for bulk operations
+  const jobQueueDeps = { db, queue: null as unknown as import('../queue/job-queue').JobQueue };
+  const jobWorker = createJobWorker(jobQueueDeps);
+  const jobQueue = createJobQueue(db, jobWorker);
+  jobQueueDeps.queue = jobQueue;
+  logger.info('Job queue initialized');
+
+  // 6e. Initialize advanced repricing engine
+  const repricingEngine = createRepricingEngine(db, {
+    getListing: (listingId: string) => {
+      const rows = db.query<Record<string, unknown>>(
+        'SELECT * FROM listings WHERE id = ?',
+        [listingId],
+      );
+      if (rows.length === 0) return undefined;
+      const row = rows[0];
+      return {
+        id: row.id as string,
+        opportunityId: (row.opportunity_id as string) ?? undefined,
+        productId: row.product_id as string,
+        platform: row.platform as Platform,
+        platformListingId: (row.platform_listing_id as string) ?? undefined,
+        title: (row.title as string) ?? undefined,
+        price: row.price as number,
+        sourcePlatform: row.source_platform as Platform,
+        sourcePrice: row.source_price as number,
+        status: (row.status as 'active' | 'paused' | 'sold' | 'expired') ?? 'active',
+        createdAt: new Date(row.created_at as number),
+        updatedAt: new Date(row.updated_at as number),
+      };
+    },
+    getCompetitors: () => {
+      // Default: no competitors (real implementation would scan platform adapters)
+      return [];
+    },
+    onPriceChange: (result) => {
+      logger.info(
+        { listingId: result.listingId, oldPrice: result.oldPrice, newPrice: result.newPrice, reason: result.reason },
+        'Repricing engine applied price change',
+      );
+    },
+  });
+  logger.info('Repricing engine initialized');
+
   // Helper: build platform adapters from stored credentials for a system user
   function buildAdapters(): Map<Platform, PlatformAdapter> {
     const adapters = new Map<Platform, PlatformAdapter>();
@@ -168,7 +285,7 @@ export async function createGateway(config: Config): Promise<Gateway> {
         const adapters = buildAdapters();
         const opps = await scanForArbitrage(adapters, { minMarginPct: 15, maxResults: 50 });
         for (const opp of opps) {
-          db.addOpportunity({
+          const fullOpp = {
             id: randomUUID().slice(0, 12),
             productId: opp.productId,
             buyPlatform: opp.buyPlatform,
@@ -180,9 +297,20 @@ export async function createGateway(config: Config): Promise<Gateway> {
             estimatedProfit: opp.estimatedProfit,
             marginPct: opp.marginPct,
             score: opp.score,
-            status: 'active',
+            status: 'active' as const,
             foundAt: new Date(),
-          });
+          };
+          db.addOpportunity(fullOpp);
+
+          // Track opportunity discovery metric
+          opportunityDiscoveryRate.inc({ buy_platform: opp.buyPlatform, sell_platform: opp.sellPlatform });
+
+          // Send notification for high-margin opportunities (>25%)
+          if (opp.marginPct >= 25) {
+            notificationManager.broadcastOpportunity(fullOpp).catch((err) => {
+              logger.error({ err }, 'Failed to notify about high-margin opportunity');
+            });
+          }
         }
         logger.info({ found: opps.length }, 'Cron: scan_prices complete');
       } catch (err) {
@@ -193,7 +321,20 @@ export async function createGateway(config: Config): Promise<Gateway> {
       logger.info('Cron: check_orders tick');
       try {
         const count = await orderMonitor.checkOrders();
-        if (count > 0) logger.info({ newOrders: count }, 'Cron: check_orders found new orders');
+        if (count > 0) {
+          logger.info({ newOrders: count }, 'Cron: check_orders found new orders');
+
+          // Notify about new orders
+          const pendingOrders = db.query<{ id: string }>('SELECT id FROM orders WHERE status = \'pending\' ORDER BY ordered_at DESC LIMIT ?', [count]);
+          for (const row of pendingOrders) {
+            const order = db.getOrder(row.id);
+            if (order) {
+              notificationManager.broadcastOrder(order).catch((err) => {
+                logger.error({ err, orderId: order.id }, 'Failed to send order notification');
+              });
+            }
+          }
+        }
       } catch (err) {
         logger.error({ err }, 'Cron: check_orders failed');
       }
@@ -276,6 +417,23 @@ export async function createGateway(config: Config): Promise<Gateway> {
     },
     dbBackup: async () => { db.save(); },
   });
+  // Register repricing engine cron job (hourly by default)
+  cron.addJob({
+    id: 'repricing_engine',
+    name: 'Advanced Repricing Engine',
+    schedule: { type: 'interval', intervalMs: 60 * 60 * 1000 }, // hourly
+    handler: async () => {
+      logger.info('Cron: repricing_engine tick');
+      try {
+        const results = await repricingEngine.runAll();
+        const adjusted = results.filter(r => r.applied).length;
+        logger.info({ totalRules: results.length, adjusted }, 'Cron: repricing_engine complete');
+      } catch (err) {
+        logger.error({ err }, 'Cron: repricing_engine failed');
+      }
+    },
+  });
+
   logger.info('Cron scheduler initialized');
 
   // 8. Create HTTP + WebSocket server
@@ -291,11 +449,23 @@ export async function createGateway(config: Config): Promise<Gateway> {
     {
       onChatConnection: channelManager.getChatConnectionHandler() || undefined,
       db,
+      monitoring: {
+        metricsRegistry,
+        healthChecker: monitoringHealthChecker,
+        alertManager: monitoringAlertManager,
+      },
+      jobQueue,
+      repricingEngine,
     },
   );
 
   // 9. Attach WebSocket to channel manager
   channelManager.attachWebSocket(httpServer.wss);
+
+  // 10. Monitoring intervals
+  let healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+  let healthLogInterval: ReturnType<typeof setInterval> | null = null;
+  let sessionMetricsInterval: ReturnType<typeof setInterval> | null = null;
 
   let started = false;
 
@@ -305,6 +475,74 @@ export async function createGateway(config: Config): Promise<Gateway> {
       await httpServer.start();
       await channelManager.start();
       cron.start();
+      jobQueue.start();
+
+      // --- Monitoring: Health checks every 60 seconds ---
+      healthCheckInterval = setInterval(async () => {
+        try {
+          const result = await monitoringHealthChecker.checkHealth();
+
+          // Feed health results into alert manager
+          const liveness = await monitoringHealthChecker.checkLiveness();
+          await monitoringAlertManager.checkMetric('process_memory_percent', liveness.memory.percent);
+
+          // Fire alert if overall health is unhealthy
+          if (result.status === 'unhealthy') {
+            const unhealthyComponents = result.components
+              .filter(c => c.status === 'unhealthy')
+              .map(c => c.name);
+            await monitoringAlertManager.fire({
+              name: 'system_unhealthy',
+              level: 'critical',
+              message: `System is unhealthy. Failed components: ${unhealthyComponents.join(', ')}`,
+              source: 'health_check',
+              tags: ['system', 'health'],
+              metadata: { components: result.summary },
+            });
+
+            // Also notify via channels
+            notificationManager.broadcast(
+              `[CRITICAL] System unhealthy - failed components: ${unhealthyComponents.join(', ')}`
+            ).catch(() => { /* ignore notification errors during health alerts */ });
+          }
+        } catch (err) {
+          logger.error({ err }, 'Health check cycle failed');
+        }
+      }, 60_000);
+      if (healthCheckInterval.unref) healthCheckInterval.unref();
+
+      // --- Monitoring: Health status summary log every 5 minutes ---
+      healthLogInterval = setInterval(async () => {
+        try {
+          const result = await monitoringHealthChecker.checkHealth();
+          const liveness = await monitoringHealthChecker.checkLiveness();
+          logger.info({
+            status: result.status,
+            uptime: result.uptime,
+            components: result.summary,
+            memory: {
+              heapPercent: Math.round(liveness.memory.percent * 100) / 100,
+              rssMB: Math.round(liveness.memory.rss / 1024 / 1024),
+            },
+            eventLoopLatencyMs: liveness.eventLoop.latencyMs,
+            alertStats: monitoringAlertManager.getStats(),
+          }, 'Health status summary');
+        } catch (err) {
+          logger.error({ err }, 'Health status summary failed');
+        }
+      }, 5 * 60_000);
+      if (healthLogInterval.unref) healthLogInterval.unref();
+
+      // --- Monitoring: Track active sessions count every 30 seconds ---
+      sessionMetricsInterval = setInterval(() => {
+        try {
+          const sessions = db.listSessions();
+          activeSessionsGauge.set(sessions.length);
+        } catch {
+          // ignore
+        }
+      }, 30_000);
+      if (sessionMetricsInterval.unref) sessionMetricsInterval.unref();
 
       // Emit gateway:start hook
       await hooks.emit('gateway:start');
@@ -320,7 +558,14 @@ export async function createGateway(config: Config): Promise<Gateway> {
       // Emit gateway:stop hook
       await hooks.emit('gateway:stop');
 
+      // Stop monitoring intervals
+      if (healthCheckInterval) { clearInterval(healthCheckInterval); healthCheckInterval = null; }
+      if (healthLogInterval) { clearInterval(healthLogInterval); healthLogInterval = null; }
+      if (sessionMetricsInterval) { clearInterval(sessionMetricsInterval); sessionMetricsInterval = null; }
+      stopMetricsCollection();
+
       cron.stop();
+      jobQueue.stop();
       queue.dispose();
       await channelManager.stop();
       await httpServer.stop();
