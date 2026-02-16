@@ -11,6 +11,16 @@
 
 import type { Database } from './index';
 import { createLogger } from '../utils/logger';
+import { MIGRATION_007_UP, MIGRATION_007_DOWN } from './migration-007-alerts';
+import { MIGRATION_008_UP, MIGRATION_008_DOWN } from './migration-008-price-snapshots';
+import { MIGRATION_009_UP, MIGRATION_009_DOWN } from './migration-009-shipping-cache';
+import { MIGRATION_010_UP, MIGRATION_010_DOWN } from './migration-010-repricing-rules';
+import { MIGRATION_011_UP, MIGRATION_011_DOWN } from './migration-011-bulk-ops';
+import { MIGRATION_012_UP, MIGRATION_012_DOWN } from './migration-012-variations';
+import { MIGRATION_013_UP, MIGRATION_013_DOWN } from './migration-013-returns';
+import { MIGRATION_014_UP, MIGRATION_014_DOWN } from './migration-014-fba-inbound';
+import { MIGRATION_015_UP, MIGRATION_015_DOWN } from './migration-015-inventory-sync';
+import { MIGRATION_016_UP, MIGRATION_016_DOWN } from './migration-016-tax';
 
 const logger = createLogger('migrations');
 
@@ -442,6 +452,86 @@ const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS warehouse_inventory;
       DROP TABLE IF EXISTS warehouses;
     `,
+  },
+
+  // ── Migration 7: Alerts and alert rules ────────────────────────────────
+  {
+    version: 7,
+    name: 'alerts_and_alert_rules',
+    up: MIGRATION_007_UP,
+    down: MIGRATION_007_DOWN,
+  },
+
+  // ── Migration 8: Competitor price snapshots ────────────────────────────
+  {
+    version: 8,
+    name: 'competitor_price_snapshots',
+    up: MIGRATION_008_UP,
+    down: MIGRATION_008_DOWN,
+  },
+
+  // ── Migration 9: Shipping rate cache ───────────────────────────────────
+  {
+    version: 9,
+    name: 'shipping_rate_cache',
+    up: MIGRATION_009_UP,
+    down: MIGRATION_009_DOWN,
+  },
+
+  // ── Migration 10: Smart repricing rules (v2) and history ──────────────
+  {
+    version: 10,
+    name: 'repricing_rules_v2_and_history',
+    up: MIGRATION_010_UP,
+    down: MIGRATION_010_DOWN,
+  },
+
+  // ── Migration 11: Bulk operations tracking ────────────────────────────
+  {
+    version: 11,
+    name: 'bulk_operations',
+    up: MIGRATION_011_UP,
+    down: MIGRATION_011_DOWN,
+  },
+
+  // ── Migration 12: Product variation groups ────────────────────────────
+  {
+    version: 12,
+    name: 'variation_groups',
+    up: MIGRATION_012_UP,
+    down: MIGRATION_012_DOWN,
+  },
+
+  // ── Migration 13: Returns and refunds ───────────────────────────────
+  {
+    version: 13,
+    name: 'returns_and_refunds',
+    up: MIGRATION_013_UP,
+    down: MIGRATION_013_DOWN,
+  },
+
+  // ── Migration 14: FBA inbound shipments ─────────────────────────────
+  {
+    version: 14,
+    name: 'fba_inbound_shipments',
+    up: MIGRATION_014_UP,
+    down: MIGRATION_014_DOWN,
+  },
+
+  // ── Migration 15: Inventory sync (holds, conflicts, allocation) ─────
+  {
+    version: 15,
+    name: 'inventory_sync',
+    up: MIGRATION_015_UP,
+    down: MIGRATION_015_DOWN,
+  },
+
+  // ── Migration 16: Tax rates seed data ───────────────────────────────
+  {
+    version: 16,
+    name: 'tax_rates',
+    up: MIGRATION_016_UP,
+    down: MIGRATION_016_DOWN,
   },
 ];
 

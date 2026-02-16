@@ -100,6 +100,19 @@ import {
 } from '../platforms/aliexpress/complete';
 import { getAuthorizationUrl, obtainAliExpressToken } from '../platforms/aliexpress/auth';
 import { createFbaMcfApi } from '../fulfillment/fba';
+import { csvImportTools, handleCsvImportTool } from '../import/index';
+import { scanningTools, handleScanningTool } from '../scanning/index';
+import { seoTools, handleSeoTool } from '../seo/index';
+import { alertTools, handleAlertTool } from '../notifications/index';
+import { analyticsTools, handleAnalyticsTool } from '../analytics/index';
+import { shippingTools, handleShippingTool } from '../shipping/index';
+import { repricerTools, handleRepricerTool } from '../listing/repricer-index';
+import { bulkListingTools, handleBulkListingTool } from '../listing/bulk-index';
+import { variationTools, handleVariationTool } from '../products/index';
+import { returnTools, handleReturnTool } from '../fulfillment/returns-index';
+import { fbaInboundTools, handleFbaInboundTool } from '../fulfillment/fba-inbound-index';
+import { inventoryTools, handleInventoryTool } from '../inventory/index';
+import { taxTools, handleTaxTool } from '../tax/index';
 
 const logger = createLogger('agent');
 
@@ -2695,6 +2708,23 @@ function defineTools(): ToolDefinition[] {
         required: ['fromWarehouseId', 'toWarehouseId', 'sku', 'quantity'],
       },
     },
+
+    // -------------------------------------------------------------------------
+    // Phase 2 Feature Tools (CSV, Barcode, SEO, Alerts, Analytics, etc.)
+    // -------------------------------------------------------------------------
+    ...(csvImportTools as unknown as ToolDefinition[]),
+    ...(scanningTools as unknown as ToolDefinition[]),
+    ...(seoTools as unknown as ToolDefinition[]),
+    ...(alertTools as unknown as ToolDefinition[]),
+    ...(analyticsTools as unknown as ToolDefinition[]),
+    ...(shippingTools as unknown as ToolDefinition[]),
+    ...(repricerTools as unknown as ToolDefinition[]),
+    ...(bulkListingTools as unknown as ToolDefinition[]),
+    ...(variationTools as unknown as ToolDefinition[]),
+    ...(returnTools as unknown as ToolDefinition[]),
+    ...(fbaInboundTools as unknown as ToolDefinition[]),
+    ...(inventoryTools as unknown as ToolDefinition[]),
+    ...(taxTools as unknown as ToolDefinition[]),
   ];
 
   // Apply metadata to all tools
@@ -6997,6 +7027,136 @@ async function executeTool(
         logger.error({ err, tool: 'warehouse_transfer' }, 'Tool execution failed');
         return { status: 'error', message: err instanceof Error ? err.message : String(err) };
       }
+    }
+
+    // -----------------------------------------------------------------------
+    // CSV Import / Export
+    // -----------------------------------------------------------------------
+    case 'import_csv':
+    case 'export_products_csv': {
+      return handleCsvImportTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Barcode / UPC Scanning
+    // -----------------------------------------------------------------------
+    case 'scan_barcode':
+    case 'batch_barcode_lookup': {
+      return handleScanningTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // SEO / Keyword Research
+    // -----------------------------------------------------------------------
+    case 'keyword_research':
+    case 'optimize_title_seo':
+    case 'analyze_listing_seo': {
+      return handleSeoTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Price / Stock Alerts
+    // -----------------------------------------------------------------------
+    case 'create_alert_rule':
+    case 'list_alerts':
+    case 'check_alerts_now':
+    case 'manage_alert_rules': {
+      return handleAlertTool(toolName, input, context.db, context.userId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Competitor Analytics / Price Trending
+    // -----------------------------------------------------------------------
+    case 'track_competitor_prices':
+    case 'price_trend_analysis':
+    case 'competitor_report': {
+      return handleAnalyticsTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Shipping Rate Estimation
+    // -----------------------------------------------------------------------
+    case 'estimate_shipping':
+    case 'compare_shipping_rates': {
+      return handleShippingTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Smart Auto-Repricer
+    // -----------------------------------------------------------------------
+    case 'create_repricing_rule':
+    case 'list_repricing_rules':
+    case 'run_repricer':
+    case 'repricing_history': {
+      return handleRepricerTool(toolName, input, { db: context.db, userId: context.userId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Bulk Listing Operations
+    // -----------------------------------------------------------------------
+    case 'pause_listings':
+    case 'resume_listings':
+    case 'delete_listings':
+    case 'bulk_update_prices':
+    case 'list_bulk_operations': {
+      return handleBulkListingTool(toolName, input, { db: context.db, userId: context.userId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Product Variations
+    // -----------------------------------------------------------------------
+    case 'create_variation_group':
+    case 'list_variation_groups':
+    case 'get_variation_group': {
+      return handleVariationTool(toolName, input, { db: context.db, userId: context.userId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Returns & Refunds
+    // -----------------------------------------------------------------------
+    case 'create_return':
+    case 'inspect_return':
+    case 'process_refund':
+    case 'list_returns':
+    case 'return_analytics': {
+      return handleReturnTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // FBA Inbound Shipments
+    // -----------------------------------------------------------------------
+    case 'plan_fba_shipment':
+    case 'create_fba_shipment':
+    case 'check_fba_shipment':
+    case 'list_fba_shipments':
+    case 'estimate_fba_fees': {
+      const amazonCreds = creds.amazon;
+      const spConfig = amazonCreds ? buildSpApiConfig(amazonCreds) : null;
+      return handleFbaInboundTool(context.db, toolName, input, spConfig);
+    }
+
+    // -----------------------------------------------------------------------
+    // Inventory Sync & Allocation
+    // -----------------------------------------------------------------------
+    case 'sync_inventory':
+    case 'inventory_snapshot':
+    case 'hold_inventory':
+    case 'release_hold':
+    case 'list_inventory_conflicts':
+    case 'resolve_inventory_conflict':
+    case 'set_allocation_rule': {
+      return handleInventoryTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Tax & Compliance
+    // -----------------------------------------------------------------------
+    case 'sales_tax_report':
+    case 'income_report':
+    case 'nexus_check':
+    case 'expense_report':
+    case '1099_prep': {
+      return handleTaxTool(context.db, toolName, input);
     }
 
     // -----------------------------------------------------------------------
