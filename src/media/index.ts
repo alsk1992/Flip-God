@@ -601,3 +601,27 @@ export function createVisionService(): VisionService {
     },
   };
 }
+
+
+// =============================================================================
+// Image Processing Tools (re-exported from image-tools)
+// =============================================================================
+
+export {
+  mediaTools,
+  handleMediaTool,
+  resizeImages,
+  removeBackground,
+  addWatermark,
+  optimizeImages,
+  generateImageVariants,
+} from './image-tools.js';
+
+export type {
+  ImageSpec,
+  ResizeResult,
+  BackgroundRemovalResult,
+  WatermarkResult,
+  OptimizeResult,
+  ImageVariantResult,
+} from './image-tools.js';

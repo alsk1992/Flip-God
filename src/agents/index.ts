@@ -113,6 +113,30 @@ import { returnTools, handleReturnTool } from '../fulfillment/returns-index';
 import { fbaInboundTools, handleFbaInboundTool } from '../fulfillment/fba-inbound-index';
 import { inventoryTools, handleInventoryTool } from '../inventory/index';
 import { taxTools, handleTaxTool } from '../tax/index';
+import { emailTools, handleEmailTool } from '../notifications/email-index';
+import { routingTools, handleRoutingTool } from '../notifications/routing-index';
+import { messagingTools, handleMessagingTool } from '../messaging/index';
+import { dashboardTools, handleDashboardTool } from '../analytics/dashboard-index';
+import { forecastingTools, handleForecastingTool } from '../analytics/forecasting-index';
+import { benchmarkingTools, handleBenchmarkingTool } from '../analytics/benchmarking-index';
+import { intelligenceTools, handleIntelligenceTool } from '../analytics/intelligence-index';
+import { pricingTools, handlePricingTool } from '../pricing/index';
+import { workflowTools, handleWorkflowTool } from '../automation/workflow-index';
+import { advancedRuleTools, handleAdvancedRuleTool } from '../listing/advanced-rules-index';
+import { oversellTools, handleOversellTool } from '../inventory/oversell-index';
+import { teamTools, handleTeamTool } from '../team/index';
+import { exportTools, handleExportTool } from '../export/index';
+import { pluginTools, handlePluginTool } from '../plugins/plugin-tools';
+import { biTools, handleBITool } from '../export/bi-index';
+import { internationalTaxTools, handleInternationalTaxTool } from '../tax/international';
+import { advertisingTools, handleAdvertisingTool } from '../advertising/index';
+import { mediaTools, handleMediaTool } from '../media/image-tools';
+import { advancedListingTools, handleAdvancedListingTool } from '../listing/advanced-index';
+import { supplyChainTools, handleSupplyChainTool } from '../supply-chain/index';
+import { advancedReturnTools, handleAdvancedReturnTool } from '../fulfillment/advanced-returns';
+import { wholesaleTools, handleWholesaleTool } from '../wholesale/integration';
+import { socialTools, handleSocialTool } from '../social/index';
+import { advancedShippingTools, handleAdvancedShippingTool } from '../shipping/advanced';
 
 const logger = createLogger('agent');
 
@@ -2725,6 +2749,36 @@ function defineTools(): ToolDefinition[] {
     ...(fbaInboundTools as unknown as ToolDefinition[]),
     ...(inventoryTools as unknown as ToolDefinition[]),
     ...(taxTools as unknown as ToolDefinition[]),
+    // Phase 2: Email, notifications, messaging
+    ...(emailTools as unknown as ToolDefinition[]),
+    ...(routingTools as unknown as ToolDefinition[]),
+    ...(messagingTools as unknown as ToolDefinition[]),
+    // Phase 2: Advanced analytics
+    ...(dashboardTools as unknown as ToolDefinition[]),
+    ...(forecastingTools as unknown as ToolDefinition[]),
+    ...(benchmarkingTools as unknown as ToolDefinition[]),
+    ...(intelligenceTools as unknown as ToolDefinition[]),
+    // Phase 2: Pricing & automation
+    ...(pricingTools as unknown as ToolDefinition[]),
+    ...(workflowTools as unknown as ToolDefinition[]),
+    ...(advancedRuleTools as unknown as ToolDefinition[]),
+    ...(oversellTools as unknown as ToolDefinition[]),
+    // Phase 2: Team, export, plugins
+    ...(teamTools as unknown as ToolDefinition[]),
+    ...(exportTools as unknown as ToolDefinition[]),
+    ...(pluginTools as unknown as ToolDefinition[]),
+    ...(biTools as unknown as ToolDefinition[]),
+    // Phase 2: International tax, advertising, media, advanced listings
+    ...(internationalTaxTools as unknown as ToolDefinition[]),
+    ...(advertisingTools as unknown as ToolDefinition[]),
+    ...(mediaTools as unknown as ToolDefinition[]),
+    ...(advancedListingTools as unknown as ToolDefinition[]),
+    // Phase 2: Supply chain, returns, wholesale, social, shipping
+    ...(supplyChainTools as unknown as ToolDefinition[]),
+    ...(advancedReturnTools as unknown as ToolDefinition[]),
+    ...(wholesaleTools as unknown as ToolDefinition[]),
+    ...(socialTools as unknown as ToolDefinition[]),
+    ...(advancedShippingTools as unknown as ToolDefinition[]),
   ];
 
   // Apply metadata to all tools
@@ -7157,6 +7211,270 @@ async function executeTool(
     case 'expense_report':
     case '1099_prep': {
       return handleTaxTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Email & Notifications
+    // -----------------------------------------------------------------------
+    case 'setup_email':
+    case 'send_test_email':
+    case 'send_daily_digest': {
+      return handleEmailTool(toolName, input, context.db, context.userId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Alert Routing
+    // -----------------------------------------------------------------------
+    case 'create_alert_route':
+    case 'list_alert_routes':
+    case 'delete_alert_route': {
+      return handleRoutingTool(toolName, input, context.db, context.userId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Buyer Messaging
+    // -----------------------------------------------------------------------
+    case 'list_messages':
+    case 'send_message':
+    case 'manage_templates':
+    case 'setup_auto_responder': {
+      return handleMessagingTool(toolName, input, context.db, context.userId);
+    }
+
+    // -----------------------------------------------------------------------
+    // ROI Dashboard
+    // -----------------------------------------------------------------------
+    case 'profit_trend':
+    case 'category_profitability':
+    case 'platform_roi':
+    case 'top_products':
+    case 'bottom_products':
+    case 'inventory_turnover':
+    case 'profit_by_time':
+    case 'business_overview': {
+      return handleDashboardTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Demand Forecasting
+    // -----------------------------------------------------------------------
+    case 'demand_forecast':
+    case 'seasonal_analysis':
+    case 'price_elasticity':
+    case 'trending_categories':
+    case 'stalling_products': {
+      return handleForecastingTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Seller Benchmarking
+    // -----------------------------------------------------------------------
+    case 'sell_through_rate':
+    case 'holding_period_analysis':
+    case 'shipping_performance':
+    case 'return_rate_analysis':
+    case 'profit_per_hour':
+    case 'seller_scorecard': {
+      return handleBenchmarkingTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Competitive Intelligence
+    // -----------------------------------------------------------------------
+    case 'competitor_price_chart':
+    case 'stockout_prediction':
+    case 'market_share_estimate':
+    case 'market_overview':
+    case 'pricing_strategy_detection':
+    case 'competitor_alerts': {
+      return handleIntelligenceTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Dynamic Pricing & A/B Testing
+    // -----------------------------------------------------------------------
+    case 'create_price_test':
+    case 'price_test_results':
+    case 'end_price_test':
+    case 'list_price_tests':
+    case 'record_test_impression':
+    case 'record_test_sale':
+    case 'set_dynamic_pricing':
+    case 'calculate_dynamic_price':
+    case 'dynamic_price_history': {
+      return handlePricingTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Workflow Automation
+    // -----------------------------------------------------------------------
+    case 'create_workflow':
+    case 'run_workflow':
+    case 'workflow_status':
+    case 'list_workflows':
+    case 'delete_workflow':
+    case 'get_workflow':
+    case 'schedule_workflow': {
+      return handleWorkflowTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Advanced Listing Rules
+    // -----------------------------------------------------------------------
+    case 'create_expression_rule':
+    case 'create_time_rule':
+    case 'create_cross_platform_rule':
+    case 'evaluate_expression':
+    case 'evaluate_time_condition': {
+      return handleAdvancedRuleTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Oversell Prevention
+    // -----------------------------------------------------------------------
+    case 'check_oversell_risk':
+    case 'oversell_report':
+    case 'auto_reduce_listings':
+    case 'setup_oversell_monitor':
+    case 'run_oversell_check': {
+      return handleOversellTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Team Management
+    // -----------------------------------------------------------------------
+    case 'create_team':
+    case 'invite_member':
+    case 'manage_team':
+    case 'audit_log': {
+      return handleTeamTool(context.db, toolName, input, { userId: context.userId });
+    }
+
+    // -----------------------------------------------------------------------
+    // Accounting Export
+    // -----------------------------------------------------------------------
+    case 'export_quickbooks':
+    case 'export_xero':
+    case 'profit_loss_statement':
+    case 'balance_sheet':
+    case 'export_transactions': {
+      return handleExportTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Plugins & Shared Rules
+    // -----------------------------------------------------------------------
+    case 'list_plugins':
+    case 'manage_plugin':
+    case 'export_rule_pack':
+    case 'import_rule_pack': {
+      return handlePluginTool(context.db, toolName, input, { userId: context.userId });
+    }
+
+    // -----------------------------------------------------------------------
+    // BI / Data Export
+    // -----------------------------------------------------------------------
+    case 'export_for_bi':
+    case 'data_schema':
+    case 'dashboard_data': {
+      return handleBITool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // International Tax (VAT/GST/Duties)
+    // -----------------------------------------------------------------------
+    case 'calculate_vat':
+    case 'calculate_gst':
+    case 'check_import_duties':
+    case 'vat_report': {
+      return handleInternationalTaxTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Advertising / Promoted Listings
+    // -----------------------------------------------------------------------
+    case 'create_ebay_promoted':
+    case 'create_amazon_sponsored':
+    case 'get_ad_performance':
+    case 'optimize_ad_spend':
+    case 'pause_underperforming_ads': {
+      return handleAdvertisingTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Image Processing
+    // -----------------------------------------------------------------------
+    case 'resize_images':
+    case 'remove_background':
+    case 'add_watermark':
+    case 'optimize_images':
+    case 'generate_image_variants': {
+      return handleMediaTool(toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Advanced Listing Optimization
+    // -----------------------------------------------------------------------
+    case 'generate_bullet_points':
+    case 'generate_a_plus_content':
+    case 'optimize_title_keywords':
+    case 'generate_product_description':
+    case 'analyze_listing_quality':
+    case 'suggest_listing_improvements': {
+      return handleAdvancedListingTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Supply Chain
+    // -----------------------------------------------------------------------
+    case 'analyze_supply_chain':
+    case 'find_alternative_suppliers':
+    case 'calculate_reorder_point':
+    case 'supplier_scorecard': {
+      return handleSupplyChainTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Advanced Returns (fraud, labels, restocking, auto-decisions)
+    // -----------------------------------------------------------------------
+    case 'generate_return_label':
+    case 'detect_return_fraud':
+    case 'calculate_restocking_fee':
+    case 'automate_return_decision': {
+      return handleAdvancedReturnTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Wholesale Supplier Integration
+    // -----------------------------------------------------------------------
+    case 'search_alibaba':
+    case 'request_quote':
+    case 'compare_wholesale_prices':
+    case 'track_wholesale_order':
+    case 'manage_supplier_contacts': {
+      return handleWholesaleTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Social Commerce
+    // -----------------------------------------------------------------------
+    case 'create_social_listing':
+    case 'sync_social_inventory':
+    case 'social_analytics':
+    case 'schedule_social_post': {
+      return handleSocialTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Advanced Shipping
+    // -----------------------------------------------------------------------
+    case 'batch_create_labels':
+    case 'auto_select_carrier':
+    case 'estimate_delivery_date':
+    case 'shipping_cost_comparison':
+    case 'manage_shipping_rules':
+    case 'international_shipping_calculator': {
+      return handleAdvancedShippingTool(context.db, toolName, input);
     }
 
     // -----------------------------------------------------------------------

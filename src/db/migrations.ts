@@ -21,6 +21,12 @@ import { MIGRATION_013_UP, MIGRATION_013_DOWN } from './migration-013-returns';
 import { MIGRATION_014_UP, MIGRATION_014_DOWN } from './migration-014-fba-inbound';
 import { MIGRATION_015_UP, MIGRATION_015_DOWN } from './migration-015-inventory-sync';
 import { MIGRATION_016_UP, MIGRATION_016_DOWN } from './migration-016-tax';
+import { MIGRATION_017_UP, MIGRATION_017_DOWN } from './migration-017-alert-routing';
+import { MIGRATION_018_UP, MIGRATION_018_DOWN } from './migration-018-messaging';
+import { MIGRATION_019_UP, MIGRATION_019_DOWN } from './migration-019-pricing';
+import { MIGRATION_020_UP, MIGRATION_020_DOWN } from './migration-020-workflows';
+import { MIGRATION_021_UP, MIGRATION_021_DOWN } from './migration-021-teams';
+import { MIGRATION_022_UP, MIGRATION_022_DOWN } from './migration-022-plugins';
 
 const logger = createLogger('migrations');
 
@@ -532,6 +538,54 @@ const MIGRATIONS: Migration[] = [
     name: 'tax_rates',
     up: MIGRATION_016_UP,
     down: MIGRATION_016_DOWN,
+  },
+
+  // ── Migration 17: Alert routing rules ─────────────────────────────
+  {
+    version: 17,
+    name: 'alert_routing_rules',
+    up: MIGRATION_017_UP,
+    down: MIGRATION_017_DOWN,
+  },
+
+  // ── Migration 18: Messaging, templates, auto-responder ──────────
+  {
+    version: 18,
+    name: 'messaging_and_templates',
+    up: MIGRATION_018_UP,
+    down: MIGRATION_018_DOWN,
+  },
+
+  // ── Migration 19: Dynamic pricing & A/B price testing ─────────────
+  {
+    version: 19,
+    name: 'dynamic_pricing_and_ab_tests',
+    up: MIGRATION_019_UP,
+    down: MIGRATION_019_DOWN,
+  },
+
+  // ── Migration 20: Workflow builder (multi-step automation) ────────
+  {
+    version: 20,
+    name: 'workflow_builder',
+    up: MIGRATION_020_UP,
+    down: MIGRATION_020_DOWN,
+  },
+
+  // ── Migration 21: Teams, members, invites, audit log ────────────
+  {
+    version: 21,
+    name: 'teams_and_audit_log',
+    up: MIGRATION_021_UP,
+    down: MIGRATION_021_DOWN,
+  },
+
+  // ── Migration 22: Plugin registry and shared rule packs ─────────
+  {
+    version: 22,
+    name: 'plugin_registry',
+    up: MIGRATION_022_UP,
+    down: MIGRATION_022_DOWN,
   },
 ];
 

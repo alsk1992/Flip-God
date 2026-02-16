@@ -24,6 +24,24 @@ export { createAlertRule, getAlerts, getAlertRules, markRead, markAllRead } from
 export { deliverAlert, formatAlertMessage, formatAlertEmail } from './delivery';
 export type { Alert, AlertRule, AlertType, AlertDeliveryChannel, AlertCheckResult } from './types';
 
+// Email delivery
+export { sendEmail, sendAlertEmail, sendTestEmail } from './email';
+export type { EmailConfig, EmailParams, EmailResult } from './email';
+export { renderAlertEmail, renderDailyDigestEmail, renderOrderNotificationEmail } from './email-templates';
+export { emailTools, handleEmailTool } from './email-index';
+
+// Alert routing
+export { createRoutingRule, getRoutingRules, routeAlert, batchAlerts } from './routing';
+export type { RoutingRule, RoutingChannel, RoutingResult } from './routing';
+export { routingTools, handleRoutingTool } from './routing-index';
+
+// Discord & Slack
+export { sendDiscordWebhook, sendAlertToDiscord, formatAlertEmbed } from './discord';
+export { sendSlackWebhook, sendAlertToSlack, formatAlertBlocks } from './slack';
+
+// Stock checker
+export { checkStockLevels, clearStockStateCache } from './stock-checker';
+
 // =============================================================================
 // TOOL DEFINITIONS
 // =============================================================================

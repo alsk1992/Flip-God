@@ -9,6 +9,7 @@ import { createLogger } from '../utils/logger';
 import { generateId } from '../utils/id';
 import type { Database } from '../db/index';
 import type { Alert, AlertRule, AlertType, AlertCheckResult } from './types';
+import { checkStockLevels } from './stock-checker';
 
 const logger = createLogger('alert-engine');
 
@@ -320,6 +321,23 @@ export function checkPriceAlerts(db: Database): AlertCheckResult {
     logger.error({ err }, 'Alert check failed');
   }
 
+  // ── Stock level checks (warehouse_inventory-based) ──────────────────────
+  try {
+    const allRules = db.query<Record<string, unknown>>(
+      'SELECT * FROM alert_rules WHERE enabled = 1',
+    ).map(parseAlertRuleRow);
+
+    const stockResult = checkStockLevels(db, allRules);
+    result.rulesEvaluated += stockResult.rulesEvaluated;
+    result.alertsTriggered += stockResult.alertsTriggered;
+    result.alerts.push(...stockResult.alerts);
+    result.errors.push(...stockResult.errors);
+  } catch (err) {
+    const msg = `Stock level check failed: ${err instanceof Error ? err.message : String(err)}`;
+    result.errors.push(msg);
+    logger.error({ err }, 'Stock level check failed');
+  }
+
   logger.info(
     { rulesEvaluated: result.rulesEvaluated, alertsTriggered: result.alertsTriggered },
     'Alert check complete',
@@ -399,11 +417,24 @@ function evaluateRule(
     }
 
     case 'stock_low': {
-      // stock_low: current stock is low (treated as boolean in our schema,
-      // but we can extend later). For now, trigger if in_stock went from 1 to still 1
-      // but we detect "low" from a separate signal. Placeholder logic:
-      // If threshold is set, it means "trigger if price is low relative to threshold"
-      // Since we don't have quantity data in the prices table, this is a stub.
+      // stock_low from prices table: delegates to stock-checker for inventory-based
+      // checks. Here we handle the prices-based signal: if in_stock went from 1 to 0,
+      // that could indicate low/out stock. The real stock_low logic runs via
+      // checkStockLevels() which queries warehouse_inventory. This branch handles
+      // the legacy prices-table boolean in_stock field as a fallback.
+      if (previousStock == null) return null;
+      if (previousStock === 1 && currentStock === 0) {
+        return {
+          userId: rule.userId,
+          type: 'stock_low',
+          productId,
+          platform,
+          oldValue: 1,
+          newValue: 0,
+          threshold: rule.thresholdAbs ?? null,
+          message: `Stock status changed to unavailable on ${platform} (price-based detection)`,
+        };
+      }
       return null;
     }
 
