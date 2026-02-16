@@ -145,6 +145,15 @@ import { rmaTools, handleRmaTool } from '../fulfillment/rma';
 import { scoringTools, handleScoringTool } from '../research/scoring';
 import { saturationTools, handleSaturationTool } from '../research/saturation';
 import { complianceTools, handleComplianceTool } from '../compliance/policy';
+import { scoutTools, handleScoutTool } from '../automation/scout-tools';
+import { repriceDaemonTools, handleRepriceDaemonTool } from '../automation/reprice-daemon-tools';
+import { fulfillmentChainTools, handleFulfillmentChainTool } from '../automation/fulfillment-chain-tools';
+import { priceIntelligenceTools, handlePriceIntelligenceTool } from '../analytics/price-intelligence-tools';
+import { demandScoringTools, handleDemandScoringTool } from '../analytics/demand-scoring-tools';
+import { restrictionCheckerTools, handleRestrictionCheckerTool } from '../scanning/restriction-checker-tools';
+import { multiChannelSyncTools, handleMultiChannelSyncTool } from '../inventory/multi-channel-sync-tools';
+import { pnlTools, handlePnlTool } from '../accounting/pnl-tools';
+import { supplierCrmTools, handleSupplierCrmTool } from '../suppliers/crm-tools';
 
 const logger = createLogger('agent');
 
@@ -2797,6 +2806,17 @@ function defineTools(): ToolDefinition[] {
     ...(scoringTools as unknown as ToolDefinition[]),
     ...(saturationTools as unknown as ToolDefinition[]),
     ...(complianceTools as unknown as ToolDefinition[]),
+
+    // ── Phase 4: Scout, Reprice Daemon, Fulfillment Chain, Price Intel, Demand, Restrictions, Multi-Channel, P&L, Supplier CRM ─
+    ...(scoutTools as unknown as ToolDefinition[]),
+    ...(repriceDaemonTools as unknown as ToolDefinition[]),
+    ...(fulfillmentChainTools as unknown as ToolDefinition[]),
+    ...(priceIntelligenceTools as unknown as ToolDefinition[]),
+    ...(demandScoringTools as unknown as ToolDefinition[]),
+    ...(restrictionCheckerTools as unknown as ToolDefinition[]),
+    ...(multiChannelSyncTools as unknown as ToolDefinition[]),
+    ...(pnlTools as unknown as ToolDefinition[]),
+    ...(supplierCrmTools as unknown as ToolDefinition[]),
   ];
 
   // Apply metadata to all tools
@@ -7588,6 +7608,152 @@ async function executeTool(
     case 'validate_images':
     case 'banned_keywords_check': {
       return handleComplianceTool(context.db, toolName, input);
+    }
+
+
+    // -----------------------------------------------------------------------
+    // Auto-Scout Pipeline
+    // -----------------------------------------------------------------------
+    case 'scout_create':
+    case 'scout_list':
+    case 'scout_update':
+    case 'scout_delete':
+    case 'scout_run':
+    case 'scout_queue':
+    case 'scout_approve':
+    case 'scout_reject':
+    case 'scout_start':
+    case 'scout_stop':
+    case 'scout_stats': {
+      return handleScoutTool(toolName, input, { db: context.db });
+    }
+
+    // -----------------------------------------------------------------------
+    // Reprice Daemon
+    // -----------------------------------------------------------------------
+    case 'reprice_daemon_create':
+    case 'reprice_daemon_list':
+    case 'reprice_daemon_update':
+    case 'reprice_daemon_delete':
+    case 'reprice_daemon_start':
+    case 'reprice_daemon_stop':
+    case 'reprice_daemon_run':
+    case 'reprice_daemon_history':
+    case 'reprice_daemon_stats': {
+      return handleRepriceDaemonTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Fulfillment Chain Automation
+    // -----------------------------------------------------------------------
+    case 'fulfillment_chain_config':
+    case 'fulfillment_chain_start':
+    case 'fulfillment_chain_stop':
+    case 'fulfillment_chain_run':
+    case 'fulfillment_chain_pipeline':
+    case 'fulfillment_chain_list':
+    case 'fulfillment_chain_detail':
+    case 'fulfillment_chain_retry':
+    case 'fulfillment_chain_cancel':
+    case 'fulfillment_chain_stats': {
+      return handleFulfillmentChainTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Price Intelligence
+    // -----------------------------------------------------------------------
+    case 'price_history_analyze':
+    case 'price_drops_detect':
+    case 'price_spikes_detect':
+    case 'price_trends':
+    case 'buy_opportunities':
+    case 'sell_opportunities':
+    case 'price_distribution':
+    case 'price_compare_platforms': {
+      return handlePriceIntelligenceTool(toolName, input, { db: context.db });
+    }
+
+    // -----------------------------------------------------------------------
+    // Demand Scoring
+    // -----------------------------------------------------------------------
+    case 'demand_score':
+    case 'demand_batch_score':
+    case 'demand_top_products':
+    case 'demand_trends':
+    case 'demand_category_ranking':
+    case 'demand_scores_list': {
+      return handleDemandScoringTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Restriction Checker
+    // -----------------------------------------------------------------------
+    case 'check_restrictions':
+    case 'batch_check_restrictions':
+    case 'restricted_brands_list':
+    case 'restricted_brands_add':
+    case 'restricted_brands_remove':
+    case 'restricted_categories_list':
+    case 'restricted_categories_add':
+    case 'restriction_stats':
+    case 'seed_restrictions': {
+      return handleRestrictionCheckerTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Multi-Channel Inventory Sync
+    // -----------------------------------------------------------------------
+    case 'channel_mapping_create':
+    case 'channel_mapping_list':
+    case 'channel_mapping_detail':
+    case 'channel_add':
+    case 'channel_remove':
+    case 'inventory_adjust':
+    case 'inventory_sale':
+    case 'inventory_restock':
+    case 'sync_channels':
+    case 'sync_daemon_start':
+    case 'sync_daemon_stop':
+    case 'sync_events':
+    case 'sync_stats': {
+      return handleMultiChannelSyncTool(context.db, toolName, input);
+    }
+
+    // -----------------------------------------------------------------------
+    // Profit & Loss Reporting
+    // -----------------------------------------------------------------------
+    case 'pnl_report':
+    case 'pnl_monthly_trend':
+    case 'sku_profitability':
+    case 'tax_summary':
+    case 'cash_flow':
+    case 'export_pnl_csv':
+    case 'export_sku_csv':
+    case 'export_quickbooks': {
+      return handlePnlTool(toolName, input, context.db);
+    }
+
+    // -----------------------------------------------------------------------
+    // Supplier CRM
+    // -----------------------------------------------------------------------
+    case 'supplier_create':
+    case 'supplier_update':
+    case 'supplier_list':
+    case 'supplier_detail':
+    case 'supplier_delete':
+    case 'supplier_product_add':
+    case 'supplier_product_list':
+    case 'supplier_set_preferred':
+    case 'supplier_order_create':
+    case 'supplier_order_update':
+    case 'supplier_order_receive':
+    case 'supplier_order_list':
+    case 'supplier_performance':
+    case 'supplier_rankings':
+    case 'reorder_alerts':
+    case 'supplier_price_compare':
+    case 'supplier_stats': {
+      return handleSupplierCrmTool(toolName, input, context.db);
     }
 
     // -----------------------------------------------------------------------

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlipAgent Dashboard</title>
+  <style>
+    /* ===================================================================
+       CSS Custom Properties
+       =================================================================== */
+    :root {
+      --bg-primary: #0f1117;
+      --bg-card: #1a1d27;
+      --bg-card-hover: #1f2231;
+      --border-card: #2a2d37;
+      --border-subtle: #22252f;
+      --text-primary: #e1e4ea;
+      --text-secondary: #8b8fa3;
+      --text-muted: #565a6e;
+      --accent-blue: #4f8cff;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-yellow: #eab308;
+      --accent-purple: #a78bfa;
+      --accent-orange: #f97316;
+      --radius: 8px;
+      --padding-card: 20px;
+      --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* ===================================================================
+       Reset & Base
+       =================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===================================================================
+       Layout
+       =================================================================== */
+    .dashboard {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .header-right .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .refresh-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      color: var(--text-secondary);
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: var(--font-family);
+      transition: background 0.15s, color 0.15s;
+    }
+    .refresh-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    /* ===================================================================
+       Metric Cards Row
+       =================================================================== */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius);
+      padding: var(--padding-card);
+      transition: border-color 0.15s;
+    }
+    .metric-card:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .metric-value.positive { color: var(--accent-green); }
+    .metric-value.negative { color: var(--accent-red); }
+
+    /* ===================================================================
+       Section Card (generic container)
+       =================================================================== */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius);
+      padding: var(--padding-card);
+      margin-bottom: 24px;
+    }
+
+    .section-card h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    /* ===================================================================
+       Charts Row
+       =================================================================== */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chart-container svg {
+      width: 100%;
+      height: 200px;
+    }
+
+    .chart-no-data {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 60px 0;
+    }
+
+    /* ===================================================================
+       Tables
+       =================================================================== */
+    .tables-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-card);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .data-table th:hover {
+      color: var(--accent-blue);
+    }
+    .data-table th .sort-arrow {
+      font-size: 10px;
+      margin-left: 4px;
+    }
+
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    .data-table .empty-row td {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 30px;
+    }
+
+    /* ===================================================================
+       Status Badges
+       =================================================================== */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-pending   { background: rgba(234,179,8,0.15); color: var(--accent-yellow); }
+    .badge-ordered   { background: rgba(79,140,255,0.15); color: var(--accent-blue); }
+    .badge-shipped   { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+    .badge-delivered  { background: rgba(34,197,94,0.15); color: var(--accent-green); }
+    .badge-cancelled { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+    .badge-active    { background: rgba(34,197,94,0.15); color: var(--accent-green); }
+    .badge-approved  { background: rgba(79,140,255,0.15); color: var(--accent-blue); }
+    .badge-listed    { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+    .badge-rejected  { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+
+    /* ===================================================================
+       Pipeline Section
+       =================================================================== */
+    .pipeline-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .pipeline-counts {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pipeline-count {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .pipeline-count .count-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .pipeline-count .count-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    /* ===================================================================
+       Alerts Section
+       =================================================================== */
+    .alert-list {
+      list-style: none;
+    }
+
+    .alert-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 13px;
+    }
+    .alert-item:last-child { border-bottom: none; }
+
+    .alert-type {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(79,140,255,0.15);
+      color: var(--accent-blue);
+      white-space: nowrap;
+    }
+
+    .alert-message {
+      flex: 1;
+      color: var(--text-primary);
+    }
+
+    .alert-time {
+      color: var(--text-muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .empty-message {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 30px 0;
+    }
+
+    /* ===================================================================
+       Responsive
+       =================================================================== */
+    @media (max-width: 900px) {
+      .charts-row, .tables-row, .pipeline-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .dashboard { padding: 16px; }
+      .header h1 { font-size: 20px; }
+      .metrics-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+      .metric-value { font-size: 22px; }
+    }
+
+    /* ===================================================================
+       Loading Spinner
+       =================================================================== */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--border-card);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="dashboard" id="app">
+
+    <!-- Header -->
+    <div class="header">
+      <h1>FlipAgent Dashboard</h1>
+      <div class="header-right">
+        <span class="status-dot"></span>
+        <span id="last-refresh">Loading...</span>
+        <button class="refresh-btn" onclick="refreshAll()">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="metrics-row" id="metrics-row">
+      <div class="metric-card"><div class="metric-label">Total Products</div><div class="metric-value" id="m-products">--</div></div>
+      <div class="metric-card"><div class="metric-label">Active Listings</div><div class="metric-value" id="m-listings">--</div></div>
+      <div class="metric-card"><div class="metric-label">Open Orders</div><div class="metric-value" id="m-orders">--</div></div>
+      <div class="metric-card"><div class="metric-label">Revenue Today</div><div class="metric-value" id="m-revenue">--</div><div class="metric-sub" id="m-revenue-sub"></div></div>
+      <div class="metric-card"><div class="metric-label">Profit Today</div><div class="metric-value" id="m-profit">--</div><div class="metric-sub" id="m-profit-sub"></div></div>
+      <div class="metric-card"><div class="metric-label">Pending Opportunities</div><div class="metric-value" id="m-opportunities">--</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="section-card">
+        <h2>Revenue (30 days)</h2>
+        <div class="chart-container" id="revenue-chart"></div>
+      </div>
+      <div class="section-card">
+        <h2>Profit (30 days)</h2>
+        <div class="chart-container" id="profit-chart"></div>
+      </div>
+    </div>
+
+    <!-- Tables -->
+    <div class="tables-row">
+      <div class="section-card">
+        <h2>Recent Orders</h2>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="orders-table">
+            <thead>
+              <tr>
+                <th data-key="id">ID</th>
+                <th data-key="sell_platform">Platform</th>
+                <th data-key="sell_price" data-type="number">Sale</th>
+                <th data-key="profit" data-type="number">Profit</th>
+                <th data-key="status">Status</th>
+                <th data-key="ordered_at" data-type="number">Date</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section-card">
+        <h2>Active Listings</h2>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="listings-table">
+            <thead>
+              <tr>
+                <th data-key="title">Title</th>
+                <th data-key="platform">Platform</th>
+                <th data-key="price" data-type="number">Price</th>
+                <th data-key="source_platform">Source</th>
+                <th data-key="source_price" data-type="number">Cost</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline Section -->
+    <div class="pipeline-row">
+      <div class="section-card">
+        <h2>Scout Queue Pipeline</h2>
+        <div class="pipeline-counts" id="scout-pipeline"></div>
+      </div>
+      <div class="section-card">
+        <h2>Fulfillment Pipeline</h2>
+        <div class="pipeline-counts" id="fulfillment-pipeline"></div>
+      </div>
+    </div>
+
+    <!-- Alerts Section -->
+    <div class="section-card">
+      <h2>Recent Alerts</h2>
+      <ul class="alert-list" id="alerts-list"></ul>
+    </div>
+
+  </div>
+
+  <script>
+    // =====================================================================
+    // State
+    // =====================================================================
+    const BASE = '/api/dashboard';
+    let sortState = {}; // tableId -> { key, dir }
+
+    // =====================================================================
+    // Fetch helper
+    // =====================================================================
+    async function api(path) {
+      try {
+        const r = await fetch(BASE + path);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return await r.json();
+      } catch (e) {
+        console.error('API error:', path, e);
+        return null;
+      }
+    }
+
+    // =====================================================================
+    // Formatting
+    // =====================================================================
+    function $(id) { return document.getElementById(id); }
+
+    function fmtUSD(n) {
+      if (n == null || isNaN(n)) return '$0.00';
+      return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtNum(n) {
+      if (n == null || isNaN(n)) return '0';
+      return Number(n).toLocaleString('en-US');
+    }
+
+    function fmtDate(epochMs) {
+      if (!epochMs) return '--';
+      const d = new Date(Number(epochMs));
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+             d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtShortDate(epochMs) {
+      if (!epochMs) return '--';
+      return new Date(Number(epochMs)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function statusBadge(status) {
+      const s = (status || 'unknown').toLowerCase();
+      return `<span class="badge badge-${s}">${s}</span>`;
+    }
+
+    function truncate(str, len) {
+      if (!str) return '--';
+      return str.length > len ? str.slice(0, len) + '...' : str;
+    }
+
+    function relTime(epochMs) {
+      if (!epochMs) return '';
+      const diff = Date.now() - Number(epochMs);
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return Math.floor(diff / 86400000) + 'd ago';
+    }
+
+    // =====================================================================
+    // Overview Metrics
+    // =====================================================================
+    async function loadOverview() {
+      const d = await api('/overview');
+      if (!d) return;
+      $('m-products').textContent = fmtNum(d.totalProducts);
+      $('m-listings').textContent = fmtNum(d.activeListings);
+      $('m-orders').textContent = fmtNum(d.openOrders);
+      $('m-opportunities').textContent = fmtNum(d.pendingArbitrage);
+
+      const rv = $('m-revenue');
+      rv.textContent = fmtUSD(d.revenueToday);
+      $('m-revenue-sub').textContent = 'Week: ' + fmtUSD(d.revenueWeek) + ' | Month: ' + fmtUSD(d.revenueMonth);
+
+      const pv = $('m-profit');
+      pv.textContent = fmtUSD(d.profitToday);
+      pv.className = 'metric-value ' + (d.profitToday >= 0 ? 'positive' : 'negative');
+      $('m-profit-sub').textContent = 'Week: ' + fmtUSD(d.profitWeek) + ' | Month: ' + fmtUSD(d.profitMonth);
+    }
+
+    // =====================================================================
+    // SVG Line Chart
+    // =====================================================================
+    function renderLineChart(containerId, data, valueKey, color) {
+      const container = $(containerId);
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div class="chart-no-data">No data for the last 30 days</div>';
+        return;
+      }
+
+      const W = 600, H = 200, PAD_LEFT = 55, PAD_RIGHT = 20, PAD_TOP = 20, PAD_BOTTOM = 35;
+      const cW = W - PAD_LEFT - PAD_RIGHT;
+      const cH = H - PAD_TOP - PAD_BOTTOM;
+
+      const values = data.map(d => Number(d[valueKey]) || 0);
+      const minV = Math.min(0, ...values);
+      const maxV = Math.max(...values, 1); // avoid 0 range
+      const range = maxV - minV || 1;
+
+      function x(i) { return PAD_LEFT + (i / Math.max(data.length - 1, 1)) * cW; }
+      function y(v) { return PAD_TOP + cH - ((v - minV) / range) * cH; }
+
+      // Build polyline points
+      const points = data.map((d, i) => `${x(i).toFixed(1)},${y(values[i]).toFixed(1)}`).join(' ');
+
+      // Gradient fill area
+      const areaPoints = points + ` ${x(data.length - 1).toFixed(1)},${(PAD_TOP + cH).toFixed(1)} ${PAD_LEFT.toFixed(1)},${(PAD_TOP + cH).toFixed(1)}`;
+
+      // Y-axis ticks (5 lines)
+      let gridLines = '';
+      let yLabels = '';
+      for (let i = 0; i <= 4; i++) {
+        const val = minV + (range * i / 4);
+        const yy = y(val);
+        gridLines += `<line x1="${PAD_LEFT}" y1="${yy}" x2="${W - PAD_RIGHT}" y2="${yy}" stroke="var(--border-card)" stroke-width="0.5"/>`;
+        const label = Math.abs(val) >= 1000 ? (val/1000).toFixed(1) + 'k' : val.toFixed(0);
+        yLabels += `<text x="${PAD_LEFT - 8}" y="${yy + 4}" text-anchor="end" fill="var(--text-muted)" font-size="10">${label}</text>`;
+      }
+
+      // X-axis labels (up to 6)
+      let xLabels = '';
+      const step = Math.max(1, Math.floor(data.length / 6));
+      for (let i = 0; i < data.length; i += step) {
+        xLabels += `<text x="${x(i)}" y="${H - 5}" text-anchor="middle" fill="var(--text-muted)" font-size="10">${data[i].date.slice(5)}</text>`;
+      }
+
+      const svgId = containerId + '-gradient';
+      container.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="${svgId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${gridLines}
+          ${yLabels}
+          ${xLabels}
+          <polygon points="${areaPoints}" fill="url(#${svgId})"/>
+          <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${data.map((d, i) => `<circle cx="${x(i)}" cy="${y(values[i])}" r="3" fill="${color}" opacity="0.8"><title>${d.date}: ${fmtUSD(values[i])}</title></circle>`).join('')}
+        </svg>`;
+    }
+
+    async function loadCharts() {
+      const [revData, profitData] = await Promise.all([
+        api('/revenue/chart'),
+        api('/profit/chart'),
+      ]);
+      renderLineChart('revenue-chart', revData?.data, 'revenue', 'var(--accent-blue)');
+      renderLineChart('profit-chart', profitData?.data, 'profit', 'var(--accent-green)');
+    }
+
+    // =====================================================================
+    // Sortable Table
+    // =====================================================================
+    function setupSortableTable(tableId, rows, renderRow) {
+      const table = $(tableId);
+      const thead = table.querySelector('thead');
+      const tbody = table.querySelector('tbody');
+      const ths = thead.querySelectorAll('th');
+
+      function render(data) {
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr class="empty-row"><td colspan="' + ths.length + '">No data</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map(renderRow).join('');
+      }
+
+      function sortBy(key, type) {
+        const st = sortState[tableId] || {};
+        const dir = (st.key === key && st.dir === 'asc') ? 'desc' : 'asc';
+        sortState[tableId] = { key, dir };
+
+        const sorted = [...rows].sort((a, b) => {
+          let va = a[key], vb = b[key];
+          if (type === 'number') { va = Number(va) || 0; vb = Number(vb) || 0; }
+          else { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); }
+          if (va < vb) return dir === 'asc' ? -1 : 1;
+          if (va > vb) return dir === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        // Update sort arrows
+        ths.forEach(th => {
+          const arrow = th.querySelector('.sort-arrow');
+          if (arrow) arrow.remove();
+          if (th.dataset.key === key) {
+            th.insertAdjacentHTML('beforeend', `<span class="sort-arrow">${dir === 'asc' ? '\u25B2' : '\u25BC'}</span>`);
+          }
+        });
+
+        render(sorted);
+      }
+
+      ths.forEach(th => {
+        th.addEventListener('click', () => {
+          sortBy(th.dataset.key, th.dataset.type || 'string');
+        });
+      });
+
+      render(rows);
+    }
+
+    async function loadOrders() {
+      const d = await api('/orders/recent');
+      if (!d) return;
+      setupSortableTable('orders-table', d.orders || [], (o) => `
+        <tr>
+          <td title="${o.id}">${truncate(o.id, 10)}</td>
+          <td>${o.sell_platform || '--'}</td>
+          <td>${fmtUSD(o.sell_price)}</td>
+          <td style="color: ${(Number(o.profit)||0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${o.profit != null ? fmtUSD(o.profit) : '--'}</td>
+          <td>${statusBadge(o.status)}</td>
+          <td title="${fmtDate(o.ordered_at)}">${fmtShortDate(o.ordered_at)}</td>
+        </tr>`);
+    }
+
+    async function loadListings() {
+      const d = await api('/listings/active');
+      if (!d) return;
+      setupSortableTable('listings-table', d.listings || [], (l) => `
+        <tr>
+          <td title="${l.title || l.product_title || ''}">${truncate(l.title || l.product_title, 30)}</td>
+          <td>${l.platform || '--'}</td>
+          <td>${fmtUSD(l.price)}</td>
+          <td>${l.source_platform || '--'}</td>
+          <td>${fmtUSD(l.source_price)}</td>
+        </tr>`);
+    }
+
+    // =====================================================================
+    // Pipeline Section
+    // =====================================================================
+    async function loadPipelines() {
+      const [arb, ful] = await Promise.all([
+        api('/arbitrage/pipeline'),
+        api('/fulfillment/pipeline'),
+      ]);
+
+      // Scout queue
+      const scoutEl = $('scout-pipeline');
+      const scoutCounts = arb?.scoutStatusCounts || [];
+      if (scoutCounts.length === 0) {
+        scoutEl.innerHTML = '<div class="empty-message">No scout data</div>';
+      } else {
+        scoutEl.innerHTML = scoutCounts.map(s => `
+          <div class="pipeline-count">
+            <div class="count-label">${s.status}</div>
+            <div class="count-value">${fmtNum(s.cnt)}</div>
+          </div>`).join('');
+      }
+
+      // Fulfillment
+      const fulEl = $('fulfillment-pipeline');
+      const fulCounts = ful?.statusCounts || [];
+      if (fulCounts.length === 0) {
+        fulEl.innerHTML = '<div class="empty-message">No orders</div>';
+      } else {
+        fulEl.innerHTML = fulCounts.map(s => `
+          <div class="pipeline-count">
+            <div class="count-label">${s.status}</div>
+            <div class="count-value">${fmtNum(s.count)}</div>
+          </div>`).join('');
+      }
+    }
+
+    // =====================================================================
+    // Alerts
+    // =====================================================================
+    async function loadAlerts() {
+      const d = await api('/alerts/recent');
+      const list = $('alerts-list');
+      const alerts = d?.alerts || [];
+      if (alerts.length === 0) {
+        list.innerHTML = '<li class="empty-message">No recent alerts</li>';
+        return;
+      }
+      list.innerHTML = alerts.map(a => `
+        <li class="alert-item">
+          <span class="alert-type">${a.type || 'info'}</span>
+          <span class="alert-message">${a.message || '--'}</span>
+          <span class="alert-time">${relTime(a.created_at)}</span>
+        </li>`).join('');
+    }
+
+    // =====================================================================
+    // Refresh All
+    // =====================================================================
+    async function refreshAll() {
+      $('last-refresh').innerHTML = '<span class="spinner"></span> Loading...';
+      await Promise.all([
+        loadOverview(),
+        loadCharts(),
+        loadOrders(),
+        loadListings(),
+        loadPipelines(),
+        loadAlerts(),
+      ]);
+      $('last-refresh').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+    }
+
+    // Initial load
+    refreshAll();
+
+    // Auto-refresh every 60s
+    setInterval(refreshAll, 60000);
+  </script>
+</body>
+</html>

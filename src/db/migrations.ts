@@ -29,6 +29,12 @@ import { MIGRATION_021_UP, MIGRATION_021_DOWN } from './migration-021-teams';
 import { MIGRATION_022_UP, MIGRATION_022_DOWN } from './migration-022-plugins';
 import { MIGRATION_023_UP, MIGRATION_023_DOWN } from './migration-023-currency-cogs-bundles';
 import { MIGRATION_024_UP, MIGRATION_024_DOWN } from './migration-024-rma-scoring';
+import { MIGRATION_025_UP, MIGRATION_025_DOWN } from './migration-025-reprice-daemon';
+import { MIGRATION_026_UP, MIGRATION_026_DOWN } from './migration-026-scout';
+import { MIGRATION_027_UP, MIGRATION_027_DOWN } from './migration-027-demand-scoring';
+import { MIGRATION_028_UP, MIGRATION_028_DOWN } from './migration-028-restrictions';
+import { MIGRATION_029_UP, MIGRATION_029_DOWN } from './migration-029-suppliers';
+import { MIGRATION_030_UP, MIGRATION_030_DOWN } from './migration-030-multi-channel-sync';
 
 const logger = createLogger('migrations');
 
@@ -604,6 +610,54 @@ const MIGRATIONS: Migration[] = [
     name: 'rma_scoring',
     up: MIGRATION_024_UP,
     down: MIGRATION_024_DOWN,
+  },
+
+  // ── Migration 25: Reprice daemon config and history ─────────────────
+  {
+    version: 25,
+    name: 'reprice_daemon',
+    up: MIGRATION_025_UP,
+    down: MIGRATION_025_DOWN,
+  },
+
+  // ── Migration 26: Scout pipeline (auto-scout configs and queue) ─────
+  {
+    version: 26,
+    name: 'scout_pipeline',
+    up: MIGRATION_026_UP,
+    down: MIGRATION_026_DOWN,
+  },
+
+  // ── Migration 27: Demand scoring model and scan frequency ────────────
+  {
+    version: 27,
+    name: 'demand_scoring',
+    up: MIGRATION_027_UP,
+    down: MIGRATION_027_DOWN,
+  },
+
+  // ── Migration 28: Restriction/gating checks for products ──────────
+  {
+    version: 28,
+    name: 'restriction_checks',
+    up: MIGRATION_028_UP,
+    down: MIGRATION_028_DOWN,
+  },
+
+  // ── Migration 29: Supplier CRM (suppliers, products, orders) ────────
+  {
+    version: 29,
+    name: 'supplier_crm',
+    up: MIGRATION_029_UP,
+    down: MIGRATION_029_DOWN,
+  },
+
+  // ── Migration 30: Multi-channel inventory sync ──────────────────────
+  {
+    version: 30,
+    name: 'multi_channel_sync',
+    up: MIGRATION_030_UP,
+    down: MIGRATION_030_DOWN,
   },
 ];
 
