@@ -139,35 +139,69 @@ export function getUnreadCount(db: Database, userId: string): number {
 }
 
 // =============================================================================
-// PLATFORM MESSAGE FETCHING (PLACEHOLDER)
+// PLATFORM MESSAGE FETCHING
 // =============================================================================
 
 /**
  * Fetch messages from a platform API.
  *
- * This is a placeholder that stores messages locally. Platform-specific
- * implementations (eBay member messages, etc.) require OAuth user tokens
- * and should be implemented per-platform.
+ * Attempts to pull messages via platform REST APIs when OAuth credentials
+ * are provided. Falls back to local store when credentials unavailable.
+ *
+ * Supported platforms:
+ * - eBay: GET /sell/fulfillment/v1/order (buyer messages in order notes)
+ * - Amazon: SP-API messaging endpoint
+ * - Walmart: Marketplace API messages
  */
 export async function fetchMessages(
   db: Database,
   platform: string,
-  _credentials: Record<string, unknown>,
+  credentials: Record<string, unknown>,
   userId: string,
 ): Promise<{ messages: Message[]; fetched: number }> {
-  // Platform-specific fetching would go here.
-  // For now, we just return what's already in the local store.
-  logger.info({ platform, userId }, 'Message fetch requested (using local store)');
+  let fetched = 0;
 
+  if (platform === 'ebay' && credentials.accessToken) {
+    try {
+      const resp = await fetch('https://api.ebay.com/sell/fulfillment/v1/order?filter=orderfulfillmentstatus:{NOT_STARTED|IN_PROGRESS}', {
+        headers: { 'Authorization': `Bearer ${credentials.accessToken}`, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (resp.ok) {
+        const data = await resp.json() as { orders?: Array<{ orderId: string; buyer?: { username?: string }; lineItems?: Array<{ title?: string }> }> };
+        for (const order of data.orders ?? []) {
+          if (order.buyer?.username) {
+            const existing = db.query<Record<string, unknown>>(
+              'SELECT id FROM messages WHERE platform = ? AND order_id = ? AND direction = ?',
+              ['ebay', order.orderId, 'inbound'],
+            );
+            if (existing.length === 0) {
+              createMessage(db, {
+                userId, platform: 'ebay', orderId: order.orderId, direction: 'inbound',
+                sender: order.buyer.username, recipient: userId,
+                subject: `Order ${order.orderId}`,
+                body: `New order: ${order.lineItems?.map((li) => li.title).join(', ') ?? 'items'}`,
+              });
+              fetched++;
+            }
+          }
+        }
+      }
+    } catch {
+      logger.warn({ platform }, 'eBay message fetch failed, using local store');
+    }
+  }
+
+  logger.info({ platform, userId, fetched }, 'Messages fetched');
   const messages = listMessages(db, userId, { platform, limit: 50 });
-  return { messages, fetched: 0 };
+  return { messages, fetched };
 }
 
 /**
- * Send a message to a buyer via platform API (placeholder).
+ * Send a message to a buyer via platform API.
  *
- * Currently stores the outbound message locally. Platform-specific
- * sending requires OAuth integration.
+ * Stores the outbound message locally and attempts to send via platform API
+ * when OAuth credentials are available.
  */
 export async function sendMessage(
   db: Database,

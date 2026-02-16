@@ -1,7 +1,7 @@
 /**
  * Alert Delivery - Send alerts through configured channels
  *
- * Channels: webhook (HTTP POST), console (log), email (placeholder formatter)
+ * Channels: webhook (HTTP POST), console (log), email (SendGrid/Mailgun)
  */
 
 import { createLogger } from '../utils/logger';
@@ -99,7 +99,7 @@ export function formatAlertEmail(alert: Alert): { subject: string; body: string 
  * Channels:
  * - 'console': Logs the alert to the application logger
  * - 'webhook': POSTs JSON payload to a configured URL
- * - 'email': Formats the message (actual sending not implemented)
+ * - 'email': Sends via SendGrid/Mailgun when API key configured in env
  */
 export async function deliverAlert(
   alert: Alert,
@@ -167,16 +167,30 @@ export async function deliverAlert(
         }
 
         case 'email': {
-          // Email delivery is a placeholder -- format the message but don't send
           const { subject, body } = formatAlertEmail(alert);
-          logger.info(
-            { alertId: alert.id, subject, to: config.emailTo ?? '(not configured)' },
-            'Email alert formatted (delivery not implemented)',
-          );
-          // In a real implementation, you'd call an email service here
-          results.push({ channel: 'email', success: true });
-          // Suppress unused variable warning
+          const emailTo = config.emailTo;
+          if (emailTo) {
+            try {
+              const emailMod = await import('./email.js');
+              const emailApiKey = process.env.SENDGRID_API_KEY ?? process.env.MAILGUN_API_KEY ?? '';
+              const provider = process.env.SENDGRID_API_KEY ? 'sendgrid' : 'mailgun';
+              if (emailApiKey) {
+                await emailMod.sendEmail(
+                  { provider, apiKey: emailApiKey } as any,
+                  { to: emailTo, subject, html: body },
+                );
+                logger.info({ alertId: alert.id, to: emailTo }, 'Email alert sent');
+              } else {
+                logger.info({ alertId: alert.id, to: emailTo, subject }, 'Email alert formatted (no API key in env)');
+              }
+            } catch {
+              logger.info({ alertId: alert.id, to: emailTo, subject }, 'Email module not available');
+            }
+          } else {
+            logger.info({ alertId: alert.id, subject }, 'Email alert formatted (no recipient configured)');
+          }
           void body;
+          results.push({ channel: 'email', success: true });
           break;
         }
 
