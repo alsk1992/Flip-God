@@ -59,7 +59,7 @@ curl http://localhost:3141/health
 # → {"status":"healthy","uptime":...}
 ```
 
-## Talk to FlipAgent
+## Talk to FlipGod
 
 Connect via any supported channel:
 

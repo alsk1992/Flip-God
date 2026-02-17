@@ -12,15 +12,15 @@
   <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen" alt="Node.js">
   <img src="https://img.shields.io/badge/typescript-5.3-blue" alt="TypeScript">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/tools-435%2B-purple" alt="435+ Tools">
-  <img src="https://img.shields.io/badge/platforms-15%2B-orange" alt="15+ Platforms">
+  <img src="https://img.shields.io/badge/tools-435%2B-purple" alt="185 Tools">
+  <img src="https://img.shields.io/badge/platforms-15%2B-orange" alt="18 Platforms">
   <img src="https://img.shields.io/badge/premium-token%20gated-blueviolet" alt="Token Gated">
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> •
-  <a href="#everything-it-does">Features</a> •
-  <a href="#platforms-15">Platforms</a> •
+  <a href="#features">Features</a> •
+  <a href="#platforms-18">Platforms</a> •
   <a href="#premium-access">Premium</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#configuration">Config</a> •
@@ -29,7 +29,7 @@
 
 ---
 
-**FlipGod** is a self-hosted AI agent that finds arbitrage opportunities across Amazon, eBay, Walmart, AliExpress and 15+ e-commerce platforms. It automatically scans for underpriced products, creates optimized listings, reprices competitively, and fulfills orders end-to-end. Built with TypeScript, powered by Claude, with 435+ tools.
+**FlipGod** is a self-hosted AI agent that finds arbitrage opportunities across Amazon, eBay, Walmart, AliExpress and 18 e-commerce platforms. It automatically scans for underpriced products, creates optimized listings, reprices competitively, and fulfills orders end-to-end. Built with TypeScript, powered by Claude, with 185 tools.
 
 Hold the FlipGod token on Solana for premium access — no subscriptions, no fees.
 
@@ -71,7 +71,7 @@ Every tool is callable by the AI agent via natural language. Just describe what 
 
 ### Platform Scanning — 15 tools
 
-Scan 15+ e-commerce platforms in one command.
+Scan 18 e-commerce platforms in one command.
 
 | Tool | What It Does |
 |------|--------------|
@@ -381,7 +381,7 @@ Dropshipping sourcing and fulfillment.
 
 ---
 
-### Utility — 7 tools
+### Utility — 6 tools
 
 | Tool | What It Does |
 |------|--------------|
@@ -391,7 +391,6 @@ Dropshipping sourcing and fulfillment.
 | `get_aliexpress_categories` | Browse AliExpress category tree |
 | `get_hot_products` | Find trending products |
 | `get_ds_order_status` | Check dropship order status |
-| `match_products` | Cross-platform product matching |
 
 ---
 
@@ -399,7 +398,7 @@ Dropshipping sourcing and fulfillment.
 
 ### Source & Scan
 
-- **Cross-platform arbitrage** — margin calculation, scoring, and comparison across all 15+ platforms
+- **Cross-platform arbitrage** — margin calculation, scoring, and comparison across all 18 platforms
 - **Auto-scout pipeline** — configurable scouts that continuously scan and queue profitable products
 - **Price intelligence** — historical tracking, drop/spike detection, trend analysis, buy/sell signals
 - **6-signal demand scoring** — velocity, stability, competitor count, sentiment, search interest, margin
@@ -425,7 +424,7 @@ Dropshipping sourcing and fulfillment.
 
 ---
 
-## Platforms (15+)
+## Platforms (18)
 
 | Platform | APIs | Tools | Capabilities |
 |----------|------|:-----:|--------------|
@@ -459,7 +458,7 @@ FlipGod uses a **token-gated model** — hold the FlipGod SPL token on Solana to
 | Feature | Free | Token Holder |
 |---------|:----:|:------------:|
 | Basic scanning | Yes | Yes |
-| Cross-platform compare | 3 platforms | All 15+ |
+| Cross-platform compare | 3 platforms | All 18 |
 | Auto-scout pipeline | — | Yes |
 | Smart repricing | Manual | Automated |
 | Fulfillment automation | Manual | Full auto |
@@ -490,7 +489,7 @@ Token balance checked via Solana `getTokenAccountsByOwner` RPC, cached for 3 hou
                               │
 ┌─────────────────────────────┴────────────────────────────────────┐
 │                      AI AGENT LAYER                              │
-│  Claude (Anthropic API) • 435+ Tools • Dynamic Tool Loading     │
+│  Claude (Anthropic API) • 185 Tools • Dynamic Tool Loading     │
 │  Memory • Context Management • Hook System                       │
 └─────────────────────────────┬────────────────────────────────────┘
                               │
@@ -586,7 +585,7 @@ Only `ANTHROPIC_API_KEY` is required to start. Platform credentials can be added
 | Billing API | Railway (Postgres + Express) |
 | Token Gate | Solana SPL token verification via RPC |
 | Migrations | 30 database migrations |
-| Tooling | 435+ tools across 95+ modules |
+| Tooling | 185 tools across 95+ modules |
 
 ---
 
@@ -594,8 +593,8 @@ Only `ANTHROPIC_API_KEY` is required to start. Platform credentials can be added
 
 | Category | Count |
 |----------|------:|
-| E-Commerce Platforms | **15+** |
-| Tools | **435+** |
+| E-Commerce Platforms | **18** |
+| Tools | **185** |
 | Modules | **95+** |
 | Database Migrations | **30** |
 | Fulfillment States | **12** |

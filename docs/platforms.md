@@ -1,4 +1,4 @@
-# Platform Reference — All 15 Platforms
+# Platform Reference — All 18 Platforms
 
 **Last updated**: Feb 15, 2026
 

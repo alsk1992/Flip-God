@@ -2,7 +2,7 @@
 
 ## Overview
 
-FlipGod is a modular AI agent that orchestrates e-commerce arbitrage across Amazon, eBay, Walmart, and AliExpress. It uses Claude as the reasoning engine, with 435+ tools for searching, listing, fulfilling, and analyzing.
+FlipGod is a modular AI agent that orchestrates e-commerce arbitrage across Amazon, eBay, Walmart, and AliExpress. It uses Claude as the reasoning engine, with 185 tools for searching, listing, fulfilling, and analyzing.
 
 ```
 User's machine (self-hosted)              Railway (billing-api)
@@ -14,7 +14,7 @@ User's machine (self-hosted)              Railway (billing-api)
 │ (TG/DC/WS) │ (Claude) │  (jobs)     │   │  GET  /wallet           │
 ├────────────┴──────────┴─────────────┤   ├─────────────────────────┤
 │           Tool Registry             │──▶│  Solana Token Gate       │
-│         (435+ tools, 5 skills)      │   │  (SPL balance → premium) │
+│         (185 tools, 5 skills)      │   │  (SPL balance → premium) │
 ├──────┬──────┬──────┬──────┬─────────┤   ├─────────────────────────┤
 │Amazon│ eBay │Walmt │AliEx │ Keepa/  │   │  Postgres (Railway)     │
 │PA+SP │Browse│Affil │Affil │EasyPost │   └─────────────────────────┘
@@ -35,7 +35,7 @@ src/
 │   ├── index.ts      # createGateway() — wires everything
 │   └── server.ts     # Express + WebSocket server
 ├── agents/           # Claude AI agent + tool dispatch
-│   └── index.ts      # 435+ tool handlers
+│   └── index.ts      # 185 tool handlers
 ├── platforms/        # Platform API adapters
 │   ├── amazon/       # PA-API 5.0 + SP-API
 │   ├── ebay/         # Browse + Inventory + Fulfillment
