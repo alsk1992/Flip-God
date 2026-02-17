@@ -8,7 +8,7 @@ API key management, usage tracking, and Solana token-gated premium access for Fl
 
 - Express.js + TypeScript
 - PostgreSQL (Railway)
-- JWT auth (argon2id password hashing)
+- JWT auth (scrypt password hashing)
 - Solana SPL token verification via raw JSON RPC
 
 ## Endpoints

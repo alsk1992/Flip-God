@@ -2,8 +2,11 @@
  * Auth routes — /auth/register, /auth/login, /auth/refresh
  */
 import { Router, Request, Response } from 'express';
+import { createLogger } from '../utils/logger';
 import type { AuthService } from '../auth';
 import type { Db } from '../db';
+
+const logger = createLogger('auth-routes');
 
 export function createAuthRoutes(authService: AuthService, db: Db): Router {
   const router = Router();
@@ -20,8 +23,10 @@ export function createAuthRoutes(authService: AuthService, db: Db): Router {
 
       res.status(201).json(result);
     } catch (err: unknown) {
-      const status = (err as { status?: number }).status ?? 400;
-      res.status(status).json({ error: err instanceof Error ? err.message : 'Registration failed' });
+      const status = (err as { status?: number }).status ?? 500;
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      logger.error({ err: message, stack: err instanceof Error ? err.stack : undefined }, 'Registration error');
+      res.status(status).json({ error: message });
     }
   });
 
