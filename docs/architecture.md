@@ -2,7 +2,7 @@
 
 ## Overview
 
-FlipAgent is a modular AI agent that orchestrates e-commerce arbitrage across Amazon, eBay, Walmart, and AliExpress. It uses Claude as the reasoning engine, with 88 tools for searching, listing, fulfilling, and analyzing.
+FlipGod is a modular AI agent that orchestrates e-commerce arbitrage across Amazon, eBay, Walmart, and AliExpress. It uses Claude as the reasoning engine, with 435+ tools for searching, listing, fulfilling, and analyzing.
 
 ```
 User's machine (self-hosted)              Railway (billing-api)
@@ -10,7 +10,7 @@ User's machine (self-hosted)              Railway (billing-api)
 │              Gateway                │   │  POST /validate         │
 │  (orchestrates services, HTTP/WS)   │   │  POST /premium/score    │
 ├────────────┬──────────┬─────────────┤   │  POST /premium/optimize │
-│  Channels  │  Agent   │  Cron/Queue │   │  POST /usage/report     │
+│  Channels  │  Agent   │  Cron/Queue │   │  POST /premium/report   │
 │ (TG/DC/WS) │ (Claude) │  (jobs)     │   │  GET  /wallet           │
 ├────────────┴──────────┴─────────────┤   ├─────────────────────────┤
 │           Tool Registry             │──▶│  Solana Token Gate       │
@@ -73,13 +73,11 @@ billing-api/            # Separate service deployed on Railway
 │   └── utils/          # Logger, crypto helpers
 └── package.json
 
-site/                   # Frontend (Vercel)
-├── src/
-│   ├── pages/          # Login, Signup, Dashboard, Billing
-│   ├── components/     # AuthProvider, ProtectedRoute
-│   ├── hooks/          # useAuth
-│   └── lib/            # API client
-└── package.json
+docs/                   # Documentation
+├── architecture.md     # This file
+├── getting-started.md  # Setup guide
+├── platforms.md        # Platform API setup
+└── tools.md            # Tool reference
 ```
 
 ## Data Flow

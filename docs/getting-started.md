@@ -10,7 +10,7 @@
 
 ```bash
 git clone https://github.com/alsk1992/Flip-God.git
-cd flipagent
+cd Flip-God
 npm install
 ```
 
