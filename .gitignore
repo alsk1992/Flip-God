@@ -9,6 +9,9 @@ backups/
 .DS_Store
 *.log
 
+# Frontend (private, deployed separately on Vercel)
+site/
+
 # Billing API build artifacts
 billing-api/dist/
 billing-api/node_modules/
