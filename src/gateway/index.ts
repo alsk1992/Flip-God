@@ -56,6 +56,9 @@ import {
 // Notification channels
 import { createNotificationChannelManager } from '../channels/notifications';
 
+// Premium client
+import { initPremiumClient } from '../premium';
+
 import type { Config, IncomingMessage, OutgoingMessage, Platform, AmazonCredentials, EbayCredentials, WalmartCredentials, AliExpressCredentials } from '../types';
 import type { Database } from '../db';
 import type { PlatformAdapter } from '../platforms/index';
@@ -195,6 +198,12 @@ export async function createGateway(config: Config): Promise<Gateway> {
 
   logger.info('Monitoring system initialized');
 
+  // 6c2. Initialize premium client (billing API)
+  const premiumClient = initPremiumClient();
+  if (premiumClient) {
+    logger.info('Premium client initialized');
+  }
+
   // 6d. Initialize job queue for bulk operations
   const jobQueueDeps = { db, queue: null as unknown as import('../queue/job-queue').JobQueue };
   const jobWorker = createJobWorker(jobQueueDeps);
@@ -274,7 +283,7 @@ export async function createGateway(config: Config): Promise<Gateway> {
 
   // Create order monitor for the checkOrders cron
   const ebayCreds = credentials.getCredentials<EbayCredentials>('system', 'ebay');
-  const orderMonitor = createOrderMonitor(db, ebayCreds ? { ebay: ebayCreds } : undefined);
+  const orderMonitor = createOrderMonitor(db, ebayCreds ? { ebay: ebayCreds } : undefined, premiumClient);
 
   // 7. Create cron scheduler with built-in jobs
   const cron = new CronScheduler();
@@ -283,7 +292,7 @@ export async function createGateway(config: Config): Promise<Gateway> {
       logger.info('Cron: scan_prices tick');
       try {
         const adapters = buildAdapters();
-        const opps = await scanForArbitrage(adapters, { minMarginPct: 15, maxResults: 50 });
+        const opps = await scanForArbitrage(adapters, { minMarginPct: 15, maxResults: 50 }, premiumClient);
         for (const opp of opps) {
           const fullOpp = {
             id: randomUUID().slice(0, 12),

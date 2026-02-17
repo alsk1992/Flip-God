@@ -8,3 +8,7 @@ dist/
 backups/
 .DS_Store
 *.log
+
+# Billing API build artifacts
+billing-api/dist/
+billing-api/node_modules/

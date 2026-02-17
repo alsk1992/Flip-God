@@ -76,6 +76,22 @@ Then just ask:
 "Create an eBay listing for this product"
 ```
 
+## Premium Features
+
+FlipGod has a free tier and a premium tier. Premium is unlocked by holding the FlipGod token on Solana -- no subscriptions, no fees.
+
+1. Sign up at [flip-god.com](https://flip-god.com)
+2. Create an API key on the Dashboard page
+3. Link your Solana wallet to verify token holdings
+4. Add to your `.env`:
+   ```
+   FLIPGOD_API_KEY=fg_live_your_key_here
+   ```
+
+Premium unlocks: full 6-signal demand scoring, AI listing optimization, auto-scout pipeline, smart repricing, fulfillment automation, and the restriction checker.
+
+Without `FLIPGOD_API_KEY`, the agent runs in free tier (basic scanning, 3-platform compare, manual repricing).
+
 ## Next Steps
 
 - [Architecture Overview](./architecture.md)

@@ -7,6 +7,7 @@ import type { Platform } from '../types';
 import type { ArbitrageOpportunity } from './types';
 import { calculateProfit } from './calculator';
 import type { ProductSearchResult, PlatformAdapter } from '../platforms/index';
+import type { PremiumClient } from '../premium';
 
 const logger = createLogger('scanner');
 
@@ -21,6 +22,7 @@ export interface ScanOptions {
 export async function scanForArbitrage(
   adapters: Map<Platform, PlatformAdapter>,
   options: ScanOptions = {},
+  premiumClient?: PremiumClient | null,
 ): Promise<ArbitrageOpportunity[]> {
   const {
     query = 'electronics',
@@ -102,6 +104,31 @@ export async function scanForArbitrage(
   // 3. Sort by score and limit
   opportunities.sort((a, b) => b.score - a.score);
   const limited = opportunities.slice(0, maxResults);
+
+  // 4. Enrich with premium scoring if available
+  if (premiumClient) {
+    try {
+      const isPremium = await premiumClient.isPremium();
+      if (isPremium) {
+        for (const opp of limited) {
+          try {
+            const scoreResult = await premiumClient.scoreOpportunity({
+              buyPrice: opp.buyPrice,
+              sellPrice: opp.sellPrice,
+              buyShipping: opp.buyShipping,
+            });
+            (opp as ArbitrageOpportunity & { premiumScore?: number; grade?: string; recommendation?: string }).premiumScore = scoreResult.score;
+            (opp as ArbitrageOpportunity & { grade?: string }).grade = scoreResult.grade;
+            (opp as ArbitrageOpportunity & { recommendation?: string }).recommendation = scoreResult.recommendation;
+          } catch {
+            // Non-critical — keep local score
+          }
+        }
+      }
+    } catch {
+      // Premium scoring unavailable — continue with local scores
+    }
+  }
 
   logger.info({ found: limited.length, total: opportunities.length }, 'Arbitrage scan complete');
   return limited;

@@ -12,6 +12,7 @@ import type { Database } from '../db';
 import type { EbayCredentials, AmazonCredentials, Platform } from '../types';
 import { createEbayOrdersApi } from '../platforms/ebay/orders';
 import { createFbaMcfApi } from './fba';
+import type { PremiumClient } from '../premium';
 
 const logger = createLogger('order-monitor');
 
@@ -28,6 +29,7 @@ export interface OrderMonitor {
 export function createOrderMonitor(
   db: Database,
   credentials?: { ebay?: EbayCredentials; amazon?: AmazonCredentials },
+  premiumClient?: PremiumClient | null,
 ): OrderMonitor {
   let interval: NodeJS.Timeout | null = null;
 
@@ -201,6 +203,20 @@ export function createOrderMonitor(
             );
 
             logger.info({ orderId: order.id, mcfOrderId, sku: fbaStock[0].sku }, 'Auto-fulfilled via FBA MCF');
+
+            // Report sale GMV to billing API for metered billing
+            if (premiumClient) {
+              const orderRow = db.query<{ sell_price: number }>('SELECT sell_price FROM orders WHERE id = ?', [order.id]);
+              const sellPriceCents = Math.round((orderRow[0]?.sell_price ?? 0) * 100);
+              if (sellPriceCents > 0) {
+                premiumClient.reportSale(sellPriceCents, `sale-${order.id}`, {
+                  orderId: order.id,
+                  sku: fbaStock[0].sku,
+                }).catch((err) => {
+                  logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'Failed to report sale to billing');
+                });
+              }
+            }
           } catch (err) {
             logger.warn(
               { orderId: order.id, error: err instanceof Error ? err.message : String(err) },
