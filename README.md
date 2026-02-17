@@ -65,74 +65,388 @@ The server starts on `http://localhost:3141`. Connect via WebSocket, Telegram, o
 
 ---
 
-## Everything It Does
+## Tools (185)
 
-### At a Glance
+Every tool is callable by the AI agent via natural language. Just describe what you want.
 
-| Category | What's Included |
-|----------|-----------------|
-| **Platforms** | 15+ integrations — Amazon PA-API + SP-API, eBay Browse + Inventory + Fulfillment, Walmart Affiliate + Marketplace, AliExpress Affiliate + Dropship, Target, Best Buy, Faire, Keepa, EasyPost, Ship24 |
-| **Arbitrage** | Cross-platform price scanning, margin calculation, opportunity scoring, side-by-side comparison, auto-scout pipeline |
-| **Listing** | AI-generated titles, descriptions, and keywords optimized for eBay and Amazon search algorithms |
-| **Repricing** | Smart repricing daemon — algorithmic competitor tracking with real-time price adjustments to win the buy box |
-| **Fulfillment** | 12-state order pipeline — sale detection → sourcing → purchasing → receiving → labeling → shipping → tracking push |
-| **Inventory** | Multi-channel sync with buffer stock management, oversell protection, and cross-platform quantity sync |
-| **Intelligence** | 6-signal demand scoring (velocity, stability, competitors, sentiment, search interest, margin), price history tracking, drop/spike detection |
-| **Restrictions** | IP-restricted, gated, hazmat, and counterfeit-risk detection before you commit |
-| **Accounting** | Per-SKU P&L, tax summaries, monthly trends, CSV/QuickBooks export, fee calculator |
-| **Suppliers** | Supplier CRM with performance scoring, lead time tracking, and reorder alerts |
-| **Returns** | Automated return handling, refund tracking, and restocking workflows |
-| **Alerts** | Notifications for price drops, stock changes, new opportunities, and order updates |
-| **Bulk Ops** | Mass edit listings, prices, and inventory across all platforms in a single command |
-| **AI Engine** | Claude (Anthropic API) with 435+ tools across 95+ modules, dynamic tool loading |
-| **Database** | SQLite (sql.js WASM) — zero external DB dependencies, 30 migrations |
-| **Premium** | Solana SPL token gate — hold token = all features unlocked, zero fees |
+### Platform Scanning — 15 tools
+
+Scan 15+ e-commerce platforms in one command.
+
+| Tool | What It Does |
+|------|--------------|
+| `scan_amazon` | Search Amazon products by keyword |
+| `scan_ebay` | Search eBay listings and auctions |
+| `scan_walmart` | Search Walmart product catalog |
+| `scan_aliexpress` | Search AliExpress suppliers and products |
+| `scan_bestbuy` | Search Best Buy electronics and deals |
+| `scan_target` | Search Target inventory and pricing |
+| `scan_costco` | Search Costco bulk/wholesale products |
+| `scan_homedepot` | Search Home Depot tools and materials |
+| `scan_poshmark` | Search Poshmark secondhand fashion |
+| `scan_mercari` | Search Mercari Japan marketplace |
+| `scan_facebook` | Search Facebook Marketplace local deals |
+| `scan_faire` | Search Faire wholesale marketplace |
+| `scan_bstock` | Search B-Stock liquidation auctions |
+| `scan_bulq` | Search BULQ bulk liquidation lots |
+| `scan_liquidation` | Search Liquidation.com wholesale pallets |
 
 ---
 
+### Amazon — 25 tools
+
+Full Amazon seller stack: PA-API 5.0 (research) + SP-API (selling).
+
+<details>
+<summary><strong>SP-API — Selling Partner (23 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `amazon_sp_search_catalog` | Search Amazon product catalog |
+| `amazon_sp_get_catalog_item` | Get product info by ASIN |
+| `amazon_sp_get_pricing` | Competitive pricing and buy box data |
+| `amazon_sp_item_offers` | All offers competing on an ASIN |
+| `amazon_sp_estimate_fees` | Calculate FBA/FBM seller fees |
+| `amazon_sp_batch_fees` | Estimate fees for multiple ASINs |
+| `amazon_sp_listing_restrictions` | Check gating and IP restrictions |
+| `amazon_sp_create_listing` | Create or update product listings |
+| `amazon_sp_delete_listing` | Remove listings |
+| `amazon_sp_get_orders` | Retrieve seller orders |
+| `amazon_sp_get_order_details` | Order line items and details |
+| `amazon_sp_get_order_items` | Extract order item specifics |
+| `amazon_sp_get_fba_inventory` | Check FBA stock levels |
+| `amazon_sp_financial_events` | Reconcile sales, refunds, fees |
+| `amazon_sp_order_metrics` | Aggregated order statistics |
+| `amazon_sp_fulfillment_preview` | Preview Multi-Channel Fulfillment options |
+| `amazon_sp_create_mcf_order` | Ship FBA inventory to non-Amazon buyers |
+| `amazon_sp_confirm_shipment` | Confirm seller-fulfilled shipments |
+| `amazon_sp_buy_shipping` | Purchase shipping labels |
+| `amazon_sp_get_shipping_tracking` | Get shipment tracking |
+| `amazon_sp_create_report` | Request inventory/orders/returns reports |
+| `amazon_sp_get_report` | Poll and download report results |
+| `amazon_sp_data_kiosk_query` | Run advanced analytics queries |
+
+</details>
+
+<details>
+<summary><strong>PA-API — Product Advertising (2 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `browse_amazon_categories` | Browse category hierarchy by node IDs |
+| `get_product_variations` | Get size/color variations for ASINs |
+
+</details>
+
+---
+
+### eBay — 42 tools
+
+Full eBay seller stack: Browse, Inventory, Fulfillment, Account, Finances, Marketing, Compliance.
+
+<details>
+<summary><strong>Core APIs (32 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `ebay_get_policies` | Retrieve fulfillment/payment/return policies |
+| `ebay_create_policy` | Create new seller policies |
+| `ebay_get_inventory` | List all inventory items |
+| `ebay_get_inventory_item` | Get single item by SKU |
+| `ebay_bulk_create_inventory` | Batch create inventory items |
+| `ebay_get_offers_for_sku` | Get all offers for an inventory SKU |
+| `ebay_bulk_update` | Bulk update prices and quantities |
+| `ebay_create_inventory_location` | Set up warehouse locations |
+| `ebay_get_inventory_locations` | List all warehouse locations |
+| `ebay_category_suggest` | Get category recommendations |
+| `ebay_item_aspects` | Get required category fields |
+| `ebay_item_conditions` | Allowed condition types per category |
+| `ebay_batch_get_items` | Get multiple items (up to 20) |
+| `ebay_legacy_item` | Look up by legacy item ID |
+| `ebay_sold_items` | Search recently sold comps |
+| `ebay_search_by_image` | Visual similarity search |
+| `ebay_send_offer` | Send buyer offers |
+| `ebay_issue_refund` | Process refunds |
+| `ebay_get_transactions` | Sales and refund history |
+| `ebay_get_payouts` | Payout history |
+| `ebay_funds_summary` | Check seller balance |
+| `ebay_transaction_summary` | Aggregate P&L data |
+| `ebay_payout_detail` | Specific payout details |
+| `ebay_traffic_report` | Views, CTR, conversion analytics |
+| `ebay_seller_metrics` | Defect rate and performance |
+| `ebay_create_campaign` | Create Promoted Listings campaigns |
+| `ebay_get_campaigns` | List active campaigns |
+| `ebay_promote_listings` | Add items to promotions |
+| `ebay_listing_violations` | Check compliance issues |
+| `ebay_violations_summary` | Count violations by type |
+| `ebay_suppress_violation` | Acknowledge violations |
+| `ebay_marketplace_return_policies` | Category return options |
+
+</details>
+
+<details>
+<summary><strong>Extended APIs (10 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `ebay_search_catalog` | Search product catalog by GTIN/UPC |
+| `ebay_get_catalog_product` | Get catalog product by ePID |
+| `ebay_shipping_quote` | Get carrier rates for a package |
+| `ebay_create_shipment` | Purchase shipping labels |
+| `ebay_download_label` | Download label PDFs |
+| `ebay_create_feed_task` | Bulk upload via feeds |
+| `ebay_get_feed_task` | Check feed task status |
+| `ebay_create_notification` | Set up webhooks |
+| `ebay_subscribe_notification` | Subscribe to event topics |
+| `ebay_get_notification_topics` | List available topics |
+
+</details>
+
+---
+
+### Walmart — 26 tools
+
+Marketplace seller operations + affiliate research.
+
+<details>
+<summary><strong>Marketplace Seller (18 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `walmart_get_seller_items` | List all seller catalog items |
+| `walmart_create_item` | Create new listings |
+| `walmart_update_item` | Update existing listings |
+| `walmart_retire_item` | Delist items |
+| `walmart_update_price` | Change prices |
+| `walmart_update_inventory` | Change stock levels |
+| `walmart_bulk_update_prices` | Batch price updates |
+| `walmart_bulk_update_inventory` | Batch inventory updates |
+| `walmart_get_inventory` | Check current stock |
+| `walmart_get_orders` | Retrieve orders |
+| `walmart_acknowledge_order` | Acknowledge receipt |
+| `walmart_cancel_order` | Cancel order lines |
+| `walmart_ship_order` | Mark shipped with tracking |
+| `walmart_refund_order` | Process refunds |
+| `walmart_get_returns` | List return requests |
+| `walmart_get_return` | Get return details |
+| `walmart_feed_status` | Check feed submission status |
+| `walmart_listing_quality` | Get listing quality scores |
+
+</details>
+
+<details>
+<summary><strong>Affiliate + Research (8 tools)</strong></summary>
+
+| Tool | What It Does |
+|------|--------------|
+| `walmart_upc_lookup` | Look up products by UPC |
+| `walmart_trending` | Find trending products |
+| `walmart_taxonomy` | Browse category tree |
+| `walmart_reviews` | Get product reviews |
+| `walmart_nearby_stores` | Find nearby Walmart stores |
+| `walmart_recommendations` | Get similar product suggestions |
+| `walmart_catalog_search` | Search catalog |
+| `walmart_repricer` | Create repricing rules |
+
+</details>
+
+---
+
+### AliExpress — 9 tools
+
+Dropshipping sourcing and fulfillment.
+
+| Tool | What It Does |
+|------|--------------|
+| `aliexpress_image_search` | Reverse image search for suppliers |
+| `aliexpress_ds_feed` | Get dropshipping recommendations |
+| `aliexpress_ds_product_detail` | Get variants, pricing, and shipping |
+| `aliexpress_ds_tracking` | Track dropship orders |
+| `aliexpress_query_freight` | Check shipping options and costs |
+| `aliexpress_affiliate_orders` | Get affiliate commissions |
+| `aliexpress_generate_affiliate_link` | Create tracking links |
+| `aliexpress_create_dispute` | Open disputes |
+| `aliexpress_dispute_detail` | Check dispute status |
+
+---
+
+### Other Platforms — 8 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `bestbuy_on_sale` | Get sale items |
+| `bestbuy_open_box` | Get open-box deals |
+| `bestbuy_stores` | Find store locations |
+| `bestbuy_product_availability` | Check in-store stock |
+| `bestbuy_get_categories` | Browse categories |
+| `target_store_availability` | Check Target in-store stock |
+| `poshmark_closet` | Browse seller listings |
+| `mercari_seller_profile` | Get seller info |
+
+---
+
+### Arbitrage & Intelligence — 9 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `compare_prices` | Side-by-side price comparison across platforms |
+| `find_arbitrage` | Find margin opportunities automatically |
+| `match_products` | Match same product across platforms |
+| `competitor_watch` | Monitor competitor pricing changes |
+| `get_price_history` | Historical price trend data |
+| `keepa_price_history` | Amazon price history via Keepa |
+| `keepa_deals` | Find Amazon price drops and deals |
+| `keepa_bestsellers` | Get bestselling ASINs by category |
+| `keepa_track_product` | Set up price drop alerts |
+
+---
+
+### Listing & Optimization — 9 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `create_ebay_listing` | Create optimized eBay listings |
+| `create_amazon_listing` | Create Amazon product offers |
+| `optimize_listing` | AI-optimize titles, descriptions, and keywords |
+| `update_listing_price` | Change listing prices |
+| `bulk_list` | Batch create listings across platforms |
+| `pause_listing` | Temporarily hide listings |
+| `resume_listing` | Restore paused listings |
+| `delete_listing` | Remove listings |
+| `fba_create_fulfillment` | Create Multi-Channel Fulfillment orders |
+
+---
+
+### Inventory & Warehouse — 8 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `warehouse_list` | List all warehouse locations |
+| `warehouse_create` | Create new warehouse |
+| `warehouse_inventory` | Check warehouse stock levels |
+| `warehouse_update_stock` | Update stock quantities |
+| `warehouse_transfer` | Move stock between locations |
+| `inventory_sync` | Sync levels across all platforms |
+| `batch_reprice` | Batch price updates |
+| `fba_check_inventory` | Check FBA stock levels |
+
+---
+
+### Fulfillment & Shipping — 11 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `check_orders` | View order status across platforms |
+| `auto_purchase` | Auto-buy from source (dropship) |
+| `track_shipment` | Get tracking info |
+| `track_package` | Universal package tracking |
+| `update_tracking` | Push tracking to buyer |
+| `handle_return` | Process returns |
+| `get_shipping_cost` | Quote shipping costs |
+| `get_shipping_rates` | Compare multi-carrier rates |
+| `buy_shipping_label` | Purchase shipping labels |
+| `verify_address` | Validate shipping addresses |
+| `fba_check_fulfillment` | Check MCF fulfillment status |
+
+---
+
+### Analytics & Reporting — 6 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `daily_report` | Generate daily activity summary |
+| `profit_dashboard` | P&L breakdown by period |
+| `calculate_profit` | Calculate per-order profit |
+| `category_analysis` | Analyze category profitability |
+| `top_opportunities` | Rank best arbitrage opportunities |
+| `fee_calculator` | Estimate platform fees and net margin |
+
+---
+
+### Credentials & Setup — 11 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `setup_amazon_credentials` | Configure Amazon PA-API keys |
+| `setup_amazon_sp_credentials` | Configure Amazon SP-API keys |
+| `setup_ebay_credentials` | Configure eBay OAuth |
+| `setup_walmart_credentials` | Configure Walmart API keys |
+| `setup_walmart_seller_credentials` | Configure Walmart Seller API |
+| `setup_aliexpress_credentials` | Configure AliExpress keys |
+| `setup_aliexpress_oauth` | Complete AliExpress OAuth flow |
+| `setup_keepa_credentials` | Configure Keepa API |
+| `setup_easypost_credentials` | Configure EasyPost API |
+| `list_credentials` | View configured platforms |
+| `delete_credentials` | Remove platform credentials |
+
+---
+
+### Utility — 7 tools
+
+| Tool | What It Does |
+|------|--------------|
+| `tool_search` | Search available tools by intent |
+| `get_product_details` | Get full product info by ID |
+| `check_stock` | Check product availability |
+| `get_aliexpress_categories` | Browse AliExpress category tree |
+| `get_hot_products` | Find trending products |
+| `get_ds_order_status` | Check dropship order status |
+| `match_products` | Cross-platform product matching |
+
+---
+
+## Features
+
 ### Source & Scan
 
-- **Cross-platform arbitrage detection** — margin calculation, opportunity scoring, and side-by-side comparison across all connected platforms
-- **Auto-scout pipeline** — configurable scouts that continuously scan and queue profitable products based on your criteria
-- **Price intelligence** — historical price tracking, drop/spike detection, trend analysis, and automated buy/sell signals
-- **Demand scoring** — 6-signal model incorporating velocity, stability, competitor count, review sentiment, search interest, and margin potential
-- **Restriction checker** — detects IP-restricted, gated, hazmat, and counterfeit-risk products before you commit
-- **Wholesale CSV import** — bulk analyze supplier spreadsheets with margin calculation per SKU
+- **Cross-platform arbitrage** — margin calculation, scoring, and comparison across all 15+ platforms
+- **Auto-scout pipeline** — configurable scouts that continuously scan and queue profitable products
+- **Price intelligence** — historical tracking, drop/spike detection, trend analysis, buy/sell signals
+- **6-signal demand scoring** — velocity, stability, competitor count, sentiment, search interest, margin
+- **Restriction checker** — IP-restricted, gated, hazmat, and counterfeit-risk detection
+- **Wholesale CSV import** — bulk analyze supplier spreadsheets with per-SKU margin calculation
 
 ### Automate
 
-- **Smart repricing daemon** — algorithmic competitor tracking with real-time price adjustments to win the buy box
-- **Order-to-fulfillment chain** — 12-state pipeline from sale detection through sourcing, purchasing, receiving, labeling, shipping, and tracking push
-- **Multi-channel inventory sync** — buffer stock management, oversell protection, and cross-platform quantity synchronization
-- **Alert system** — notifications for price drops, stock changes, new opportunities, and order updates
-- **Bulk operations** — mass edit listings, prices, and inventory across all connected platforms in a single command
-- **Returns processing** — automated return handling, refund tracking, and restocking workflows
+- **Smart repricing** — algorithmic competitor tracking with real-time buy box adjustments
+- **12-state fulfillment** — sale detection → sourcing → purchasing → receiving → labeling → shipping → tracking
+- **Inventory sync** — buffer stock, oversell protection, cross-platform quantity sync
+- **Alert engine** — price drops, stock changes, new opportunities, order updates
+- **Bulk operations** — mass edit listings, prices, and inventory in one command
+- **Returns processing** — automated return handling, refund tracking, restocking
 
 ### Sell & Track
 
-- **Listing creator** — AI-generated titles, descriptions, and keywords optimized for eBay and Amazon search algorithms
-- **P&L accounting** — per-SKU profitability, tax summaries, monthly trends, and export to CSV or QuickBooks
-- **Supplier CRM** — supplier management, performance scoring, lead time tracking, and reorder alerts
-- **Web dashboard** — real-time metrics, active listings, and pipeline status at `/dashboard`
-- **Fee calculator** — platform fees, shipping costs, and net margin calculation per product
-- **Tax compliance** — multi-state tax calculations and exemption handling
+- **AI listing creator** — optimized titles, descriptions, and keywords for eBay and Amazon SEO
+- **P&L accounting** — per-SKU profitability, tax summaries, trends, CSV/QuickBooks export
+- **Supplier CRM** — performance scoring, lead time tracking, reorder alerts
+- **Fee calculator** — platform fees, shipping costs, net margin per product
+- **Tax compliance** — multi-state calculations and exemption handling
 
 ---
 
 ## Platforms (15+)
 
-| Platform | APIs | Capabilities |
-|----------|------|--------------|
-| **Amazon** | PA-API 5.0 + SP-API | Search, product data, sales rank, FBA fees, inventory, orders, reports |
-| **eBay** | Browse + Inventory + Fulfillment + Account + Finances | Search, listings, orders, returns, seller analytics, taxonomy |
-| **Walmart** | Affiliate + Marketplace | Product search, price comparison, seller integration |
-| **AliExpress** | Affiliate + Dropship | Product sourcing, supplier data, shipping estimates, order tracking |
-| **Target** | Redsky API | Product search, pricing, availability |
-| **Best Buy** | Products API | Product data, pricing, store availability |
-| **Faire** | Wholesale API | Wholesale sourcing, supplier discovery |
-| **Keepa** | Price History | Historical pricing, sales rank tracking, drop alerts |
-| **EasyPost** | Shipping | Multi-carrier rate comparison, label generation, tracking |
-| **Ship24** | Tracking | Universal shipment tracking across carriers |
+| Platform | APIs | Tools | Capabilities |
+|----------|------|:-----:|--------------|
+| **Amazon** | PA-API 5.0 + SP-API | 25 | Search, catalog, pricing, fees, FBA, orders, reports, shipping, MCF |
+| **eBay** | Browse + Inventory + Fulfillment + Account + Finances + Marketing | 42 | Search, listings, orders, returns, analytics, promotions, shipping, compliance |
+| **Walmart** | Affiliate + Marketplace | 26 | Search, listings, orders, returns, repricing, inventory, UPC lookup |
+| **AliExpress** | Affiliate + Dropship | 9 | Image search, sourcing, variants, tracking, disputes, shipping |
+| **Target** | Redsky API | 2 | Product search, pricing, store availability |
+| **Best Buy** | Products API | 5 | Search, deals, open-box, store availability, categories |
+| **Faire** | Wholesale API | 1 | Wholesale sourcing and supplier discovery |
+| **Keepa** | Price History API | 4 | Historical pricing, sales rank tracking, deals, alerts |
+| **EasyPost** | Shipping API | 3 | Multi-carrier rates, label generation, tracking |
+| **Ship24** | Tracking API | 1 | Universal shipment tracking |
+| **Costco** | Web API | 1 | Bulk/wholesale sourcing |
+| **Home Depot** | Web API | 1 | Home improvement products |
+| **Poshmark** | Web API | 1 | Secondhand fashion |
+| **Mercari** | Web API | 1 | Japanese marketplace |
+| **Facebook** | Marketplace API | 1 | Local deals |
+| **B-Stock** | Web API | 1 | Liquidation auctions |
+| **BULQ** | Web API | 1 | Bulk liquidation lots |
+| **Liquidation.com** | Web API | 1 | Wholesale pallets |
 
 All platform adapters handle authentication, rate limiting, and response normalization. No SDK dependencies — all API calls use plain `fetch()` with HMAC/OAuth signing built in.
 
