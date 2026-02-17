@@ -24,7 +24,7 @@
   <a href="#premium-access">Premium</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#configuration">Config</a> •
-  <a href="https://www.flip-god.com/docs">Docs</a>
+  <a href="./docs">Docs</a>
 </p>
 
 ---
@@ -155,10 +155,11 @@ FlipGod uses a **token-gated model** — hold the FlipGod SPL token on Solana to
 
 **Setup:**
 
-1. Create an account at [flip-god.com](https://flip-god.com)
-2. Generate an API key on the Dashboard
-3. Link your Solana wallet to verify token holdings
-4. Add `FLIPGOD_API_KEY=fg_live_...` to your `.env`
+1. Register via the billing API: `POST https://billing-api-production-28ad.up.railway.app/auth/register`
+2. Login to get a JWT: `POST /auth/login`
+3. Create an API key: `POST /keys` (returns full key once — save it)
+4. Link your Solana wallet: `POST /wallet/link`
+5. Add `FLIPGOD_API_KEY=fg_live_...` to your `.env`
 
 Token balance checked via Solana `getTokenAccountsByOwner` RPC, cached for 3 hours. No API key = free tier with graceful degradation.
 
@@ -314,6 +315,6 @@ MIT — see [LICENSE](./LICENSE)
 
 <p align="center">
   <a href="https://www.flip-god.com">Website</a> •
-  <a href="https://www.flip-god.com/docs">Documentation</a> •
+  <a href="./docs">Documentation</a> •
   <a href="https://github.com/alsk1992/Flip-God">GitHub</a>
 </p>

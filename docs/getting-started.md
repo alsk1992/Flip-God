@@ -80,10 +80,25 @@ Then just ask:
 
 FlipGod has a free tier and a premium tier. Premium is unlocked by holding the FlipGod token on Solana -- no subscriptions, no fees.
 
-1. Sign up at [flip-god.com](https://flip-god.com)
-2. Create an API key on the Dashboard page
-3. Link your Solana wallet to verify token holdings
-4. Add to your `.env`:
+1. Register via the billing API:
+   ```bash
+   curl -X POST https://billing-api-production-28ad.up.railway.app/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"email": "you@example.com", "password": "your_password"}'
+   ```
+2. Login to get a JWT:
+   ```bash
+   curl -X POST https://billing-api-production-28ad.up.railway.app/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email": "you@example.com", "password": "your_password"}'
+   ```
+3. Create an API key (save the key — it's shown only once):
+   ```bash
+   curl -X POST https://billing-api-production-28ad.up.railway.app/keys \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
+   ```
+4. Link your Solana wallet to verify token holdings
+5. Add to your `.env`:
    ```
    FLIPGOD_API_KEY=fg_live_your_key_here
    ```

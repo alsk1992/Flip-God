@@ -19,12 +19,12 @@ User's machine (self-hosted)              Railway (billing-api)
 │Amazon│ eBay │Walmt │AliEx │ Keepa/  │   │  Postgres (Railway)     │
 │PA+SP │Browse│Affil │Affil │EasyPost │   └─────────────────────────┘
 ├──────┴──────┴──────┴──────┴─────────┤
-│ Arbitrage │ Listing │ Fulfillment   │   flip-god.com (Vercel)
-│ Scanner   │ Creator │ Monitor       │   ┌─────────────────────────┐
-├───────────┤         ├───────────────┤   │  /signup, /login        │
-│ Premium   │         │      DB       │   │  /dashboard (API keys)  │
-│ Client    │─────────│    sql.js     │   │  /billing (usage stats) │
-└───────────┴─────────┴───────────────┘   └─────────────────────────┘
+│ Arbitrage │ Listing │ Fulfillment   │
+│ Scanner   │ Creator │ Monitor       │
+├───────────┤         ├───────────────┤
+│ Premium   │         │      DB       │
+│ Client    │─────────│    sql.js     │
+└───────────┴─────────┴───────────────┘
 ```
 
 ## Directory Structure
