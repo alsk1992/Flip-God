@@ -206,8 +206,8 @@ export async function sendAlertEmail(config: EmailConfig, alert: Alert, to: stri
 export async function sendTestEmail(config: EmailConfig, to: string): Promise<EmailResult> {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #1a73e8;">FlipAgent Email Test</h2>
-      <p>This is a test email from FlipAgent to verify your email notification configuration.</p>
+      <h2 style="color: #1a73e8;">FlipGod Email Test</h2>
+      <p>This is a test email from FlipGod to verify your email notification configuration.</p>
       <div style="background: #f0f7ff; border-radius: 8px; padding: 16px; margin: 16px 0;">
         <p style="margin: 0;"><strong>Provider:</strong> ${config.provider}</p>
         <p style="margin: 4px 0 0;"><strong>From:</strong> ${config.fromName ?? ''} &lt;${config.fromEmail}&gt;</p>
@@ -219,8 +219,8 @@ export async function sendTestEmail(config: EmailConfig, to: string): Promise<Em
 
   return sendEmail(config, {
     to,
-    subject: 'FlipAgent - Email Configuration Test',
+    subject: 'FlipGod - Email Configuration Test',
     html,
-    text: `FlipAgent Email Test\n\nProvider: ${config.provider}\nFrom: ${config.fromEmail}\nTime: ${new Date().toISOString()}\n\nIf you received this email, your configuration is working correctly.`,
+    text: `FlipGod Email Test\n\nProvider: ${config.provider}\nFrom: ${config.fromEmail}\nTime: ${new Date().toISOString()}\n\nIf you received this email, your configuration is working correctly.`,
   });
 }

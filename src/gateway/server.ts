@@ -1,5 +1,5 @@
 /**
- * HTTP + WebSocket Server for FlipAgent
+ * HTTP + WebSocket Server for FlipGod
  *
  * Security middleware:
  * - CORS (configurable allowlist or wildcard)
@@ -713,7 +713,7 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
       return new Promise((resolve, reject) => {
         server.on('error', reject);
         server.listen(config.port, '0.0.0.0', () => {
-          logger.info({ port: config.port }, 'FlipAgent server started');
+          logger.info({ port: config.port }, '[FG] Server started');
           resolve();
         });
       });
@@ -723,7 +723,7 @@ export function createServer(config: ServerConfig, callbacks?: ServerCallbacks) 
       return new Promise((resolve) => {
         wss.close(() => {
           server.close(() => {
-            logger.info('FlipAgent server stopped');
+            logger.info('FlipGod server stopped');
             resolve();
           });
         });

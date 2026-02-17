@@ -187,7 +187,7 @@ const SLASH_COMMANDS = [
   },
   {
     name: 'help',
-    description: 'Show FlipAgent help and available commands',
+    description: 'Show FlipGod help and available commands',
   },
 ];
 

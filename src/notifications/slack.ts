@@ -122,7 +122,7 @@ export function formatAlertBlocks(alert: Alert): SlackBlock[] {
     elements: [
       {
         type: 'mrkdwn',
-        text: `FlipAgent | ${alert.id} | ${new Date(alert.createdAt).toISOString()}`,
+        text: `FlipGod | ${alert.id} | ${new Date(alert.createdAt).toISOString()}`,
       },
     ],
   });
@@ -143,9 +143,9 @@ export async function sendSlackWebhook(
   }
 
   const payload: SlackWebhookPayload = {
-    text: fallbackText ?? 'FlipAgent Alert',
+    text: fallbackText ?? 'FlipGod Alert',
     blocks,
-    username: 'FlipAgent',
+    username: 'FlipGod',
     icon_emoji: ':package:',
   };
 

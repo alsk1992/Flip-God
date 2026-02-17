@@ -73,7 +73,7 @@ function wrapLayout(title: string, bodyContent: string): string {
           <!-- Header -->
           <tr>
             <td style="background-color: ${COLORS.primary}; border-radius: 8px 8px 0 0; padding: 20px 24px;">
-              <h1 style="margin: 0; color: ${COLORS.white}; font-size: 20px; font-weight: 600;">FlipAgent</h1>
+              <h1 style="margin: 0; color: ${COLORS.white}; font-size: 20px; font-weight: 600;">FlipGod</h1>
             </td>
           </tr>
           <!-- Body -->
@@ -86,7 +86,7 @@ function wrapLayout(title: string, bodyContent: string): string {
           <tr>
             <td style="background-color: ${COLORS.bgLight}; border-radius: 0 0 8px 8px; padding: 16px 24px; border: 1px solid ${COLORS.border}; border-top: none;">
               <p style="margin: 0; font-size: 12px; color: ${COLORS.textSecondary}; text-align: center;">
-                This email was sent by FlipAgent. Manage your notification settings in the app.
+                This email was sent by FlipGod. Manage your notification settings in the app.
               </p>
             </td>
           </tr>
@@ -110,7 +110,7 @@ export function renderAlertEmail(alert: Alert): { subject: string; html: string 
   const typeColor = alertTypeColor(alert.type);
   const timestamp = new Date(alert.createdAt).toLocaleString();
 
-  const subject = `FlipAgent Alert: ${typeLabel}${alert.platform ? ` on ${alert.platform}` : ''}`;
+  const subject = `FlipGod Alert: ${typeLabel}${alert.platform ? ` on ${alert.platform}` : ''}`;
 
   const detailRows: string[] = [];
   if (alert.platform) {
@@ -165,7 +165,7 @@ export interface DigestData {
 export function renderDailyDigestEmail(data: DigestData): { subject: string; html: string } {
   const { alerts, totalProfit, totalOrders, activeListings, period } = data;
   const dateStr = period ?? new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const subject = `FlipAgent Daily Digest - ${dateStr}`;
+  const subject = `FlipGod Daily Digest - ${dateStr}`;
 
   // Summary stats
   const statsHtml = `
@@ -256,7 +256,7 @@ export interface OrderEmailData {
  * Render an order notification email.
  */
 export function renderOrderNotificationEmail(order: OrderEmailData): { subject: string; html: string } {
-  const subject = `FlipAgent: New Order ${order.orderId} on ${order.sellPlatform}`;
+  const subject = `FlipGod: New Order ${order.orderId} on ${order.sellPlatform}`;
 
   const statusColor = order.status === 'shipped' ? COLORS.success
     : order.status === 'pending' ? COLORS.warning

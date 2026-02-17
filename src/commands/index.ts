@@ -1,5 +1,5 @@
 /**
- * Commands Module - Slash command handling for FlipAgent
+ * Commands Module - Slash command handling for FlipGod
  *
  * Re-exports the command registry and default commands.
  * Supports:

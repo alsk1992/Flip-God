@@ -1,5 +1,5 @@
 /**
- * Plugin SDK - Plugin system for FlipAgent
+ * Plugin SDK - Plugin system for FlipGod
  *
  * Features:
  * - Register custom plugins

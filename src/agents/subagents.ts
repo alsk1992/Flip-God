@@ -1,5 +1,5 @@
 /**
- * Subagents Module - Subagent management for FlipAgent
+ * Subagents Module - Subagent management for FlipGod
  *
  * Features:
  * - Session persistence (save/restore agent state)

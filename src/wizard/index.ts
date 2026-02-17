@@ -1,5 +1,5 @@
 /**
- * Onboarding Wizard - Interactive setup for FlipAgent
+ * Onboarding Wizard - Interactive setup for FlipGod
  *
  * Features:
  * - Step-by-step configuration
@@ -47,10 +47,10 @@ const DEFAULT_STEPS: WizardStep[] = [
   {
     id: 'welcome',
     title: 'Welcome',
-    description: 'Welcome to FlipAgent setup',
+    description: 'Welcome to FlipGod setup',
     async run(ctx) {
-      logger.info('Welcome to FlipAgent - Your AI Retail Arbitrage Assistant');
-      logger.info('This wizard will help you set up FlipAgent.');
+      logger.info('Welcome to FlipGod - Your AI Retail Arbitrage Assistant');
+      logger.info('This wizard will help you set up FlipGod.');
     },
   },
   {
@@ -178,7 +178,7 @@ const DEFAULT_STEPS: WizardStep[] = [
       writeFileSync(envPath, envContent);
 
       logger.info('Configuration saved to .env');
-      logger.info('Setup complete! Run `npm start` to launch FlipAgent.');
+      logger.info('Setup complete! Run `npm start` to launch FlipGod.');
     },
   },
 ];

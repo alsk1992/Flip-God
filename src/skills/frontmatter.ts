@@ -53,5 +53,5 @@ export function mergeGates(a?: SkillGates, b?: SkillGates): SkillGates {
 }
 
 export function resolveMetadata(_fm: SkillFrontmatter): null {
-  return null; // No OpenClaw metadata for FlipAgent
+  return null; // No OpenClaw metadata for FlipGod
 }

@@ -1,7 +1,7 @@
 /**
  * Attachment helpers for resolving media content.
  *
- * Adapted for FlipAgent: uses the project's MessageAttachment type where
+ * Adapted for FlipGod: uses the project's MessageAttachment type where
  * `data` is a Buffer (not base64 string). Includes SSRF protection for
  * product image URLs and other external resources.
  */
@@ -78,7 +78,7 @@ async function resolveAttachmentInternal(
   attachment: MessageAttachment,
   headers?: Record<string, string>
 ): Promise<ResolvedAttachment | null> {
-  // FlipAgent's MessageAttachment has data as Buffer (not base64 string)
+  // FlipGod's MessageAttachment has data as Buffer (not base64 string)
   if (attachment.data) {
     return {
       buffer: Buffer.isBuffer(attachment.data) ? attachment.data : Buffer.from(attachment.data),

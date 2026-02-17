@@ -1,5 +1,5 @@
 /**
- * MCP Server Mode - Expose FlipAgent skills as MCP tools via stdio
+ * MCP Server Mode - Expose FlipGod skills as MCP tools via stdio
  *
  * Reads JSON-RPC from stdin, writes to stdout, logs to stderr.
  * Protocol version: 2024-11-05
@@ -67,7 +67,7 @@ async function listTools(): Promise<McpTool[]> {
   await ensureSkills();
   return skillManifest!.map((name) => ({
     name: `flipagent_${name.replace(/-/g, '_')}`,
-    description: `FlipAgent skill: ${name}`,
+    description: `FlipGod skill: ${name}`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -231,5 +231,5 @@ export async function startMcpServer(): Promise<void> {
   });
 
   // Signal readiness via stderr
-  process.stderr.write('FlipAgent MCP server started (stdio)\n');
+  process.stderr.write('FlipGod MCP server started (stdio)\n');
 }

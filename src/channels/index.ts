@@ -1,5 +1,5 @@
 /**
- * Channel Manager for FlipAgent
+ * Channel Manager for FlipGod
  *
  * Routes outgoing messages to the correct channel adapter.
  * Supports: WebChat, Telegram, Discord (designed for easy extension).

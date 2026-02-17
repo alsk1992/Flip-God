@@ -1,10 +1,10 @@
 /**
- * FlipAgent i18n - Lightweight internationalization
+ * FlipGod i18n - Lightweight internationalization
  *
  * Usage:
  *   import { t, setLocale, getLocale } from './i18n';
  *
- *   t('welcome');                    // "Welcome to FlipAgent"
+ *   t('welcome');                    // "Welcome to FlipGod"
  *   t('greeting', { name: 'Alex' }); // "Hello, Alex!"
  *   t('errors.notFound');            // Nested keys supported
  *

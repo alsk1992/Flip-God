@@ -4,7 +4,7 @@
  * Provides a single source of truth for commands across channels and
  * supports platform-level registration (e.g., Telegram setMyCommands).
  *
- * FlipAgent commands: /scan, /compare, /list, /orders, /track, /profit,
+ * FlipGod commands: /scan, /compare, /list, /orders, /track, /profit,
  * /help, /settings, /credentials, /status, /new, /reset, /model
  */
 
@@ -193,7 +193,7 @@ export function createCommandRegistry(): CommandRegistry {
 }
 
 // =============================================================================
-// Default FlipAgent Commands
+// Default FlipGod Commands
 // =============================================================================
 
 /** Available models with shortcuts */
@@ -219,7 +219,7 @@ export function createDefaultCommands(): CommandDefinition[] {
       description: 'Show available commands',
       usage: '/help',
       handler: (_args, ctx) => {
-        const lines = ['FlipAgent Commands', ''];
+        const lines = ['[FG] FlipGod Commands', ''];
         const allCommands = ctx.commands.listAll();
 
         // Group by category
@@ -665,7 +665,7 @@ export function createDefaultCommands(): CommandDefinition[] {
       usage: '/settings [show]',
       handler: (_args, ctx) => {
         return [
-          'FlipAgent Settings',
+          'FlipGod Settings',
           '',
           `  Session: ${ctx.session.id.slice(0, 8)}`,
           `  Platform: ${ctx.session.platform}`,

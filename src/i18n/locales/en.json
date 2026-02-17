@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "FlipAgent",
+    "name": "FlipGod",
     "tagline": "AI Retail Arbitrage Assistant",
     "version": "Version {version}"
   },
   "welcome": {
-    "message": "Welcome to FlipAgent",
+    "message": "Welcome to FlipGod",
     "greeting": "Hello, {name}!",
     "firstTime": "Let's get you set up.",
     "returning": "Welcome back!"
@@ -152,8 +152,8 @@
     "share": "Share"
   },
   "cli": {
-    "starting": "Starting FlipAgent...",
-    "ready": "FlipAgent is ready!",
+    "starting": "Starting FlipGod...",
+    "ready": "FlipGod is ready!",
     "shutting_down": "Shutting down...",
     "doctor": {
       "title": "System Diagnostics",

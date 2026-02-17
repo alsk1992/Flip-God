@@ -66,7 +66,7 @@ export interface FetchOptions {
 
 const DEFAULT_TIMEOUT = 10000;
 const DEFAULT_MAX_REDIRECTS = 5;
-const DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; FlipAgentBot/1.0)';
+const DEFAULT_USER_AGENT = 'Mozilla/5.0 (compatible; FlipGodBot/1.0)';
 const MAX_CONTENT_LENGTH = 1024 * 1024; // 1MB
 
 // =============================================================================

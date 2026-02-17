@@ -1,5 +1,5 @@
 /**
- * WebSocket-based WebChat channel for FlipAgent
+ * WebSocket-based WebChat channel for FlipGod
  *
  * Provides real-time bidirectional messaging via WebSocket.
  * Simplified from Clodds -- single channel, no streaming drafts.
@@ -312,7 +312,7 @@ export function createWebChatChannel(
     send(ws, {
       type: 'connected',
       sessionId,
-      message: 'Connected to FlipAgent WebChat',
+      message: '[FG] Connected — 185 tools, 18 platforms',
     });
 
     // Message handler

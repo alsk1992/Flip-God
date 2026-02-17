@@ -1,7 +1,7 @@
 /**
  * LRU Cache with TTL Support
  *
- * High-performance caching for FlipAgent hot paths:
+ * High-performance caching for FlipGod hot paths:
  * - Product lookups
  * - API key validation
  * - Price comparisons

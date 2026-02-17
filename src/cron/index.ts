@@ -1,5 +1,5 @@
 /**
- * Cron Scheduler - Scheduled job execution for FlipAgent
+ * Cron Scheduler - Scheduled job execution for FlipGod
  *
  * Features:
  * - Interval jobs (run every N milliseconds)
@@ -7,7 +7,7 @@
  * - Cron expression jobs (simple built-in parser, no dependencies)
  * - Add/remove/pause/resume jobs
  * - 30-second scheduler loop
- * - Built-in jobs for FlipAgent domain tasks
+ * - Built-in jobs for FlipGod domain tasks
  */
 
 import { createLogger } from '../utils/logger';
@@ -374,7 +374,7 @@ export class CronScheduler {
 // =============================================================================
 
 /**
- * Register default FlipAgent built-in jobs on a scheduler.
+ * Register default FlipGod built-in jobs on a scheduler.
  * The gateway should call this after creating the scheduler, passing
  * actual handler implementations.
  */

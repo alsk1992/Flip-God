@@ -103,23 +103,23 @@ class TelegramAdapter extends BaseAdapter {
     this.commandHandlers = new Map();
     this.commandHandlers.set('/start', async (chatId) => {
       await this.doSend(chatId,
-        'Welcome to FlipAgent! I help you find e-commerce arbitrage opportunities.\n\n' +
-        'Commands:\n' +
-        '/new - Start a new conversation\n' +
-        '/help - Show available commands\n\n' +
-        'Just type a message to get started!',
+        '[FG] Welcome to FlipGod.\n\n' +
+        '185 tools. 18 platforms. One agent.\n\n' +
+        '/new - Start fresh\n' +
+        '/help - Commands\n\n' +
+        'Tell me what to flip.',
       );
     });
     this.commandHandlers.set('/help', async (chatId) => {
       await this.doSend(chatId,
-        'FlipAgent Commands:\n\n' +
-        '/new - Clear conversation and start fresh\n' +
-        '/help - Show this help message\n\n' +
-        'You can ask me to:\n' +
-        '- Scan products across platforms\n' +
-        '- Compare prices and find arbitrage\n' +
-        '- Create and manage listings\n' +
-        '- Track orders and fulfillment\n' +
+        '[FG] FlipGod Commands:\n\n' +
+        '/new - Start fresh\n' +
+        '/help - Show commands\n\n' +
+        'Just ask:\n' +
+        '- "scan amazon for wireless earbuds under $20"\n' +
+        '- "compare prices for AirPods"\n' +
+        '- "find arbitrage in electronics"\n' +
+        '- "create eBay listing for this product"\n' +
         '- Calculate profits and fees',
       );
     });

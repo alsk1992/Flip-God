@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "FlipAgent",
+    "name": "FlipGod",
     "tagline": "AI 零售套利助手",
     "version": "版本 {version}"
   },
   "welcome": {
-    "message": "欢迎使用 FlipAgent",
+    "message": "欢迎使用 FlipGod",
     "greeting": "你好，{name}！",
     "firstTime": "让我们开始设置。",
     "returning": "欢迎回来！"
@@ -82,8 +82,8 @@
     "share": "分享"
   },
   "cli": {
-    "starting": "启动 FlipAgent...",
-    "ready": "FlipAgent 已就绪！",
+    "starting": "启动 FlipGod...",
+    "ready": "FlipGod 已就绪！",
     "shutting_down": "正在关闭..."
   }
 }

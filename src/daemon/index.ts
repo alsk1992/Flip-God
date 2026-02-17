@@ -76,7 +76,7 @@ export function createDaemonService(): DaemonService {
         logger.info('Daemon installed (launchd)');
       } else if (os === 'linux') {
         const service = `[Unit]
-Description=FlipAgent Gateway
+Description=FlipGod Gateway
 After=network.target
 
 [Service]

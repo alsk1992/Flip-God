@@ -1,5 +1,5 @@
 /**
- * Job Queue Worker - Processes bulk operation jobs for FlipAgent
+ * Job Queue Worker - Processes bulk operation jobs for FlipGod
  *
  * Handles each job type:
  * - bulk_list: Create listings for an array of products

@@ -1,5 +1,5 @@
 /**
- * Skill Executor - Discovers and executes FlipAgent skills
+ * Skill Executor - Discovers and executes FlipGod skills
  *
  * Reads SKILL.md files from the skills directory and exposes them
  * as executable commands for the MCP server and command registry.
@@ -106,11 +106,11 @@ export async function executeSkillCommand(command: string): Promise<SkillResult>
   }
 
   // For now, skills are documentation-only (SKILL.md files guide the AI agent).
-  // The MCP server exposes them as tools so external clients know what FlipAgent can do.
+  // The MCP server exposes them as tools so external clients know what FlipGod can do.
   // Actual execution happens through the agent's tool-calling pipeline.
   return {
     handled: true,
-    response: `Skill "${skill.name}" is available. ${skill.description}\n\nThis skill is executed through FlipAgent's AI agent pipeline. Provide your request and the agent will use the appropriate tools.`,
+    response: `Skill "${skill.name}" is available. ${skill.description}\n\nThis skill is executed through FlipGod's AI agent pipeline. Provide your request and the agent will use the appropriate tools.`,
   };
 }
 

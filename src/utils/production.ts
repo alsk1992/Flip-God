@@ -2,7 +2,7 @@
  * Production Utilities
  *
  * Health checks, error tracking, request metrics, and graceful shutdown handling.
- * Ported from Clodds, simplified for FlipAgent.
+ * Ported from Clodds, simplified for FlipGod.
  */
 
 import v8 from 'v8';

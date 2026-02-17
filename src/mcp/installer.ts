@@ -1,5 +1,5 @@
 /**
- * MCP Installer - Auto-configure Claude Desktop and Claude Code to use FlipAgent as MCP server
+ * MCP Installer - Auto-configure Claude Desktop and Claude Code to use FlipGod as MCP server
  */
 
 import { existsSync, readFileSync, writeFileSync, copyFileSync, mkdirSync } from 'fs';
@@ -26,7 +26,7 @@ function getClaudeCodeConfigPath(): string {
   return join(homedir(), '.claude.json');
 }
 
-function getFlipAgentEntrypoint(): string {
+function getFlipGodEntrypoint(): string {
   // Resolve to the built CLI entrypoint
   return resolve(join(__dirname, '..', 'cli', 'index.js'));
 }
@@ -58,7 +58,7 @@ function backupAndWrite(path: string, data: Record<string, any>): void {
 function getMcpServerEntry(): Record<string, any> {
   return {
     command: 'node',
-    args: [getFlipAgentEntrypoint(), 'mcp'],
+    args: [getFlipGodEntrypoint(), 'mcp'],
   };
 }
 

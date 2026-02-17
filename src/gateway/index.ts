@@ -1,5 +1,5 @@
 /**
- * Gateway - Orchestrates all FlipAgent services
+ * Gateway - Orchestrates all FlipGod services
  *
  * Initializes: DB, credentials, sessions, agent, channels, hooks, cron, queue, HTTP server.
  * Also wires: monitoring (health, metrics, alerts), notification channels (Telegram, Discord).
@@ -71,7 +71,7 @@ export interface Gateway {
 }
 
 export async function createGateway(config: Config): Promise<Gateway> {
-  logger.info('Initializing FlipAgent gateway...');
+  logger.info('Initializing [FG] Gateway...');
 
   // 1. Initialize database
   const db = await createDatabase();
@@ -557,12 +557,12 @@ export async function createGateway(config: Config): Promise<Gateway> {
       await hooks.emit('gateway:start');
 
       started = true;
-      logger.info({ port: config.gateway.port }, 'FlipAgent gateway started');
+      logger.info({ port: config.gateway.port }, '[FG] Gateway started');
     },
 
     async stop() {
       if (!started) return;
-      logger.info('Shutting down FlipAgent gateway...');
+      logger.info('Shutting down [FG] Gateway...');
 
       // Emit gateway:stop hook
       await hooks.emit('gateway:stop');
@@ -582,7 +582,7 @@ export async function createGateway(config: Config): Promise<Gateway> {
       sessionManager.dispose();
       agentManager.dispose();
       started = false;
-      logger.info('FlipAgent gateway stopped');
+      logger.info('[FG] Gateway stopped');
     },
   };
 }

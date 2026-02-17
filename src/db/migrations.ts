@@ -1,5 +1,5 @@
 /**
- * Database Migrations - Versioned schema management for FlipAgent
+ * Database Migrations - Versioned schema management for FlipGod
  *
  * Features:
  * - Sequential migration execution

@@ -1,5 +1,5 @@
 /**
- * Media Pipeline - Media handling for FlipAgent
+ * Media Pipeline - Media handling for FlipGod
  *
  * Features:
  * - Download and store media files (images, audio, video, documents)

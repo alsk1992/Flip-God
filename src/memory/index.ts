@@ -6,7 +6,7 @@
  * - Daily conversation logs
  * - Session summaries
  * - Searchable context retrieval (keyword-based)
- * - Pluggable via the FlipAgent Database interface
+ * - Pluggable via the FlipGod Database interface
  */
 
 import * as fs from 'fs';

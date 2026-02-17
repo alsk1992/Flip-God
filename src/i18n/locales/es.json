@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "FlipAgent",
+    "name": "FlipGod",
     "tagline": "Asistente de Arbitraje con IA",
     "version": "Version {version}"
   },
   "welcome": {
-    "message": "Bienvenido a FlipAgent",
+    "message": "Bienvenido a FlipGod",
     "greeting": "Hola, {name}!",
     "firstTime": "Vamos a configurarlo.",
     "returning": "Bienvenido de nuevo!"
@@ -82,8 +82,8 @@
     "share": "Compartir"
   },
   "cli": {
-    "starting": "Iniciando FlipAgent...",
-    "ready": "FlipAgent esta listo!",
+    "starting": "Iniciando FlipGod...",
+    "ready": "FlipGod esta listo!",
     "shutting_down": "Apagando..."
   }
 }

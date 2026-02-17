@@ -315,10 +315,10 @@ const policyCache = new Map<string, PolicyIds>();
  * 4. Returns the policy IDs ready for use in offer creation.
  *
  * Default policies created:
- * - Fulfillment: "FlipAgent Standard Shipping" — 1 business day handling,
+ * - Fulfillment: "FlipGod Standard Shipping" — 1 business day handling,
  *   USPS Priority Mail, free shipping
- * - Payment: "FlipAgent Payment" — eBay Managed Payments (WALLET)
- * - Return: "FlipAgent Returns" — 30-day returns accepted, buyer pays return shipping
+ * - Payment: "FlipGod Payment" — eBay Managed Payments (WALLET)
+ * - Return: "FlipGod Returns" — 30-day returns accepted, buyer pays return shipping
  */
 export async function ensurePolicies(credentials: EbayCredentials): Promise<PolicyIds> {
   const marketplace = credentials.marketplace ?? 'EBAY_US';
@@ -351,7 +351,7 @@ export async function ensurePolicies(credentials: EbayCredentials): Promise<Poli
     logger.info({ policyId: fulfillmentPolicyId }, 'Using existing fulfillment policy');
   } else {
     fulfillmentPolicyId = await accountApi.createFulfillmentPolicy({
-      name: 'FlipAgent Standard Shipping',
+      name: 'FlipGod Standard Shipping',
       marketplaceId: marketplace,
       handlingTimeDays: 1,
       shippingServiceCode: 'USPSPriority',
@@ -365,7 +365,7 @@ export async function ensurePolicies(credentials: EbayCredentials): Promise<Poli
     logger.info({ policyId: paymentPolicyId }, 'Using existing payment policy');
   } else {
     paymentPolicyId = await accountApi.createPaymentPolicy({
-      name: 'FlipAgent Payment',
+      name: 'FlipGod Payment',
       marketplaceId: marketplace,
     });
     logger.info({ policyId: paymentPolicyId }, 'Created default payment policy');
@@ -376,7 +376,7 @@ export async function ensurePolicies(credentials: EbayCredentials): Promise<Poli
     logger.info({ policyId: returnPolicyId }, 'Using existing return policy');
   } else {
     returnPolicyId = await accountApi.createReturnPolicy({
-      name: 'FlipAgent Returns',
+      name: 'FlipGod Returns',
       marketplaceId: marketplace,
       returnsAccepted: true,
       returnDays: 30,

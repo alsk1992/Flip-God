@@ -182,7 +182,7 @@ export function createWalmartSellerApi(credentials: WalmartCredentials): Walmart
     const url = `${API_BASE}${path}`;
     const headers: Record<string, string> = {
       'WM_SEC.ACCESS_TOKEN': accessToken,
-      'WM_SVC.NAME': 'FlipAgent',
+      'WM_SVC.NAME': 'FlipGod',
       'WM_QOS.CORRELATION_ID': randomUUID(),
       'Accept': 'application/json',
       'Content-Type': 'application/json',

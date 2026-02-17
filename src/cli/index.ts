@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * FlipAgent CLI
+ * FlipGod CLI
  *
  * Commands:
  * - flipagent onboard    — Interactive setup wizard
@@ -61,18 +61,18 @@ program
 // ============================================================================
 program
   .command('start')
-  .description('Start the FlipAgent gateway')
+  .description('Start the FlipGod gateway')
   .option('-p, --port <port>', 'Override gateway port')
   .action(async (options: { port?: string }) => {
     if (options.port) process.env.FLIPAGENT_PORT = options.port;
 
-    logger.info('Starting FlipAgent...');
+    logger.info('[FG] Starting FlipGod...');
     const config = await loadConfig();
     configureHttpClient(config.http);
     const gateway = await createGateway(config);
     await gateway.start();
 
-    logger.info({ port: config.gateway.port }, 'FlipAgent is running!');
+    logger.info({ port: config.gateway.port }, '[FG] FlipGod is live');
 
     let shuttingDown = false;
     const shutdown = async () => {
@@ -96,12 +96,12 @@ program
 // ============================================================================
 program
   .command('status')
-  .description('Show FlipAgent status and configuration')
+  .description('Show FlipGod status and configuration')
   .action(async () => {
     const config = await loadConfig();
     const port = config.gateway?.port ?? 3141;
 
-    console.log('\n\x1b[1mFlipAgent Status\x1b[0m\n');
+    console.log('\n\x1b[35m\x1b[1m[FG]\x1b[0m \x1b[1mFlipGod Status\x1b[0m\n');
 
     // Check API key
     const hasKey = !!process.env.ANTHROPIC_API_KEY;
@@ -170,7 +170,7 @@ program
     const portSuffix = [80, 443].includes(port) ? '' : `:${port}`;
     const baseUrl = `${options.scheme}://${options.host}${portSuffix}`;
 
-    console.log('\n\x1b[1mFlipAgent Endpoints\x1b[0m\n');
+    console.log('\n\x1b[1mFlipGod Endpoints\x1b[0m\n');
     console.log(`  Base URL: ${baseUrl}\n`);
     console.log('  API:');
     console.log(`    Health:     GET  ${baseUrl}/health`);

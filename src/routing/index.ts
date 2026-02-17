@@ -149,7 +149,7 @@ export interface RoutingService {
   getAllowedTools(agentId: string): string[] | null;
 }
 
-/** Default agents for FlipAgent */
+/** Default agents for FlipGod */
 const DEFAULT_AGENTS: AgentDefinition[] = [
   {
     id: 'main',

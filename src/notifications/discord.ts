@@ -102,7 +102,7 @@ export function formatAlertEmbed(alert: Alert): DiscordEmbed {
     description: alert.message,
     color: alertSeverityColor(alert.type),
     fields: fields.length > 0 ? fields : undefined,
-    footer: { text: `FlipAgent | ${alert.id}` },
+    footer: { text: `FlipGod | ${alert.id}` },
     timestamp: new Date(alert.createdAt).toISOString(),
   };
 }
@@ -120,7 +120,7 @@ export async function sendDiscordWebhook(
   }
 
   const payload: DiscordWebhookPayload = {
-    username: username ?? 'FlipAgent',
+    username: username ?? 'FlipGod',
     embeds: [embed],
   };
 

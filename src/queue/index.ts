@@ -1,5 +1,5 @@
 /**
- * Message Queue - Message batching and debouncing for FlipAgent
+ * Message Queue - Message batching and debouncing for FlipGod
  *
  * Features:
  * - Immediate mode: no queuing, process immediately

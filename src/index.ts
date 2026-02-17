@@ -1,5 +1,5 @@
 /**
- * FlipAgent - AI-Powered E-Commerce Arbitrage Agent
+ * FlipGod — AI-Powered E-Commerce Arbitrage Agent
  *
  * Entry point - starts the gateway and all services
  */
@@ -47,7 +47,7 @@ function renderProgress(): void {
   if (!process.stdout.isTTY) return;
   const linesToClear = startupSteps.length + 2;
   process.stdout.write(`\x1b[${linesToClear}A\x1b[0J`);
-  console.log('\n\x1b[1m🔄 Starting FlipAgent...\x1b[0m\n');
+  console.log('\n\x1b[35m\x1b[1m[FG]\x1b[0m \x1b[1mStarting FlipGod...\x1b[0m\n');
   for (const step of startupSteps) {
     let icon: string, color: string;
     switch (step.status) {
@@ -120,7 +120,15 @@ async function main() {
     const idxChannels = addStep('Connecting channels');
     const idxGateway = addStep('Starting HTTP gateway');
 
-    console.log('\n\x1b[1m🔄 Starting FlipAgent...\x1b[0m\n');
+    console.log(`
+\x1b[35m\x1b[1m  ███████╗██╗     ██╗██████╗  ██████╗  ██████╗ ██████╗
+  ██╔════╝██║     ██║██╔══██╗██╔════╝ ██╔═══██╗██╔══██╗
+  █████╗  ██║     ██║██████╔╝██║  ███╗██║   ██║██║  ██║
+  ██╔══╝  ██║     ██║██╔═══╝ ██║   ██║██║   ██║██║  ██║
+  ██║     ███████╗██║██║     ╚██████╔╝╚██████╔╝██████╔╝
+  ╚═╝     ╚══════╝╚═╝╚═╝      ╚═════╝  ╚═════╝ ╚═════╝\x1b[0m
+\x1b[90m  AI-powered e-commerce arbitrage · 185 tools · 18 platforms\x1b[0m
+`);
     for (const step of startupSteps) console.log(`  \x1b[90m○\x1b[0m ${step.name}`);
     startSpinner();
 
@@ -154,8 +162,9 @@ async function main() {
     stopSpinner();
     renderProgress();
 
-    console.log('\n\x1b[32m\x1b[1m✓ FlipAgent is running!\x1b[0m');
-    console.log(`\n  WebChat: \x1b[36mhttp://localhost:${config.gateway.port}/chat\x1b[0m`);
+    console.log('\n\x1b[35m\x1b[1m[FG]\x1b[0m \x1b[32m\x1b[1mFlipGod is live.\x1b[0m');
+    console.log(`\n  WebChat:  \x1b[36mhttp://localhost:${config.gateway.port}/chat\x1b[0m`);
+    console.log(`  Health:   \x1b[36mhttp://localhost:${config.gateway.port}/health\x1b[0m`);
     console.log('\n  Press Ctrl+C to stop\n');
 
     let shuttingDown = false;
@@ -176,13 +185,13 @@ async function main() {
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
   } else {
-    logger.info('Starting FlipAgent...');
+    logger.info('[FG] Starting FlipGod...');
     validateStartupRequirements();
     const config = await loadConfig();
     configureHttpClient(config.http);
     const gateway = await createGateway(config);
     await gateway.start();
-    logger.info('FlipAgent is running!');
+    logger.info('[FG] FlipGod is live — 185 tools, 18 platforms');
 
     let shuttingDown = false;
     const shutdown = async () => {

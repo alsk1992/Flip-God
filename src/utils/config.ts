@@ -1,5 +1,5 @@
 /**
- * Configuration loading and management for FlipAgent
+ * Configuration loading and management for FlipGod
  *
  * Loads config from ~/.flipagent/.env and ~/.flipagent/flipagent.json
  */

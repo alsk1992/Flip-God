@@ -1,5 +1,5 @@
 /**
- * Job Queue - Persistent job queue for bulk operations in FlipAgent
+ * Job Queue - Persistent job queue for bulk operations in FlipGod
  *
  * Features:
  * - In-memory queue backed by SQLite persistence (survives restart)

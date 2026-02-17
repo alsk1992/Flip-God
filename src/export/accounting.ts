@@ -2,7 +2,7 @@
  * Accounting Export - QuickBooks, Xero, P&L, Balance Sheet
  *
  * Generates CSV exports in formats compatible with major accounting tools,
- * plus financial statements derived from the FlipAgent database.
+ * plus financial statements derived from the FlipGod database.
  */
 
 import type { Database } from '../db/index.js';

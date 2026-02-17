@@ -1,7 +1,7 @@
 /**
  * Retry Infrastructure - Exponential backoff with jitter
  *
- * Ported from Clodds, simplified for FlipAgent.
+ * Ported from Clodds, simplified for FlipGod.
  *
  * Features:
  * - Exponential backoff with configurable min/max delays

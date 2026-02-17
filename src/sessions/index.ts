@@ -1,5 +1,5 @@
 /**
- * Session Manager for FlipAgent
+ * Session Manager for FlipGod
  *
  * Manages conversation sessions with:
  * - Configurable scopes (main, per-peer, per-channel-peer)

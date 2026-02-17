@@ -194,7 +194,7 @@ async function fetchFromApi(barcode: string): Promise<UpcApiItem | null> {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'FlipAgent/1.0',
+        'User-Agent': 'FlipGod/1.0',
       },
       signal: AbortSignal.timeout(10_000),
     });

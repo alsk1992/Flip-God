@@ -409,7 +409,7 @@ export function formatReport(report: DoctorReport): string {
   const lines: string[] = [];
 
   lines.push('+-----------------------------------------+');
-  lines.push('|         FlipAgent Health Check           |');
+  lines.push('|         FlipGod Health Check           |');
   lines.push('+-----------------------------------------+');
   lines.push('');
 

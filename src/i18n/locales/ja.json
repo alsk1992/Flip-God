@@ -1,11 +1,11 @@
 {
   "app": {
-    "name": "FlipAgent",
+    "name": "FlipGod",
     "tagline": "AI 小売アービトラージアシスタント",
     "version": "バージョン {version}"
   },
   "welcome": {
-    "message": "FlipAgent へようこそ",
+    "message": "FlipGod へようこそ",
     "greeting": "こんにちは、{name}さん！",
     "firstTime": "セットアップを始めましょう。",
     "returning": "おかえりなさい！"
@@ -70,8 +70,8 @@
     "share": "共有"
   },
   "cli": {
-    "starting": "FlipAgent を起動中...",
-    "ready": "FlipAgent の準備ができました！",
+    "starting": "FlipGod を起動中...",
+    "ready": "FlipGod の準備ができました！",
     "shutting_down": "シャットダウン中..."
   }
 }

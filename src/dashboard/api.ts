@@ -1,7 +1,7 @@
 /**
  * Dashboard API Routes
  *
- * Express router providing JSON endpoints for the FlipAgent web dashboard.
+ * Express router providing JSON endpoints for the FlipGod web dashboard.
  * All routes query the SQLite database via req.app.locals.db.
  */
 
