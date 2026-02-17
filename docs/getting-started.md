@@ -50,6 +50,20 @@ npm run build
 npm start
 ```
 
+On startup you'll see the FlipGod banner:
+
+```
+  ███████╗██╗     ██╗██████╗  ██████╗  ██████╗ ██████╗
+  ██╔════╝██║     ██║██╔══██╗██╔════╝ ██╔═══██╗██╔══██╗
+  █████╗  ██║     ██║██████╔╝██║  ███╗██║   ██║██║  ██║
+  ██╔══╝  ██║     ██║██╔═══╝ ██║   ██║██║   ██║██║  ██║
+  ██║     ███████╗██║██║     ╚██████╔╝╚██████╔╝██████╔╝
+  ╚═╝     ╚══════╝╚═╝╚═╝      ╚═════╝  ╚═════╝ ╚═════╝
+  AI-powered e-commerce arbitrage · 185 tools · 18 platforms
+
+  [FG] FlipGod is live.
+```
+
 The server starts on port 3141 by default (configurable via `FLIPAGENT_PORT`).
 
 ## Verify It Works
@@ -63,22 +77,51 @@ curl http://localhost:3141/health
 
 Connect via any supported channel:
 
-- **WebSocket**: `ws://localhost:3141/ws`
-- **Telegram**: Set `TELEGRAM_BOT_TOKEN` in .env
+- **WebSocket**: `ws://localhost:3141/ws` — connect message: `[FG] Connected — 185 tools, 18 platforms`
+- **Telegram**: Set `TELEGRAM_BOT_TOKEN` in .env — `/start` shows `[FG] Welcome to FlipGod`
 - **Discord**: Set `DISCORD_BOT_TOKEN` in .env
 
 Then just ask:
 
 ```
-"Scan Amazon for wireless earbuds under $20"
-"Compare prices for AirPods across all platforms"
-"Find arbitrage opportunities in electronics"
-"Create an eBay listing for this product"
+"scan amazon for wireless earbuds under $20"
+"compare prices for AirPods across all platforms"
+"find arbitrage in electronics"
+"create an eBay listing for this product"
 ```
+
+All responses from scans and analyses are prefixed with `[FG]`:
+
+```
+[FG] Found 12 opportunities across 4 platforms
+
+| # | Product | Source | Buy | Sell | Margin |
+|---|---------|--------|-----|------|--------|
+| 1 | Sony WH-1000XM5 | Amazon | $248.00 | $329.99 | 33% |
+...
+
+[FG] Done — 47 products scanned, 12 opportunities found
+```
+
+## The `[FG]` Callsign
+
+FlipGod uses `[FG]` as its callsign across every touchpoint:
+
+| Where | Example |
+|-------|---------|
+| Scan results | `[FG] Found 12 opportunities across 4 platforms` |
+| Workflow status | `[FG] Done — 3 listings created` |
+| Startup logs | `[FG] FlipGod is live` |
+| WebSocket connect | `[FG] Connected — 185 tools, 18 platforms` |
+| Telegram welcome | `[FG] Welcome to FlipGod` |
+| Dashboard header | `[FG] FlipGod Dashboard` |
+| CLI status | `[FG] FlipGod Status` |
+| Email alerts | `FlipGod Alert: Price Drop on Sony WH-1000XM5` |
+| Discord embeds | Footer: `FlipGod | alert-id` |
 
 ## Premium Features
 
-FlipGod has a free tier and a premium tier. Premium is unlocked by holding the FlipGod token on Solana -- no subscriptions, no fees.
+FlipGod has a free tier and a premium tier. Premium is unlocked by holding the FlipGod token on Solana — no subscriptions, no fees.
 
 1. Register via the billing API:
    ```bash
