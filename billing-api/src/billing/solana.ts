@@ -8,7 +8,6 @@
  */
 import https from 'https';
 import http from 'http';
-import crypto from 'crypto';
 import { createLogger } from '../utils/logger';
 import type { Db } from '../db';
 
@@ -266,7 +265,7 @@ export function createSolanaTokenGate(
         const isHolder = balance >= minBalance;
 
         // Update stored balance if changed
-        if (balance !== (user.token_balance ?? 0)) {
+        if (balance !== Number(user.token_balance ?? 0)) {
           const newPlan = isHolder ? 'token_holder' : 'free';
           db.query(
             'UPDATE billing_users SET token_balance = $1, plan = $2, updated_at = NOW() WHERE id = $3',

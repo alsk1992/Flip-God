@@ -44,7 +44,7 @@ FlipGod is a self-hosted AI agent that finds arbitrage opportunities across Amaz
 ## Quick Start
 
 ```bash
-git clone https://github.com/flipgodai/flip-god.git
+git clone https://github.com/alsk1992/Flip-God.git
 cd flip-god
 npm install
 npm run build
@@ -129,4 +129,4 @@ MIT
 
 - **Website**: [https://www.flip-god.com/](https://www.flip-god.com/)
 - **Documentation**: [https://www.flip-god.com/docs](https://www.flip-god.com/docs)
-- **GitHub**: [https://github.com/flipgodai/flip-god](https://github.com/flipgodai/flip-god)
+- **GitHub**: [https://github.com/alsk1992/Flip-God](https://github.com/alsk1992/Flip-God)

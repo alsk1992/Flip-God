@@ -123,7 +123,7 @@ export function createPremiumClient(apiKey: string, baseUrl = 'https://compute.f
 
     async reportSale(gmvCents, idempotencyKey, metadata) {
       try {
-        return await request<{ recorded: boolean }>('POST', '/usage/report', {
+        return await request<{ recorded: boolean }>('POST', '/premium/report', {
           gmvCents,
           idempotencyKey,
           metadata,

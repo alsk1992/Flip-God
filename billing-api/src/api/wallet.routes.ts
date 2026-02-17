@@ -10,39 +10,43 @@ export function createWalletRoutes(tokenGate: SolanaTokenGate, db: Db): Router {
 
   // GET /wallet — Get linked wallet info + token balance
   router.get('/', async (req: Request, res: Response) => {
-    const userId = (req as unknown as Record<string, unknown>).userId as string;
+    try {
+      const userId = (req as unknown as Record<string, unknown>).userId as string;
 
-    const user = await db.queryOne<{
-      solana_wallet: string | null;
-      token_balance: number | null;
-      token_verified_at: string | null;
-      plan: string;
-    }>(
-      'SELECT solana_wallet, token_balance, token_verified_at, plan FROM billing_users WHERE id = $1',
-      [userId],
-    );
+      const user = await db.queryOne<{
+        solana_wallet: string | null;
+        token_balance: number | null;
+        token_verified_at: string | null;
+        plan: string;
+      }>(
+        'SELECT solana_wallet, token_balance, token_verified_at, plan FROM billing_users WHERE id = $1',
+        [userId],
+      );
 
-    if (!user?.solana_wallet) {
+      if (!user?.solana_wallet) {
+        res.json({
+          linked: false,
+          message: tokenGate.generateLinkMessage(userId),
+        });
+        return;
+      }
+
+      // Refresh balance
+      const balance = await tokenGate.checkBalance(user.solana_wallet);
+      const effectivePlan = await tokenGate.getEffectivePlan(userId);
+
       res.json({
-        linked: false,
-        message: tokenGate.generateLinkMessage(userId),
+        linked: true,
+        wallet: user.solana_wallet,
+        tokenBalance: balance,
+        isTokenHolder: effectivePlan.source === 'token',
+        plan: effectivePlan.plan,
+        planSource: effectivePlan.source,
+        verifiedAt: user.token_verified_at,
       });
-      return;
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to get wallet status' });
     }
-
-    // Refresh balance
-    const balance = await tokenGate.checkBalance(user.solana_wallet);
-    const effectivePlan = await tokenGate.getEffectivePlan(userId);
-
-    res.json({
-      linked: true,
-      wallet: user.solana_wallet,
-      tokenBalance: balance,
-      isTokenHolder: effectivePlan.source === 'token',
-      plan: effectivePlan.plan,
-      planSource: effectivePlan.source,
-      verifiedAt: user.token_verified_at,
-    });
   });
 
   // POST /wallet/link — Link wallet with signed message
@@ -97,25 +101,29 @@ export function createWalletRoutes(tokenGate: SolanaTokenGate, db: Db): Router {
 
   // POST /wallet/refresh — Force-refresh token balance
   router.post('/refresh', async (req: Request, res: Response) => {
-    const userId = (req as unknown as Record<string, unknown>).userId as string;
+    try {
+      const userId = (req as unknown as Record<string, unknown>).userId as string;
 
-    const user = await db.queryOne<{ solana_wallet: string | null }>(
-      'SELECT solana_wallet FROM billing_users WHERE id = $1',
-      [userId],
-    );
+      const user = await db.queryOne<{ solana_wallet: string | null }>(
+        'SELECT solana_wallet FROM billing_users WHERE id = $1',
+        [userId],
+      );
 
-    if (!user?.solana_wallet) {
-      res.status(400).json({ error: 'No wallet linked' });
-      return;
+      if (!user?.solana_wallet) {
+        res.status(400).json({ error: 'No wallet linked' });
+        return;
+      }
+
+      const effectivePlan = await tokenGate.getEffectivePlan(userId);
+      res.json({
+        wallet: user.solana_wallet,
+        tokenBalance: effectivePlan.tokenBalance,
+        plan: effectivePlan.plan,
+        planSource: effectivePlan.source,
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to refresh wallet' });
     }
-
-    const effectivePlan = await tokenGate.getEffectivePlan(userId);
-    res.json({
-      wallet: user.solana_wallet,
-      tokenBalance: effectivePlan.tokenBalance,
-      plan: effectivePlan.plan,
-      planSource: effectivePlan.source,
-    });
   });
 
   return router;

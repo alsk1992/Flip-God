@@ -41,7 +41,7 @@ API key management, usage tracking, and Solana token-gated premium access for Fl
 | POST | `/validate` | Validate key, return plan |
 | POST | `/premium/score` | 6-signal opportunity scoring |
 | POST | `/premium/optimize` | AI listing optimization |
-| POST | `/usage/report` | Log completed sale GMV |
+| POST | `/premium/report` | Log completed sale GMV |
 
 ## Premium Model
 

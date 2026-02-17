@@ -112,7 +112,6 @@ export function createServer(deps: ServerDeps) {
   // ---------------------------------------------------------------------------
   const apiKeyAuth = requireApiKey(db);
   app.use('/validate', apiKeyAuth, createValidateRoutes());
-  app.use('/usage', apiKeyAuth, createPremiumRoutes(usageService));
   app.use('/premium', apiKeyAuth, createPremiumRoutes(usageService));
 
   // ---------------------------------------------------------------------------

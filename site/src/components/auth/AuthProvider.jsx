@@ -9,28 +9,29 @@ export function AuthProvider({ children }) {
 
   // Check for existing session on mount
   useEffect(() => {
-    const token = localStorage.getItem('fg_access_token');
-    if (token) {
-      // Decode JWT payload (no verification needed client-side)
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          setUser({ id: payload.userId, email: payload.email });
-        } else {
-          // Try refresh
-          api.refreshToken().then((refreshed) => {
+    async function initAuth() {
+      const token = localStorage.getItem('fg_access_token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp * 1000 > Date.now()) {
+            setUser({ id: payload.userId, email: payload.email });
+          } else {
+            // Try refresh
+            const refreshed = await api.refreshToken();
             if (refreshed) {
               const newToken = localStorage.getItem('fg_access_token');
               const newPayload = JSON.parse(atob(newToken.split('.')[1]));
               setUser({ id: newPayload.userId, email: newPayload.email });
             }
-          });
+          }
+        } catch {
+          api.clearTokens();
         }
-      } catch {
-        api.clearTokens();
       }
+      setLoading(false);
     }
-    setLoading(false);
+    initAuth();
   }, []);
 
   // Listen for forced logout events

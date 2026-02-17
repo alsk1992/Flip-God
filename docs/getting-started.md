@@ -9,7 +9,7 @@
 ## Installation
 
 ```bash
-git clone https://github.com/alsk1992/flipagent.git
+git clone https://github.com/alsk1992/Flip-God.git
 cd flipagent
 npm install
 ```

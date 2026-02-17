@@ -91,8 +91,8 @@ export function createPremiumRoutes(usageService: UsageService): Router {
     res.json(optimized);
   });
 
-  // POST /usage/report — Log completed sale GMV (API key auth, analytics only)
-  router.post('/usage/report', async (req: Request, res: Response) => {
+  // POST /premium/report — Log completed sale GMV (API key auth, analytics only)
+  router.post('/report', async (req: Request, res: Response) => {
     const userId = (req as unknown as Record<string, unknown>).userId as string;
     const apiKeyHash = (req as unknown as Record<string, unknown>).apiKeyHash as string | undefined;
 
@@ -102,7 +102,7 @@ export function createPremiumRoutes(usageService: UsageService): Router {
       metadata?: Record<string, unknown>;
     };
 
-    if (typeof gmvCents !== 'number' || gmvCents <= 0) {
+    if (typeof gmvCents !== 'number' || !Number.isFinite(gmvCents) || gmvCents <= 0) {
       res.status(400).json({ error: 'gmvCents must be a positive number' });
       return;
     }

@@ -75,6 +75,7 @@ export function requireApiKey(db: Db) {
     if (cached && cached.expiresAt > Date.now()) {
       (req as unknown as Record<string, unknown>).userId = cached.userId;
       (req as unknown as Record<string, unknown>).userPlan = cached.plan;
+      (req as unknown as Record<string, unknown>).userPlanSource = cached.plan === 'premium' ? 'token' : 'free';
       (req as unknown as Record<string, unknown>).apiKeyHash = keyHash;
       next();
       return;
